@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudioLive MIDI Controller</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      opacity: 0.9;
+      margin-bottom: 30px;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .status-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .status-card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff4444;
+      box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    }
+
+    .status-indicator.connected {
+      background: #44ff44;
+      box-shadow: 0 0 10px rgba(68, 255, 68, 0.5);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      opacity: 0.8;
+    }
+
+    .info-value {
+      font-weight: 600;
+    }
+
+    .instructions {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .instructions h2 {
+      margin-bottom: 15px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      line-height: 1.8;
+    }
+
+    .instructions li {
+      margin-bottom: 10px;
+    }
+
+    code {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎛️ StudioLive MIDI Controller</h1>
+    <p class="subtitle">Control your PreSonus StudioLive mixer with MIDI from Logic Pro</p>
+
+    <div class="status-grid">
+      <div class="status-card">
+        <h2>
+          <span class="status-indicator" id="mixer-status"></span>
+          Mixer Connection
+        </h2>
+        <div class="info-row">
+          <span class="info-label">Status:</span>
+          <span class="info-value" id="mixer-status-text">Disconnected</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">IP Address:</span>
+          <span class="info-value" id="mixer-ip">—</span>
+        </div>
+      </div>
+
+      <div class="status-card">
+        <h2>
+          <span class="status-indicator" id="midi-status"></span>
+          MIDI Connection
+        </h2>
+        <div class="info-row">
+          <span class="info-label">Status:</span>
+          <span class="info-value" id="midi-status-text">Disconnected</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Device:</span>
+          <span class="info-value" id="midi-device">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h2>📋 Getting Started</h2>
+      <ol>
+        <li>Check the console output for connection status</li>
+        <li>Set your mixer IP address using <code>MIXER_IP</code> environment variable</li>
+        <li>In Logic Pro, enable MIDI output to this application</li>
+        <li>Map Logic Pro faders/knobs to MIDI CC messages</li>
+        <li>Edit <code>presets/logic-pro-default.json</code> to customize mappings</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>
+

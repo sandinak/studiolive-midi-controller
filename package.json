@@ -1,0 +1,31 @@
+{
+  "name": "studiolive-midi-controller",
+  "version": "0.1.0",
+  "description": "MIDI controller for PreSonus StudioLive mixers using Logic Pro",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "tsc -p tsconfig.main.json && electron .",
+    "build": "tsc -p tsconfig.main.json",
+    "start": "electron .",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "presonus",
+    "studiolive",
+    "midi",
+    "logic-pro",
+    "mixer",
+    "controller"
+  ],
+  "author": "sandinak",
+  "license": "MIT",
+  "dependencies": {
+    "easymidi": "^3.0.1",
+    "presonus-studiolive-api": "file:../presonus-studiolive-api"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "electron": "^28.2.0",
+    "typescript": "^5.3.3"
+  }
+}
