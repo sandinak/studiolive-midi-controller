@@ -13,70 +13,195 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: #fff;
-      padding: 20px;
+      background: #0d0d0d;
+      color: #e0e0e0;
+      padding: 0;
       min-height: 100vh;
+      padding-bottom: 50px; /* Space for status bar */
     }
 
     .container {
-      max-width: 1200px;
-      margin: 0 auto;
+      max-width: 100%;
+      margin: 0;
+      padding: 15px;
+    }
+
+    /* Header with activity indicators */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding: 10px 15px;
+      background: rgba(20, 20, 20, 0.8);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 15px;
     }
 
     h1 {
-      font-size: 2.5rem;
-      margin-bottom: 10px;
-      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+      font-size: 1.5rem;
+      color: #e0e0e0;
+      font-weight: 600;
     }
 
-    .subtitle {
-      font-size: 1.2rem;
-      opacity: 0.9;
-      margin-bottom: 30px;
+    .mix-page-badge {
+      background: rgba(74, 155, 127, 0.2);
+      border: 1px solid #4a9b7f;
+      color: #4a9b7f;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
     }
 
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
+    /* Top right status indicators */
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 0.85rem;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: rgba(30, 30, 30, 0.6);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .connection-status:hover {
+      background: rgba(40, 40, 40, 0.8);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+    }
+
+    .status-dot.connected {
+      background: #4a9b7f;
+      box-shadow: 0 0 8px rgba(74, 155, 127, 0.6);
+    }
+
+    .activity-indicator {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.3);
+      transition: all 0.15s;
+      font-weight: bold;
+    }
+
+    .activity-indicator::before {
+      content: '↕';
+    }
+
+    .activity-indicator.active {
+      text-shadow: 0 0 8px currentColor;
+    }
+
+    .activity-indicator.active.midi { color: #5b9bd5; }
+    .activity-indicator.active.mixer { color: #d97c4e; }
+
+    /* Main layout */
+    .main-layout {
+      display: block;
+      position: relative;
+    }
+
+    /* Collapsible Sidebar */
+    .sidebar {
+      position: fixed;
+      left: -320px;
+      top: 0;
+      bottom: 50px; /* Above status bar */
+      width: 320px;
+      background: rgba(15, 15, 15, 0.98);
+      backdrop-filter: blur(10px);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      transition: left 0.3s ease;
+      z-index: 1000;
+      overflow-y: auto;
+      padding: 80px 15px 15px 15px; /* Top padding for header */
+    }
+
+    .sidebar.open {
+      left: 0;
+    }
+
+    .sidebar-toggle {
+      position: fixed;
+      left: 10px;
+      top: 80px;
+      width: 40px;
+      height: 40px;
+      background: rgba(30, 30, 30, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      transition: all 0.2s;
+      color: #e0e0e0;
+    }
+
+    .sidebar-toggle:hover {
+      background: rgba(40, 40, 40, 0.9);
+      border-color: #4a9b7f;
+    }
+
+    .sidebar.open + .sidebar-toggle {
+      left: 330px;
     }
 
     .status-card {
-      background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
-      border-radius: 12px;
-      padding: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(30, 30, 30, 0.6);
+      border-radius: 8px;
+      padding: 15px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 15px;
     }
 
     .status-card h2 {
-      font-size: 1.2rem;
-      margin-bottom: 15px;
+      font-size: 1rem;
+      margin-bottom: 12px;
       display: flex;
       align-items: center;
       gap: 10px;
+      color: #b0b0b0;
+      font-weight: 600;
     }
 
     .status-indicator {
-      width: 12px;
-      height: 12px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: #ff4444;
       box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
     }
 
     .status-indicator.connected {
-      background: #44ff44;
-      box-shadow: 0 0 10px rgba(68, 255, 68, 0.5);
+      background: #4a9b7f;
+      box-shadow: 0 0 10px rgba(74, 155, 127, 0.5);
     }
 
     .info-row {
       display: flex;
       justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.85rem;
     }
 
     .info-row:last-child {
@@ -84,90 +209,3109 @@
     }
 
     .info-label {
-      opacity: 0.8;
+      color: #888;
     }
 
     .info-value {
-      font-weight: 600;
+      font-weight: 500;
+      color: #e0e0e0;
     }
 
-    .instructions {
+    .btn {
+      background: rgba(74, 155, 127, 0.2);
+      border: 1px solid rgba(74, 155, 127, 0.4);
+      color: #4a9b7f;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      width: 100%;
+      margin-top: 10px;
+      font-weight: 500;
+    }
+
+    .btn:hover {
+      background: rgba(74, 155, 127, 0.3);
+      border-color: #4a9b7f;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 0;
+    }
+
+    .tab {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #888;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .tab:hover {
+      color: #b0b0b0;
+      border-bottom-color: rgba(74, 155, 127, 0.3);
+    }
+
+    .tab.active {
+      color: #4a9b7f;
+      border-bottom-color: #4a9b7f;
+    }
+
+    .tab-content {
+      display: none;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .tab-content.active {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Content area */
+    .content-area {
+      background: rgba(20, 20, 20, 0.4);
+      border-radius: 8px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 130px); /* Full height minus header and status bar */
+    }
+
+    /* Faders view */
+    #faders-view {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .faders-toolbar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 8px;
+      background: rgba(30, 30, 30, 0.5);
+      border-radius: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .faders-toolbar .btn {
+      margin: 0;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      width: auto;
+    }
+
+    .faders-grid {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+      align-items: stretch;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-bottom: 10px;
+      position: relative;
+    }
+
+    .faders-scrollable {
+      display: flex;
+      gap: 6px;
+      align-items: stretch;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+    }
+
+    .faders-main {
+      display: flex;
+      gap: 6px;
+      align-items: stretch;
+      padding-left: 12px;
+      border-left: 2px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .fader-channel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      background: rgba(80, 80, 80, 0.8);
+      padding: 6px 4px;
+      border-radius: 4px;
+      min-width: 65px;
+      max-width: 75px;
+      flex-shrink: 0;
+      height: 100%;
+      transition: box-shadow 0.3s ease;
+    }
+
+    /* Change source indicators */
+    .fader-channel.change-midi {
+      box-shadow: 0 0 12px rgba(91, 155, 213, 0.6);
+    }
+
+    .fader-channel.change-api {
+      box-shadow: 0 0 12px rgba(217, 124, 78, 0.6);
+    }
+
+    .fader-channel.change-ui {
+      box-shadow: 0 0 12px rgba(74, 155, 127, 0.6);
+    }
+
+    .fader-channel.selected {
+      box-shadow: 0 0 16px rgba(91, 155, 213, 0.8);
+      outline: 2px solid rgba(91, 155, 213, 0.6);
+      outline-offset: 2px;
+    }
+
+    .fader-value {
+      font-size: 0.65rem;
+      font-weight: 600;
+      color: #b0b0b0;
+      min-height: 14px;
+    }
+
+    .fader-indicators {
+      display: flex;
+      gap: 3px;
+      justify-content: center;
+      margin-bottom: 2px;
+      min-height: 16px;
+    }
+
+    .fader-indicator {
+      font-size: 0.5rem;
+      font-weight: bold;
+      padding: 1px 3px;
+      border-radius: 2px;
+      line-height: 1;
+    }
+
+    .fader-indicator.main-assign {
+      background: #4a90e2;
+      color: #fff;
+    }
+
+    .fader-indicator.input-source {
+      background: rgba(100, 100, 100, 0.6);
+      color: #e0e0e0;
+      font-size: 0.45rem;
+    }
+
+    .fader-icon {
+      font-size: 1.2rem;
+      text-align: center;
+      padding: 2px 0;
+      width: 100%;
+      min-height: 24px; /* Fixed height to ensure consistent alignment */
+    }
+
+    .fader-channel-number {
+      font-size: 1rem;
+      font-weight: bold;
+      text-align: center;
+      color: #e0e0e0;
+      padding: 2px 0;
+      width: 100%;
+      min-height: 20px;
+    }
+
+    .fader-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.1;
+      padding: 3px 4px;
+      border-radius: 3px;
+      width: 100%;
+      min-height: 18px; /* Fixed height to ensure consistent alignment */
+      /* Color will be set inline based on background brightness */
+    }
+
+    .fader-mapping-info {
+      font-size: 0.55rem;
+      color: #ffffff;
+      text-align: center;
+      padding: 2px 4px;
+      line-height: 1.2;
+      width: 100%;
+      min-height: 16px; /* Fixed height to ensure consistent alignment */
+    }
+
+    .mute-btn {
+      width: 28px;
+      height: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(30, 30, 30, 0.6);
+      color: rgba(255, 255, 255, 0.5);
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 0;
+    }
+
+    .mute-btn:hover {
+      background: rgba(50, 50, 50, 0.8);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .mute-btn.active {
+      background: #c74a3a;
+      border-color: #c74a3a;
+      color: #fff;
+      box-shadow: 0 0 8px rgba(199, 74, 58, 0.5);
+    }
+
+    .solo-btn {
+      width: 28px;
+      height: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(30, 30, 30, 0.6);
+      color: rgba(255, 255, 255, 0.5);
+      border-radius: 3px;
+      font-size: 0.65rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 0;
+    }
+
+    .solo-btn:hover {
+      background: rgba(50, 50, 50, 0.8);
+      border-color: rgba(255, 255, 255, 0.4);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .solo-btn.active {
+      background: #f4c430;
+      border-color: #f4c430;
+      color: #000;
+      box-shadow: 0 0 8px rgba(244, 196, 48, 0.5);
+    }
+
+    .fader-controls {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .fader-container {
+      width: 24px;
+      height: 100%; /* Fill available height */
+      min-height: 200px;
+      background: rgba(50, 50, 50, 0.95);
+      border-radius: 12px;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    /* Stereo fader - half width for dual L/R display */
+    .fader-container.stereo {
+      width: 11px;
+    }
+
+    .fader-container:hover {
+      border-color: rgba(74, 155, 127, 0.5);
+    }
+
+    .fader-container.dragging {
+      border-color: #4a9b7f;
+    }
+
+    .fader-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to bottom, #4a9b7f, #3d7a63);
+      border-radius: 0 0 13px 13px;
+      transition: height 0.1s;
+    }
+
+    .fader-midi-indicator {
+      position: absolute;
+      left: -8px;
+      right: -8px;
+      height: 2px;
+      background: #ff9800;
+      box-shadow: 0 0 4px rgba(255, 152, 0, 0.8);
+      pointer-events: none;
+      z-index: 10;
+      transition: bottom 0.1s ease-out;
+    }
+
+    .fader-midi-indicator::before {
+      content: '';
+      position: absolute;
+      left: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-left: 6px solid #ff9800;
+    }
+
+    .fader-midi-indicator::after {
+      content: '';
+      position: absolute;
+      right: -4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      border-right: 6px solid #ff9800;
+    }
+
+    /* Zero line indicator at 0dB (75% height) */
+    .fader-container::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 75%; /* 0dB is at 75% */
+      height: 2px;
+      background: rgba(255, 255, 255, 0.4);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .fader-wrapper {
+      display: flex;
+      align-items: stretch; /* Stretch to fill height */
+      justify-content: flex-start; /* Align to start */
+      gap: 3px;
+      flex: 1;
+    }
+
+    .fader-levels {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 200px;
+      font-size: 0.55rem;
+      color: rgba(255, 255, 255, 0.3);
+      line-height: 1;
+      min-width: 18px;
+      text-align: right;
+      flex-shrink: 0; /* Don't shrink the levels */
+    }
+
+    /* Wrapper for fader-container to center it */
+    .fader-container-wrapper {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      flex: 1;
+    }
+
+    /* Mappings view */
+    .mappings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .mappings-list {
+      display: grid;
+      gap: 15px;
+    }
+
+    .mapping-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .mapping-activity {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.15s;
+    }
+
+    .mapping-activity.active {
+      background: #00ff88;
+      box-shadow: 0 0 10px #00ff88;
+    }
+
+    .mapping-info {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .mapping-source, .mapping-target {
+      font-size: 0.9rem;
+    }
+
+    .mapping-arrow {
+      font-size: 1.5rem;
+      opacity: 0.6;
+    }
+
+    .btn-small {
       background: rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .btn-small:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-small.danger:hover {
+      background: rgba(255, 68, 68, 0.3);
+      border-color: rgba(255, 68, 68, 0.5);
+    }
+
+    /* Context Menu */
+    .context-menu {
+      position: fixed;
+      background: rgba(30, 30, 30, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      padding: 4px 0;
+      min-width: 150px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      display: none;
+    }
+
+    .context-menu.show {
+      display: block;
+    }
+
+    .context-menu-item {
+      padding: 8px 16px;
+      color: #e0e0e0;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+
+    .context-menu-item:hover {
+      background: rgba(74, 155, 127, 0.3);
+    }
+
+    .context-menu-item.danger:hover {
+      background: rgba(255, 68, 68, 0.3);
+    }
+
+    .context-menu-separator {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 4px 0;
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: rgba(20, 20, 20, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 12px;
       padding: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: 500px;
+      width: 90%;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
     }
 
-    .instructions h2 {
+    .modal-content h2 {
       margin-bottom: 15px;
+      margin-top: 0;
+      color: #e0e0e0;
+      font-size: 1.3rem;
     }
 
-    .instructions ol {
-      margin-left: 20px;
-      line-height: 1.8;
+    .form-group {
+      margin-bottom: 12px;
     }
 
-    .instructions li {
-      margin-bottom: 10px;
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+      color: #b0b0b0;
     }
 
-    code {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 2px 6px;
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 15px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(30, 30, 30, 0.8);
+      color: #e0e0e0;
+      font-size: 1rem;
+    }
+
+    .form-group input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .mixer-list {
+      display: grid;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .mixer-item {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mixer-info {
+      flex: 1;
+    }
+
+    .mixer-item .btn {
+      min-width: 80px;
+      width: auto;
+      padding: 8px 16px;
+    }
+
+    .mixer-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+    }
+
+    .mixer-details {
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      opacity: 0.5;
+      color: #666;
+    }
+
+    /* Bottom Status Bar */
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: rgba(15, 15, 15, 0.95);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 0.85rem;
+      z-index: 900;
+    }
+
+    .status-bar-left, .status-bar-center, .status-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .status-bar-center {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-item-label {
+      color: #666;
+      font-size: 0.8rem;
+    }
+
+    .status-item-value {
+      color: #b0b0b0;
+      font-weight: 500;
+    }
+
+    .status-item-value.connected {
+      color: #4a9b7f;
+    }
+
+    .status-item-value.disconnected {
+      color: #c74a3a;
+    }
+
+    /* MIDI Log Window */
+    .midi-log-window {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 400px;
+      height: 300px;
+      background: rgba(20, 20, 20, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      display: none;
+      flex-direction: column;
+      z-index: 999;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+    }
+
+    .midi-log-window.show {
+      display: flex;
+    }
+
+    .midi-log-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(30, 30, 30, 0.8);
+      border-radius: 8px 8px 0 0;
+    }
+
+    .midi-log-header h3 {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #e0e0e0;
+    }
+
+    .midi-log-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .midi-log-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #e0e0e0;
+      padding: 4px 8px;
       border-radius: 4px;
-      font-family: 'Monaco', 'Courier New', monospace;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+
+    .midi-log-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    .midi-log-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+
+    .midi-log-entry {
+      padding: 4px 8px;
+      margin-bottom: 2px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .midi-log-entry.cc {
+      border-left: 3px solid #4a9b7f;
+    }
+
+    .midi-log-entry.note {
+      border-left: 3px solid #9b7f4a;
+    }
+
+    .midi-log-timestamp {
+      color: #666;
+      margin-right: 8px;
+    }
+
+    .midi-log-type {
+      color: #4a9b7f;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .midi-log-entry.note .midi-log-type {
+      color: #9b7f4a;
+    }
+
+    .midi-log-details {
+      color: #b0b0b0;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🎛️ StudioLive MIDI Controller</h1>
-    <p class="subtitle">Control your PreSonus StudioLive mixer with MIDI from Logic Pro</p>
-
-    <div class="status-grid">
-      <div class="status-card">
-        <h2>
-          <span class="status-indicator" id="mixer-status"></span>
-          Mixer Connection
-        </h2>
-        <div class="info-row">
-          <span class="info-label">Status:</span>
-          <span class="info-value" id="mixer-status-text">Disconnected</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">IP Address:</span>
-          <span class="info-value" id="mixer-ip">—</span>
-        </div>
+    <div class="header">
+      <div class="header-left">
+        <h1>🎛️ StudioLive MIDI Controller</h1>
       </div>
-
-      <div class="status-card">
-        <h2>
-          <span class="status-indicator" id="midi-status"></span>
-          MIDI Connection
-        </h2>
-        <div class="info-row">
-          <span class="info-label">Status:</span>
-          <span class="info-value" id="midi-status-text">Disconnected</span>
+      <div class="header-right">
+        <button class="btn-small" onclick="showPreferences()" title="Preferences">⚙️</button>
+        <button class="btn-small" onclick="showSavePreset()" title="Save Profile">💾 Save</button>
+        <button class="btn-small" onclick="showLoadPreset()" title="Load Profile">📂 Load</button>
+        <button class="btn-small" onclick="toggleMidiLog()" title="Show MIDI Log">📊 MIDI Log</button>
+        <div class="connection-status" onclick="openConnectionPanel('midi')" id="midi-connection-status" title="">
+          <div class="status-dot" id="midi-status-dot"></div>
+          <span id="midi-status-short">MIDI</span>
+          <div class="activity-indicator midi" id="midi-activity"></div>
         </div>
-        <div class="info-row">
-          <span class="info-label">Device:</span>
-          <span class="info-value" id="midi-device">—</span>
+        <div class="connection-status" onclick="openConnectionPanel('mixer')" id="mixer-connection-status" title="">
+          <div class="status-dot" id="mixer-status-dot"></div>
+          <span id="mixer-status-short">Mixer</span>
+          <div class="activity-indicator mixer" id="mixer-activity"></div>
         </div>
       </div>
     </div>
 
-    <div class="instructions">
-      <h2>📋 Getting Started</h2>
-      <ol>
-        <li>Check the console output for connection status</li>
-        <li>Set your mixer IP address using <code>MIXER_IP</code> environment variable</li>
-        <li>In Logic Pro, enable MIDI output to this application</li>
-        <li>Map Logic Pro faders/knobs to MIDI CC messages</li>
-        <li>Edit <code>presets/logic-pro-default.json</code> to customize mappings</li>
-      </ol>
+    <div class="main-layout">
+      <!-- Main content -->
+      <div class="content-area">
+        <div id="faders-view" class="tab-content active">
+          <div class="faders-toolbar">
+            <button class="btn" onclick="showAddMapping()">➕ Add Channel</button>
+            <button class="btn" onclick="removeSelectedChannels()">➖ Remove Selected</button>
+            <button class="btn" onclick="clearAllChannels()">🗑️ Clear All</button>
+            <button class="btn" id="filter-btn" onclick="toggleFaderFilter()">🔍 Show: All</button>
+          </div>
+          <div class="faders-grid">
+            <div id="faders-container" class="faders-scrollable"></div>
+            <div id="faders-main-container" class="faders-main"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- Bottom Status Bar -->
+  <div class="status-bar">
+    <div class="status-bar-left">
+      <div class="status-item">
+        <span id="status-init">Initializing...</span>
+      </div>
+    </div>
+    <div class="status-bar-center">
+      <div class="status-item">
+        <span class="status-item-label">Profile:</span>
+        <span class="status-item-value" id="status-profile">None</span>
+        <span id="status-unsaved" style="color: #ff9800; margin-left: 8px; display: none;">●</span>
+      </div>
+      <div class="status-item">
+        <span class="status-item-label">Last Saved:</span>
+        <span class="status-item-value" id="status-last-saved">Never</span>
+      </div>
+    </div>
+    <div class="status-bar-right">
+      <div class="status-item">
+        <span class="status-item-label">Version:</span>
+        <span class="status-item-value" id="status-version">0.9.0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="discovery-modal" class="modal">
+    <div class="modal-content">
+      <h2>🔍 Find Mixer</h2>
+      <button class="btn" id="scan-btn" onclick="scanForMixers()">Scan Network</button>
+      <div id="mixer-list" class="mixer-list">
+        <div class="empty-state">Click "Scan Network" to discover mixers</div>
+      </div>
+      <h3 style="margin-top: 20px; margin-bottom: 10px;">Manual Connection</h3>
+      <div class="form-group">
+        <input type="text" id="manual-ip" placeholder="Enter mixer IP (e.g., 192.168.1.100)" />
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="connectManual()">Connect</button>
+        <button class="btn" onclick="hideDiscovery()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-mapping-modal" class="modal">
+    <div class="modal-content">
+      <h2>➕ Create Mapping</h2>
+      <!-- Mixer Settings (Top) -->
+      <div class="form-group">
+        <label>Mixer Channel Type</label>
+        <select id="mixer-channel-type" onchange="updateChannelNumberOptions()">
+          <option value="LINE">Line Input</option>
+          <option value="RETURN">Digital Return (Dig Ret)</option>
+          <option value="FXRETURN">FX Return</option>
+          <option value="TALKBACK">Talkback</option>
+          <option value="AUX">Aux Output</option>
+          <option value="FX">FX Bus</option>
+          <option value="SUB">Subgroup</option>
+          <option value="MAIN">Main Mix</option>
+          <option value="DCA">DCA Group</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mixer Channel Number</label>
+        <select id="mixer-channel-num" onchange="updateMidiSettingsForChannel()">
+          <!-- Will be populated dynamically -->
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mixer Action</label>
+        <select id="mixer-action">
+          <option value="volume">Volume</option>
+          <option value="mute">Mute</option>
+          <option value="solo">Solo</option>
+          <option value="pan">Pan</option>
+        </select>
+      </div>
+      <!-- MIDI Settings (Bottom) -->
+      <div class="form-group">
+        <label>MIDI Type</label>
+        <select id="midi-type" onchange="updateMidiTypeFields()">
+          <option value="none">None</option>
+          <option value="cc">Control Change (CC)</option>
+          <option value="note">Note (Trigger)</option>
+          <option value="note-value">Note (Value Mode)</option>
+        </select>
+      </div>
+      <div class="form-group" id="cc-group">
+        <label>CC Type</label>
+        <select id="midi-cc">
+          <option value="1">CC1 - Modulation</option>
+          <option value="2">CC2 - Breath Controller</option>
+          <option value="7" selected>CC7 - Volume</option>
+          <option value="10">CC10 - Pan</option>
+          <option value="11">CC11 - Expression</option>
+          <option value="64">CC64 - Sustain Pedal</option>
+          <option value="71">CC71 - Resonance</option>
+          <option value="74">CC74 - Brightness</option>
+          <option value="91">CC91 - Reverb</option>
+          <option value="93">CC93 - Chorus</option>
+          <option value="102">CC102 - Volume (Alt)</option>
+          <option value="103">CC103 - Pan (Alt)</option>
+          <option value="104">CC104 - Expression (Alt)</option>
+        </select>
+        <small style="color: #888; display: block; margin-top: 5px;">Logic Pro default: CC7 (Volume) with channel = mixer channel number</small>
+      </div>
+      <div class="form-group">
+        <label>Logic Channel (1-16)</label>
+        <input type="number" id="midi-channel" value="1" min="1" max="16" />
+        <small style="color: #888; display: block; margin-top: 5px;">Logic Pro uses channels 1-16 (MIDI 0-15 internally)</small>
+      </div>
+      <div class="form-group" id="note-group" style="display:none;">
+        <label>Note Number (Trigger)</label>
+        <input type="number" id="midi-note" value="60" min="0" max="127" oninput="updateNoteDisplay()" />
+        <small style="color: #888;" id="note-display">C4 (60)</small>
+      </div>
+      <div class="form-group" id="note-value-group" style="display:none;">
+        <label>Note Range (C1-C4 = 24-60)</label>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #888;">Min Note</label>
+            <input type="number" id="midi-note-min" value="24" min="0" max="127" oninput="updateNoteMinDisplay()" />
+            <small style="color: #888; display: block;" id="note-min-display">C1 (24)</small>
+          </div>
+          <div style="flex: 1;">
+            <label style="font-size: 0.75rem; color: #888;">Max Note</label>
+            <input type="number" id="midi-note-max" value="60" min="0" max="127" oninput="updateNoteMaxDisplay()" />
+            <small style="color: #888; display: block;" id="note-max-display">C4 (60)</small>
+          </div>
+        </div>
+        <small style="color: #888; display: block; margin-top: 5px;">Note number maps to fader value (min=0%, max=100%)</small>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="addMapping()">Add Mapping</button>
+        <button class="btn" onclick="hideAddMapping()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="save-preset-modal" class="modal">
+    <div class="modal-content">
+      <h2>💾 Save Preset</h2>
+      <div class="form-group">
+        <label>Preset Name</label>
+        <input type="text" id="preset-name" placeholder="My Preset" />
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <input type="text" id="preset-description" placeholder="Description" />
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="savePreset()">Save</button>
+        <button class="btn" onclick="hideSavePreset()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="midi-select-modal" class="modal">
+    <div class="modal-content">
+      <h2>🎹 MIDI Connection</h2>
+      <div id="midi-devices-list" class="mixer-list">
+        <div class="empty-state">Loading MIDI devices...</div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="refreshMidiDevices()">🔄 Refresh</button>
+        <button class="btn" onclick="hideMidiSelect()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="preferences-modal" class="modal">
+    <div class="modal-content">
+      <h2>⚙️ Preferences</h2>
+      <div class="form-group">
+        <label>Fader Smoothing</label>
+        <input type="range" id="fader-smoothing" min="0" max="500" value="200" step="50" oninput="updateSmoothingDisplay()" />
+        <small style="color: #888; display: block; margin-top: 5px;">
+          Speed: <span id="smoothing-display">200</span>ms (relative to change amount)
+        </small>
+        <small style="color: #888; display: block; margin-top: 5px;">
+          Lower = faster response, Higher = smoother transitions
+        </small>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="savePreferences()">Save</button>
+        <button class="btn" onclick="hidePreferences()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu" class="context-menu">
+    <div class="context-menu-item" onclick="contextMenuEdit()">✏️ Edit Mapping</div>
+    <div class="context-menu-item" onclick="contextMenuDuplicate()">📋 Duplicate</div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" onclick="contextMenuClearChannel()">🧹 Clear Channel</div>
+    <div class="context-menu-item danger" onclick="contextMenuDelete()">🗑️ Delete</div>
+  </div>
+
+  <!-- MIDI Log Window -->
+  <div id="midi-log-window" class="midi-log-window">
+    <div class="midi-log-header">
+      <h3>📊 MIDI Events</h3>
+      <div class="midi-log-controls">
+        <button class="midi-log-btn" onclick="clearMidiLog()">Clear</button>
+        <button class="midi-log-btn" onclick="toggleMidiLog()">Close</button>
+      </div>
+    </div>
+    <div class="midi-log-content" id="midi-log-content">
+      <div style="color: #666; text-align: center; padding: 20px;">No MIDI events yet...</div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    // Track mapping activity
+    const mappingActivity = new Map();
+
+    // Default color - grey so it's clear when mixer colors are applied
+    const DEFAULT_COLOR = '#666666';
+
+    // Store fader colors to preserve them across updates
+    const faderColors = new Map();
+
+    // Fader filter state: 'all' or 'mapped'
+    let faderFilter = 'all';
+
+    // Flag to prevent auto-updating MIDI settings when editing
+    let isEditingMapping = false;
+
+    // Update status bar initialization message
+    function updateStatusInit(message) {
+      const statusInit = document.getElementById('status-init');
+      if (statusInit) {
+        statusInit.textContent = message;
+      }
+    }
+
+    // Update status bar profile
+    function updateStatusProfile(profileName) {
+      const statusProfile = document.getElementById('status-profile');
+      if (statusProfile) {
+        statusProfile.textContent = profileName || 'None';
+      }
+    }
+
+    // Update status bar last saved
+    function updateStatusLastSaved(timestamp) {
+      const statusLastSaved = document.getElementById('status-last-saved');
+      if (statusLastSaved) {
+        if (timestamp) {
+          const date = new Date(timestamp);
+          statusLastSaved.textContent = date.toLocaleTimeString();
+          // Clear unsaved indicator when saved
+          markConfigSaved();
+        } else {
+          statusLastSaved.textContent = 'Never';
+        }
+      }
+    }
+
+    // Mark config as changed (unsaved)
+    function markConfigChanged() {
+      const unsavedIndicator = document.getElementById('status-unsaved');
+      if (unsavedIndicator) {
+        unsavedIndicator.style.display = 'inline';
+        unsavedIndicator.title = 'Unsaved changes';
+      }
+    }
+
+    // Mark config as saved
+    function markConfigSaved() {
+      const unsavedIndicator = document.getElementById('status-unsaved');
+      if (unsavedIndicator) {
+        unsavedIndicator.style.display = 'none';
+      }
+    }
+
+    // Calculate text color based on background brightness
+    function getTextColorForBackground(hexColor) {
+      // Remove # if present
+      const hex = hexColor.replace('#', '');
+
+      // Convert to RGB
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+
+      // Calculate relative luminance (perceived brightness)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+      // Return dark text for light backgrounds, light text for dark backgrounds
+      return luminance > 0.5 ? '#1a1a1a' : '#ffffff';
+    }
+
+    // Icon mapping from Universal Control icon IDs to emoji
+    // More specific matches first (e.g., 'acousticguitar' before 'guitar')
+    const ICON_MAP = {
+      'acousticguitar': '🪕',  // Acoustic guitar
+      'acoustic': '🪕',
+      'electricguitar': '🎸',  // Electric guitar
+      'electric': '🎸',
+      'bass': '🎸',            // Bass guitar (different from regular guitar)
+      'guitar': '🎸',          // Generic guitar
+      'mic': '🎤',
+      'vocal': '🎤',
+      'keys': '🎹',
+      'piano': '🎹',
+      'keyboard': '🎹',
+      'drums': '🥁',
+      'synth': '🎹',
+      'strings': '🎻',
+      'violin': '🎻',
+      'brass': '🎺',
+      'trumpet': '🎺',
+      'woodwind': '🎷',
+      'sax': '🎷',
+      'percussion': '🥁',
+      'fx': '✨',
+      'effect': '✨',
+      'return': '↩️',
+      'aux': '🔊',
+      'main': '🔊',
+      'default': '🎚️'
+    };
+
+    function getIconForId(iconId) {
+      if (!iconId) return '';
+      const id = iconId.toLowerCase().replace(/[_\s-]/g, '');  // Remove separators
+
+      // Check for specific matches first (order matters!)
+      const orderedKeys = [
+        'acousticguitar', 'acoustic', 'electricguitar', 'electric', 'bass',
+        'guitar', 'mic', 'vocal', 'keys', 'piano', 'keyboard', 'drums',
+        'synth', 'strings', 'violin', 'brass', 'trumpet', 'woodwind', 'sax',
+        'percussion', 'fx', 'effect', 'return', 'aux', 'main'
+      ];
+
+      for (const key of orderedKeys) {
+        if (id.includes(key)) {
+          return ICON_MAP[key];
+        }
+      }
+
+      return ICON_MAP.default;
+    }
+
+    // Sidebar toggle
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      sidebar.classList.toggle('open');
+    }
+
+    // Open specific connection panel
+    function openConnectionPanel(type) {
+      if (type === 'midi') {
+        showMidiSelect();
+      } else if (type === 'mixer') {
+        showDiscovery();
+      }
+    }
+
+    // Flash activity indicator (supports multiple IDs)
+    function flashActivity(baseId) {
+      // Flash both header and status bar indicators
+      const ids = [baseId, `status-${baseId}`];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.classList.add('active');
+          setTimeout(() => el.classList.remove('active'), 150);
+        }
+      });
+    }
+
+    // Add change source indicator to fader
+    let changeIndicatorTimeouts = new Map();
+    function indicateFaderChange(channelType, channelNum, source) {
+      const faderId = `${channelType}-${channelNum}`;
+      const faderChannel = document.querySelector(`[data-fader-id="${faderId}"]`)?.closest('.fader-channel');
+
+      if (faderChannel) {
+        // Clear existing timeout
+        const key = faderId;
+        if (changeIndicatorTimeouts.has(key)) {
+          clearTimeout(changeIndicatorTimeouts.get(key));
+        }
+
+        // Remove all change classes
+        faderChannel.classList.remove('change-midi', 'change-api', 'change-ui');
+
+        // Add appropriate class
+        if (source === 'midi') {
+          faderChannel.classList.add('change-midi');
+        } else if (source === 'api') {
+          faderChannel.classList.add('change-api');
+        } else if (source === 'ui') {
+          faderChannel.classList.add('change-ui');
+        }
+
+        // Remove after 300ms
+        const timeout = setTimeout(() => {
+          faderChannel.classList.remove('change-midi', 'change-api', 'change-ui');
+          changeIndicatorTimeouts.delete(key);
+        }, 300);
+
+        changeIndicatorTimeouts.set(key, timeout);
+      }
+    }
+
+    // MIDI Log functionality
+    const midiLogEntries = [];
+    const MAX_LOG_ENTRIES = 100;
+
+    function toggleMidiLog() {
+      const logWindow = document.getElementById('midi-log-window');
+      logWindow.classList.toggle('show');
+    }
+
+    function clearMidiLog() {
+      midiLogEntries.length = 0;
+      const logContent = document.getElementById('midi-log-content');
+      logContent.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No MIDI events yet...</div>';
+    }
+
+    function addMidiLogEntry(midiMessage) {
+      const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+
+      let type = 'unknown';
+      let details = '';
+
+      if (midiMessage.type === 'cc') {
+        type = 'cc';
+        details = `CC${midiMessage.controller} Ch${midiMessage.channel} = ${midiMessage.value}`;
+      } else if (midiMessage.type === 'noteon') {
+        type = 'note';
+        const noteName = getNoteNameFromNumber(midiMessage.note);
+        details = `Note ON ${noteName} (${midiMessage.note}) Ch${midiMessage.channel} Vel=${midiMessage.velocity}`;
+      } else if (midiMessage.type === 'noteoff') {
+        type = 'note';
+        const noteName = getNoteNameFromNumber(midiMessage.note);
+        details = `Note OFF ${noteName} (${midiMessage.note}) Ch${midiMessage.channel}`;
+      }
+
+      const entry = { timestamp, type, details };
+      midiLogEntries.push(entry);
+
+      // Keep only last MAX_LOG_ENTRIES
+      if (midiLogEntries.length > MAX_LOG_ENTRIES) {
+        midiLogEntries.shift();
+      }
+
+      // Update UI
+      const logContent = document.getElementById('midi-log-content');
+      const entryDiv = document.createElement('div');
+      entryDiv.className = `midi-log-entry ${type}`;
+      entryDiv.innerHTML = `<span class="midi-log-timestamp">${timestamp}</span><span class="midi-log-type">${type.toUpperCase()}</span><span class="midi-log-details">${details}</span>`;
+
+      logContent.appendChild(entryDiv);
+
+      // Remove placeholder if exists
+      const placeholder = logContent.querySelector('div[style*="color: #666"]');
+      if (placeholder) {
+        placeholder.remove();
+      }
+
+      // Auto-scroll to bottom
+      logContent.scrollTop = logContent.scrollHeight;
+
+      // Keep only last MAX_LOG_ENTRIES in DOM
+      while (logContent.children.length > MAX_LOG_ENTRIES) {
+        logContent.removeChild(logContent.firstChild);
+      }
+    }
+
+    function getNoteNameFromNumber(noteNumber) {
+      const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const octave = Math.floor(noteNumber / 12) - 1;
+      const noteName = noteNames[noteNumber % 12];
+      return `${noteName}${octave}`;
+    }
+
+    // Helper function to get CC shorthand name
+    function getCCShorthand(ccNumber) {
+      const CC_SHORTHAND = {
+        1: 'Mod',
+        2: 'Breath',
+        7: 'Vol',
+        10: 'Pan',
+        11: 'Expr',
+        64: 'Sus',
+        71: 'Res',
+        74: 'Bright',
+        91: 'Rev',
+        93: 'Chor',
+        102: 'Vol2',
+        103: 'Pan2',
+        104: 'Expr2'
+      };
+      return CC_SHORTHAND[ccNumber] || `CC${ccNumber}`;
+    }
+
+    // Listen for preset loaded event (from default preset on startup)
+    ipcRenderer.on('preset-loaded', async (event, data) => {
+      if (data.name) {
+        updateStatusProfile(data.name);
+        updateStatusLastSaved(new Date().toLocaleTimeString());
+
+        // Load fader filter state from preset
+        const filter = await ipcRenderer.invoke('get-fader-filter');
+        if (filter) {
+          faderFilter = filter;
+          const filterBtn = document.getElementById('filter-btn');
+          if (filterBtn) {
+            filterBtn.textContent = faderFilter === 'all' ? '🔍 Show: All' : '🔍 Show: Mapped';
+          }
+        }
+      }
+    });
+
+    // Listen for MIDI activity
+    ipcRenderer.on('midi-activity', async (event, midiMessage) => {
+      flashActivity('midi-activity');
+      addMidiLogEntry(midiMessage);
+
+      // Update MIDI indicator for CC messages
+      if (midiMessage.type === 'cc') {
+        // Find the mapping for this MIDI message to get the channel
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mapping = mappings.find(m =>
+          m.midi.type === 'cc' &&
+          m.midi.channel === midiMessage.channel &&
+          m.midi.controller === midiMessage.controller
+        );
+        if (mapping) {
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          updateMidiIndicator(channelType, channelNum, midiMessage.value);
+          indicateFaderChange(channelType, channelNum, 'midi');
+        }
+      }
+    });
+
+    // Listen for mixer activity
+    ipcRenderer.on('mixer-activity', (event, mixerCommand) => {
+      flashActivity('mixer-activity');
+
+      // Update fader if it's a volume command
+      if (mixerCommand.action === 'volume' && mixerCommand.value !== undefined) {
+        updateFader(mixerCommand.channel.channel, mixerCommand.value);
+      }
+    });
+
+    // Listen for mixer level changes (from physical mixer or Universal Control)
+    ipcRenderer.on('mixer-level', (event, data) => {
+      flashActivity('mixer-activity');
+      // data.channel.type, data.channel.channel, data.level
+      // Update fader for any channel type (LINE, MAIN, AUX, etc.)
+      if (data.channel) {
+        updateFaderByValue(data.channel.type, data.channel.channel, data.level);
+        indicateFaderChange(data.channel.type, data.channel.channel, 'api');
+
+        // Update MIDI indicator to match fader position when quiescent
+        updateMidiIndicatorToFader(data.channel.type, data.channel.channel, data.level);
+      }
+    });
+
+    // Listen for mixer state ready event (when channel names are available)
+    ipcRenderer.on('mixer-state-ready', () => {
+      updateStatusInit('Mixer connected - loading channels...');
+      loadFaders().then(() => {
+      }).catch(err => {
+        // Silent error handling
+      });
+      loadMappings();
+      updateStatusInit('Ready');
+    });
+
+    // Listen for mixer mute changes (from physical mixer or Universal Control)
+    ipcRenderer.on('mixer-mute', (event, data) => {
+      // data.channel.type, data.channel.channel, data.status
+      if (data.channel) {
+        updateMuteButton(data.channel.type, data.channel.channel, data.status);
+      }
+    });
+
+    // Update fader visual (value is 0-1)
+    function updateFader(channel, value) {
+      const faderFill = document.getElementById(`fader-fill-${channel}`);
+      const faderValue = document.getElementById(`fader-value-${channel}`);
+      if (faderFill && faderValue) {
+        const percentage = Math.round(value * 100);
+        faderFill.style.height = `${percentage}%`;
+        faderValue.textContent = `${percentage}%`;
+      }
+    }
+
+    // Update fader visual by percentage value (value is 0-100)
+    // channelType and channelNum are used to create unique fader ID
+    function updateFaderByValue(channelType, channelNum, percentage) {
+      const faderId = `${channelType}-${channelNum}`;
+      const faderFill = document.getElementById(`fader-fill-${faderId}`);
+      const faderValue = document.getElementById(`fader-value-${faderId}`);
+      if (faderFill && faderValue) {
+        const roundedPercentage = Math.round(percentage);
+
+        // Calculate delta for smoothing
+        const currentHeight = parseFloat(faderFill.style.height) || 0;
+        const delta = Math.abs(roundedPercentage - currentHeight);
+
+        // Only update if there's a meaningful change (reduces jitter)
+        if (delta < 0.5) return;
+
+        // Use consistent transition speed for smoother motion
+        // Longer transitions for larger movements
+        const transitionSpeed = delta > 10 ? faderSmoothingSpeed : Math.min(delta * 30, faderSmoothingSpeed);
+
+        // Apply smooth transition with ease-out for more natural motion
+        faderFill.style.transition = `height ${transitionSpeed}ms ease-out`;
+        faderFill.style.height = `${roundedPercentage}%`;
+        faderValue.textContent = `${roundedPercentage}%`;
+      }
+    }
+
+    // Store timeout IDs for hiding MIDI indicators
+    const midiIndicatorTimeouts = new Map();
+
+    // Update MIDI indicator position based on MIDI value (0-127)
+    function updateMidiIndicator(channelType, channelNum, midiValue) {
+      const faderId = `${channelType}-${channelNum}`;
+      const midiIndicator = document.getElementById(`fader-midi-${faderId}`);
+      if (midiIndicator) {
+        // Convert MIDI value (0-127) to percentage (0-100)
+        // This matches the mapping engine's conversion: value / 127 * 100
+        const percentage = (midiValue / 127) * 100;
+        midiIndicator.style.bottom = `${percentage}%`;
+        midiIndicator.style.display = 'block';
+
+        // Clear existing timeout
+        if (midiIndicatorTimeouts.has(faderId)) {
+          clearTimeout(midiIndicatorTimeouts.get(faderId));
+        }
+
+        // Hide indicator after 2 seconds of no MIDI activity
+        const timeout = setTimeout(() => {
+          midiIndicator.style.display = 'none';
+          midiIndicatorTimeouts.delete(faderId);
+        }, 2000);
+        midiIndicatorTimeouts.set(faderId, timeout);
+      }
+    }
+
+    // Update MIDI indicator to match fader position (when quiescent)
+    function updateMidiIndicatorToFader(channelType, channelNum, percentage) {
+      const faderId = `${channelType}-${channelNum}`;
+      const midiIndicator = document.getElementById(`fader-midi-${faderId}`);
+
+      // Only update if there's no active MIDI timeout (not currently showing MIDI activity)
+      if (midiIndicator && !midiIndicatorTimeouts.has(faderId)) {
+        midiIndicator.style.bottom = `${percentage}%`;
+        // Keep it hidden - it will show when MIDI activity occurs
+        midiIndicator.style.display = 'none';
+      }
+    }
+
+    // Tab switching
+    function showTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`${tabName}-view`).classList.add('active');
+    }
+
+    // Modal functions
+    function showDiscovery() {
+      document.getElementById('discovery-modal').classList.add('show');
+    }
+
+    function hideDiscovery() {
+      document.getElementById('discovery-modal').classList.remove('show');
+    }
+
+    function updateMidiTypeFields() {
+      const midiType = document.getElementById('midi-type').value;
+      const ccGroup = document.getElementById('cc-group');
+      const noteGroup = document.getElementById('note-group');
+      const noteValueGroup = document.getElementById('note-value-group');
+
+      if (midiType === 'none') {
+        ccGroup.style.display = 'none';
+        noteGroup.style.display = 'none';
+        noteValueGroup.style.display = 'none';
+      } else if (midiType === 'cc') {
+        ccGroup.style.display = 'block';
+        noteGroup.style.display = 'none';
+        noteValueGroup.style.display = 'none';
+      } else if (midiType === 'note') {
+        ccGroup.style.display = 'none';
+        noteGroup.style.display = 'block';
+        noteValueGroup.style.display = 'none';
+        updateNoteDisplay();
+      } else if (midiType === 'note-value') {
+        ccGroup.style.display = 'none';
+        noteGroup.style.display = 'none';
+        noteValueGroup.style.display = 'block';
+        updateNoteMinDisplay();
+        updateNoteMaxDisplay();
+      }
+    }
+
+    function updateNoteDisplay() {
+      const noteNum = parseInt(document.getElementById('midi-note').value) || 60;
+      const noteName = getNoteNameFromNumber(noteNum);
+      document.getElementById('note-display').textContent = `${noteName} (${noteNum})`;
+    }
+
+    function updateNoteMinDisplay() {
+      const noteNum = parseInt(document.getElementById('midi-note-min').value) || 24;
+      const noteName = getNoteNameFromNumber(noteNum);
+      document.getElementById('note-min-display').textContent = `${noteName} (${noteNum})`;
+    }
+
+    function updateNoteMaxDisplay() {
+      const noteNum = parseInt(document.getElementById('midi-note-max').value) || 60;
+      const noteName = getNoteNameFromNumber(noteNum);
+      document.getElementById('note-max-display').textContent = `${noteName} (${noteNum})`;
+    }
+
+    function showAddMapping() {
+      const modal = document.getElementById('add-mapping-modal');
+      const modalTitle = modal.querySelector('h2');
+
+      // Reset modal to "add" mode
+      modalTitle.textContent = '➕ Create Mapping';
+      delete modal.dataset.editingIndex;
+
+      // Reset form to defaults
+      document.getElementById('midi-type').value = 'cc';
+      // Don't set midi-channel here - let updateMidiSettingsForChannel() set it based on mixer channel
+      document.getElementById('midi-cc').value = '7'; // Default to CC7 (Volume)
+      document.getElementById('midi-note').value = '60';
+      document.getElementById('midi-note-min').value = '24';
+      document.getElementById('midi-note-max').value = '60';
+      document.getElementById('mixer-action').value = 'volume';
+      document.getElementById('mixer-channel-type').value = 'LINE';
+      updateMidiTypeFields();
+
+      modal.classList.add('show');
+      updateChannelNumberOptions(); // Populate channel numbers and auto-set MIDI settings (including MIDI channel)
+    }
+
+    function hideAddMapping() {
+      const modal = document.getElementById('add-mapping-modal');
+      modal.classList.remove('show');
+
+      // Reset modal title and editing flag
+      const modalTitle = modal.querySelector('h2');
+      modalTitle.textContent = '➕ Create Mapping';
+      delete modal.dataset.editingIndex;
+    }
+
+    // Update channel number dropdown based on selected channel type
+    // Helper function to get default CC based on channel number
+    function getDefaultCC(channelNum) {
+      // Channels 1-16: CC7 (Volume)
+      // Channels 17-32: CC102 (Volume Alt)
+      // Channels 33-48: CC103 (Pan Alt)
+      // Channels 49+: CC104 (Expression Alt)
+      if (channelNum <= 16) return 7;
+      if (channelNum <= 32) return 102;
+      if (channelNum <= 48) return 103;
+      return 104;
+    }
+
+    async function updateChannelNumberOptions() {
+      const channelType = document.getElementById('mixer-channel-type').value;
+      const channelNumSelect = document.getElementById('mixer-channel-num');
+
+      // Define max channels for each type (these are typical values)
+      const maxChannels = {
+        'LINE': 32, // Support up to 32 channels
+        'RETURN': 4,
+        'FXRETURN': 4,
+        'TALKBACK': 1,
+        'AUX': 16,
+        'FX': 4,
+        'SUB': 8,
+        'MAIN': 1,
+        'DCA': 8
+      };
+
+      const max = maxChannels[channelType] || 16;
+
+      // Get channel names from mixer if connected
+      try {
+        const channelNames = await ipcRenderer.invoke('get-channel-names', channelType.toLowerCase(), max);
+
+        channelNumSelect.innerHTML = '';
+        for (let i = 1; i <= max; i++) {
+          const option = document.createElement('option');
+          option.value = i;
+          const channelInfo = channelNames.find(c => c.channel === i);
+          const channelName = channelInfo ? channelInfo.name : `Ch ${i}`;
+          option.textContent = `${i}: ${channelName}`;
+          channelNumSelect.appendChild(option);
+        }
+
+        // Auto-update MIDI settings when channel is selected
+        updateMidiSettingsForChannel();
+      } catch (error) {
+        // Fallback if mixer not connected
+        channelNumSelect.innerHTML = '';
+        for (let i = 1; i <= max; i++) {
+          const option = document.createElement('option');
+          option.value = i;
+          option.textContent = `Channel ${i}`;
+          channelNumSelect.appendChild(option);
+        }
+
+        // Auto-update MIDI settings when channel is selected
+        updateMidiSettingsForChannel();
+      }
+    }
+
+    // Update MIDI settings based on selected mixer channel
+    function updateMidiSettingsForChannel() {
+      // Don't auto-update when editing an existing mapping
+      if (isEditingMapping) return;
+
+      const channelNum = parseInt(document.getElementById('mixer-channel-num').value);
+      const midiChannelInput = document.getElementById('midi-channel');
+      const midiCCSelect = document.getElementById('midi-cc');
+
+      // Set MIDI channel to match mixer channel (wrapping at 16)
+      const midiChannel = ((channelNum - 1) % 16) + 1;
+      midiChannelInput.value = midiChannel;
+
+      // Set default CC based on channel number
+      const defaultCC = getDefaultCC(channelNum);
+      midiCCSelect.value = defaultCC;
+    }
+
+    async function showSavePreset() {
+      try {
+        // Get current preset path if any
+        const currentPath = await ipcRenderer.invoke('get-current-preset-path');
+
+        const result = await ipcRenderer.invoke('save-preset-dialog', currentPath);
+        if (result.success) {
+          // Update status bar
+          const statusProfile = document.getElementById('status-profile');
+          const statusLastSaved = document.getElementById('status-last-saved');
+          if (statusProfile) statusProfile.textContent = result.name || 'Saved';
+          if (statusLastSaved) statusLastSaved.textContent = new Date().toLocaleTimeString();
+
+          markConfigSaved();
+        }
+      } catch (error) {
+        alert(`✗ Error saving preset: ${error.message}`);
+      }
+    }
+
+    function hideSavePreset() {
+      document.getElementById('save-preset-modal').classList.remove('show');
+    }
+
+    async function showLoadPreset() {
+      try {
+        const result = await ipcRenderer.invoke('load-preset-dialog');
+        if (result.success) {
+          // Load fader filter state from preset
+          const filter = await ipcRenderer.invoke('get-fader-filter');
+          if (filter) {
+            faderFilter = filter;
+            const filterBtn = document.getElementById('filter-btn');
+            if (filterBtn) {
+              filterBtn.textContent = faderFilter === 'all' ? '🔍 Show: All' : '🔍 Show: Mapped';
+            }
+          }
+
+          // Reload mappings and faders
+          await loadMappings();
+          await loadFaders();
+
+          // Update status bar
+          const statusProfile = document.getElementById('status-profile');
+          const statusLastSaved = document.getElementById('status-last-saved');
+          if (statusProfile) statusProfile.textContent = result.name || 'Loaded';
+          if (statusLastSaved) statusLastSaved.textContent = new Date().toLocaleTimeString();
+
+          markConfigSaved();
+        }
+      } catch (error) {
+        alert(`✗ Error loading preset: ${error.message}`);
+      }
+    }
+
+    function showMidiSelect() {
+      document.getElementById('midi-select-modal').classList.add('show');
+      loadMidiDevices();
+    }
+
+    function hideMidiSelect() {
+      document.getElementById('midi-select-modal').classList.remove('show');
+    }
+
+    // Preferences functions
+    let faderSmoothingSpeed = 300; // Default smoothing speed in ms
+
+    function showPreferences() {
+      const modal = document.getElementById('preferences-modal');
+      const smoothingInput = document.getElementById('fader-smoothing');
+      // Load current preference
+      const savedSmoothing = localStorage.getItem('faderSmoothingSpeed');
+      if (savedSmoothing) {
+        faderSmoothingSpeed = parseInt(savedSmoothing);
+        smoothingInput.value = faderSmoothingSpeed;
+        updateSmoothingDisplay();
+      }
+      modal.classList.add('show');
+    }
+
+    function hidePreferences() {
+      document.getElementById('preferences-modal').classList.remove('show');
+    }
+
+    function updateSmoothingDisplay() {
+      const smoothingInput = document.getElementById('fader-smoothing');
+      const display = document.getElementById('smoothing-display');
+      display.textContent = smoothingInput.value;
+    }
+
+    function savePreferences() {
+      const smoothingInput = document.getElementById('fader-smoothing');
+      faderSmoothingSpeed = parseInt(smoothingInput.value);
+      localStorage.setItem('faderSmoothingSpeed', faderSmoothingSpeed);
+      hidePreferences();
+    }
+
+    // Helper function to shorten MIDI device names
+    function shortenMidiDeviceName(deviceName) {
+      if (!deviceName) return deviceName;
+      // Shorten "Logic Pro Virtual Out" to "Logic Pro"
+      return deviceName.replace(/Logic Pro Virtual Out/gi, 'Logic Pro');
+    }
+
+    // Load preferences on startup
+    document.addEventListener('DOMContentLoaded', () => {
+      const savedSmoothing = localStorage.getItem('faderSmoothingSpeed');
+      if (savedSmoothing) {
+        faderSmoothingSpeed = parseInt(savedSmoothing);
+      }
+    });
+
+    // MIDI type change handler
+    document.addEventListener('DOMContentLoaded', () => {
+      const midiTypeSelect = document.getElementById('midi-type');
+      if (midiTypeSelect) {
+        midiTypeSelect.addEventListener('change', (e) => {
+          const ccGroup = document.getElementById('cc-group');
+          const noteGroup = document.getElementById('note-group');
+          if (e.target.value === 'cc') {
+            ccGroup.style.display = 'block';
+            noteGroup.style.display = 'none';
+          } else {
+            ccGroup.style.display = 'none';
+            noteGroup.style.display = 'block';
+          }
+        });
+      }
+    });
+
+    // Scan for mixers
+    async function scanForMixers() {
+      const btn = document.getElementById('scan-btn');
+      const listEl = document.getElementById('mixer-list');
+
+      btn.disabled = true;
+      btn.textContent = 'Scanning...';
+      listEl.innerHTML = '<div class="empty-state">Scanning network...</div>';
+
+      try {
+        const mixers = await ipcRenderer.invoke('discover-mixers');
+
+        if (mixers.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No mixers found. Try manual connection below.</div>';
+        } else {
+          listEl.innerHTML = mixers.map(mixer => `
+            <div class="mixer-item">
+              <div class="mixer-info">
+                <div class="mixer-name">${mixer.name}</div>
+                <div class="mixer-details">IP: ${mixer.ip} | Serial: ${mixer.serial}</div>
+              </div>
+              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.name}')">Connect</button>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Scan Network';
+      }
+    }
+
+    // Connect to mixer
+    async function connectToMixer(ip, name) {
+      try {
+        const result = await ipcRenderer.invoke('connect-mixer', ip, name);
+        if (result.success) {
+          hideDiscovery();
+          updateStatus();
+        } else {
+          alert(`✗ Failed to connect: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Connect manually
+    async function connectManual() {
+      const ip = document.getElementById('manual-ip').value.trim();
+      if (!ip) {
+        alert('Please enter an IP address');
+        return;
+      }
+      await connectToMixer(ip);
+    }
+
+    // Load MIDI devices
+    async function loadMidiDevices() {
+      try {
+        const devices = await ipcRenderer.invoke('get-midi-devices');
+        const listEl = document.getElementById('midi-devices-list');
+
+        if (devices.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No MIDI devices found. Make sure Logic Pro is running and MIDI output is enabled.</div>';
+        } else {
+          listEl.innerHTML = devices.map(device => {
+            const shortName = shortenMidiDeviceName(device);
+            return `
+              <div class="mixer-item">
+                <div class="mixer-info">
+                  <div class="mixer-name">🎹 ${shortName}</div>
+                </div>
+                <button class="btn" onclick="connectToMidiDevice('${device}')">Connect</button>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (error) {
+        const listEl = document.getElementById('midi-devices-list');
+        listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+      }
+    }
+
+    // Refresh MIDI devices
+    async function refreshMidiDevices() {
+      await loadMidiDevices();
+    }
+
+    // Channel management functions
+    async function removeSelectedChannels() {
+      const selectedFaders = document.querySelectorAll('.fader-channel.selected');
+      if (selectedFaders.length === 0) {
+        alert('No channels selected. Click on a fader to select it, then try again.');
+        return;
+      }
+
+      if (!confirm(`Remove ${selectedFaders.length} selected channel(s)?`)) {
+        return;
+      }
+
+      try {
+        for (const fader of selectedFaders) {
+          const faderId = fader.getAttribute('data-fader-id');
+          const [channelType, channelNum] = faderId.split('-');
+
+          // Find and remove the mapping
+          const mappings = await ipcRenderer.invoke('get-mappings');
+          const mappingIndex = mappings.findIndex(m =>
+            m.mixer.action === 'volume' &&
+            (m.mixer.channel.type || 'LINE') === channelType &&
+            (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          );
+
+          if (mappingIndex !== -1) {
+            await ipcRenderer.invoke('remove-mapping', mappingIndex);
+          }
+        }
+
+        await loadFaders();
+        await loadMappings();
+        markConfigChanged();
+        // Removed alert - silent removal
+      } catch (error) {
+        alert(`✗ Error removing channels: ${error.message}`);
+      }
+    }
+
+    async function clearAllChannels() {
+      if (!confirm('Clear ALL channel mappings (except MAIN)? This will only clear the MIDI mappings, not the faders.')) {
+        return;
+      }
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+
+        // Remove all mappings except MAIN in reverse order to maintain indices
+        let removedCount = 0;
+        for (let i = mappings.length - 1; i >= 0; i--) {
+          const mapping = mappings[i];
+          const channelType = mapping.mixer.channel.type || 'LINE';
+
+          // Skip MAIN channels
+          if (channelType === 'MAIN') {
+            continue;
+          }
+
+          await ipcRenderer.invoke('remove-mapping', i);
+          removedCount++;
+        }
+
+        await loadFaders();
+        await loadMappings();
+        markConfigChanged();
+      } catch (error) {
+        alert(`✗ Error clearing channels: ${error.message}`);
+      }
+    }
+
+    // Toggle fader filter between 'all' and 'mapped'
+    async function toggleFaderFilter() {
+      faderFilter = faderFilter === 'all' ? 'mapped' : 'all';
+      const filterBtn = document.getElementById('filter-btn');
+      filterBtn.textContent = faderFilter === 'all' ? '🔍 Show: All' : '🔍 Show: Mapped';
+
+      // Save filter state to mapping engine
+      await ipcRenderer.invoke('set-fader-filter', faderFilter);
+      markConfigChanged();
+
+      loadFaders();
+    }
+
+    // Edit fader mapping (double-click handler)
+    async function editFaderMapping(faderId) {
+      try {
+        const [channelType, channelNum] = faderId.split('-');
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'volume' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        if (mappingIndex === -1) {
+          // No mapping exists - open add mapping dialog with pre-filled channel info
+          showAddMapping();
+          document.getElementById('mixer-channel-type').value = channelType;
+          await updateChannelNumberOptions();
+          document.getElementById('mixer-channel-num').value = channelNum;
+          // Update MIDI settings to match the mixer channel
+          updateMidiSettingsForChannel();
+          return;
+        }
+
+        const mapping = mappings[mappingIndex];
+
+        // Set flag to prevent auto-updating MIDI settings
+        isEditingMapping = true;
+
+        // Populate the add-mapping modal with existing data
+        document.getElementById('midi-type').value = mapping.midi.type;
+
+        if (mapping.midi.type === 'cc') {
+          document.getElementById('midi-cc').value = mapping.midi.controller;
+        } else if (mapping.midi.type === 'note') {
+          document.getElementById('midi-note').value = mapping.midi.note;
+        } else if (mapping.midi.type === 'note-value') {
+          document.getElementById('midi-note-min').value = mapping.midi.noteMin || 24;
+          document.getElementById('midi-note-max').value = mapping.midi.noteMax || 60;
+        }
+
+        // Update field visibility
+        updateMidiTypeFields();
+
+        document.getElementById('mixer-action').value = mapping.mixer.action;
+        document.getElementById('mixer-channel-type').value = mapping.mixer.channel.type || 'LINE';
+
+        // Update channel number options and then set the value
+        await updateChannelNumberOptions();
+        document.getElementById('mixer-channel-num').value = mapping.mixer.channel.channel || mapping.mixer.channel;
+
+        // Set MIDI settings (won't be overwritten now because of isEditingMapping flag)
+        document.getElementById('midi-channel').value = mapping.midi.channel;
+        if (mapping.midi.type === 'cc') {
+          document.getElementById('midi-cc').value = mapping.midi.controller;
+        }
+
+        // Clear the flag
+        isEditingMapping = false;
+
+        // Change modal title to indicate editing
+        const modal = document.getElementById('add-mapping-modal');
+        const modalTitle = modal.querySelector('h2');
+        modalTitle.textContent = '✏️ Edit Mapping';
+
+        // Store the mapping index so we know we're editing
+        modal.dataset.editingIndex = mappingIndex;
+
+        // Show the modal
+        modal.classList.add('show');
+      } catch (error) {
+        // Silent error handling
+        isEditingMapping = false; // Make sure to clear flag on error
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Show context menu for fader (right-click handler)
+    let currentContextMenuFaderId = null;
+
+    function showFaderContextMenu(faderId, x, y) {
+      const contextMenu = document.getElementById('context-menu');
+      currentContextMenuFaderId = faderId;
+
+      // Position the menu
+      contextMenu.style.left = `${x}px`;
+      contextMenu.style.top = `${y}px`;
+      contextMenu.classList.add('show');
+    }
+
+    function hideContextMenu() {
+      const contextMenu = document.getElementById('context-menu');
+      contextMenu.classList.remove('show');
+      currentContextMenuFaderId = null;
+    }
+
+    async function contextMenuEdit() {
+      if (currentContextMenuFaderId) {
+        await editFaderMapping(currentContextMenuFaderId);
+      }
+      hideContextMenu();
+    }
+
+    async function contextMenuDuplicate() {
+      if (currentContextMenuFaderId) {
+        alert('Duplicate feature coming soon!');
+      }
+      hideContextMenu();
+    }
+
+    async function contextMenuClearChannel() {
+      if (!currentContextMenuFaderId) {
+        hideContextMenu();
+        return;
+      }
+
+      const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+
+      if (!confirm(`Clear MIDI mapping for ${channelType} ${channelNum}? (Channel will remain visible)`)) {
+        hideContextMenu();
+        return;
+      }
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'volume' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        if (mappingIndex !== -1) {
+          // Update the mapping to have no MIDI type instead of removing it
+          const mapping = mappings[mappingIndex];
+          mapping.midi = { type: 'none', channel: 1 };
+          await ipcRenderer.invoke('update-mapping', mappingIndex, mapping);
+          await loadFaders();
+          await loadMappings();
+          markConfigChanged();
+        }
+      } catch (error) {
+        alert(`✗ Error clearing mapping: ${error.message}`);
+      }
+
+      hideContextMenu();
+    }
+
+    async function contextMenuDelete() {
+      if (!currentContextMenuFaderId) {
+        hideContextMenu();
+        return;
+      }
+
+      const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+
+      if (!confirm(`Delete mapping for ${channelType} ${channelNum}?`)) {
+        hideContextMenu();
+        return;
+      }
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'volume' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        if (mappingIndex !== -1) {
+          await ipcRenderer.invoke('remove-mapping', mappingIndex);
+          await loadFaders();
+          await loadMappings();
+          markConfigChanged();
+        }
+      } catch (error) {
+        alert(`✗ Error deleting mapping: ${error.message}`);
+      }
+
+      hideContextMenu();
+    }
+
+    // Connect to MIDI device
+    async function connectToMidiDevice(deviceName) {
+      try {
+        const result = await ipcRenderer.invoke('connect-midi-device', deviceName);
+        if (result.success) {
+          alert(`✓ Connected to MIDI device: ${deviceName}`);
+          hideMidiSelect();
+          updateStatus();
+        } else {
+          alert(`✗ Failed to connect: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Add or update mapping
+    async function addMapping() {
+      const modal = document.getElementById('add-mapping-modal');
+      const isEditing = modal.dataset.editingIndex !== undefined;
+      const editingIndex = isEditing ? parseInt(modal.dataset.editingIndex) : -1;
+
+      const midiType = document.getElementById('midi-type').value;
+      const midiChannel = parseInt(document.getElementById('midi-channel').value);
+      const mixerAction = document.getElementById('mixer-action').value;
+      const channelType = document.getElementById('mixer-channel-type').value;
+      const channelNum = parseInt(document.getElementById('mixer-channel-num').value);
+
+      const mapping = {
+        midi: {
+          type: midiType,
+          channel: midiChannel
+        },
+        mixer: {
+          action: mixerAction,
+          channel: {
+            type: channelType,
+            channel: channelNum
+          }
+        }
+      };
+
+      if (midiType === 'cc') {
+        mapping.midi.controller = parseInt(document.getElementById('midi-cc').value);
+      } else if (midiType === 'note') {
+        mapping.midi.note = parseInt(document.getElementById('midi-note').value);
+      } else if (midiType === 'note-value') {
+        mapping.midi.noteMin = parseInt(document.getElementById('midi-note-min').value);
+        mapping.midi.noteMax = parseInt(document.getElementById('midi-note-max').value);
+      }
+
+      try {
+        // Check if this is a volume mapping on the second channel of a stereo pair
+        if (mixerAction === 'volume' && channelNum % 2 === 0) {
+          // Check if the previous channel (odd channel) is linked
+          const prevChannelLink = await ipcRenderer.invoke('get-channel-link', channelType, channelNum - 1);
+          if (prevChannelLink) {
+            alert(`✗ Cannot map volume on channel ${channelNum}!\n\nThis channel is the second channel of a stereo pair (linked with channel ${channelNum - 1}).\n\nVolume control is handled by the first channel of the stereo pair.`);
+            return;
+          }
+        }
+
+        // Get existing mappings for validation
+        const existingMappings = await ipcRenderer.invoke('get-mappings');
+
+        // Check for MIDI conflicts (same MIDI channel + CC/note) - skip if type is "none"
+        if (midiType !== 'none') {
+          const midiConflictIndex = existingMappings.findIndex((m, idx) => {
+            // Skip if we're editing this mapping
+            if (isEditing && idx === editingIndex) return false;
+
+            // Skip if the existing mapping has no MIDI type
+            if (m.midi.type === 'none') return false;
+
+            // Check if MIDI settings conflict
+            if (m.midi.channel !== midiChannel) return false;
+
+            if (midiType === 'cc' && m.midi.type === 'cc') {
+              return m.midi.controller === mapping.midi.controller;
+            } else if (midiType === 'note' && m.midi.type === 'note') {
+              return m.midi.note === mapping.midi.note;
+            } else if (midiType === 'note-value' && m.midi.type === 'note-value') {
+              // Check for overlapping note ranges
+              const existingMin = m.midi.noteMin || 24;
+              const existingMax = m.midi.noteMax || 60;
+              const newMin = mapping.midi.noteMin || 24;
+              const newMax = mapping.midi.noteMax || 60;
+              return !(newMax < existingMin || newMin > existingMax);
+            }
+            return false;
+          });
+
+          if (midiConflictIndex !== -1) {
+            const conflictMapping = existingMappings[midiConflictIndex];
+            const conflictChannel = `${conflictMapping.mixer.channel.type || 'LINE'} ${conflictMapping.mixer.channel.channel || conflictMapping.mixer.channel}`;
+            const midiInfo = mapping.midi.type === 'cc'
+              ? `CC${mapping.midi.controller} Ch${mapping.midi.channel}`
+              : mapping.midi.type === 'note-value'
+              ? `Note ${mapping.midi.noteMin}-${mapping.midi.noteMax} Ch${mapping.midi.channel}`
+              : `Note ${mapping.midi.note} Ch${mapping.midi.channel}`;
+
+            alert(`✗ MIDI Conflict!\n\nThis MIDI configuration (${midiInfo}) is already used by ${conflictChannel}.\n\nPlease choose different MIDI settings.`);
+            return;
+          }
+        }
+
+        if (isEditing) {
+          // We're editing an existing mapping - remove the old one first
+          await ipcRenderer.invoke('remove-mapping', editingIndex);
+          await ipcRenderer.invoke('add-mapping', mapping);
+          markConfigChanged();
+        } else {
+          // Check if a mapping already exists for this mixer channel + action
+          const existingIndex = existingMappings.findIndex(m =>
+            m.mixer.action === mixerAction &&
+            (m.mixer.channel.type || 'LINE') === channelType &&
+            (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          );
+
+          if (existingIndex !== -1) {
+            // Ask user if they want to update the existing mapping
+            const existingMapping = existingMappings[existingIndex];
+            const existingMidiInfo = existingMapping.midi.type === 'cc'
+              ? `${getCCShorthand(existingMapping.midi.controller)} Ch${existingMapping.midi.channel}`
+              : existingMapping.midi.type === 'note-value'
+              ? `Note ${existingMapping.midi.noteMin}-${existingMapping.midi.noteMax} Ch${existingMapping.midi.channel}`
+              : `Note ${existingMapping.midi.note} Ch${existingMapping.midi.channel}`;
+            const newMidiInfo = mapping.midi.type === 'cc'
+              ? `${getCCShorthand(mapping.midi.controller)} Ch${mapping.midi.channel}`
+              : mapping.midi.type === 'note-value'
+              ? `Note ${mapping.midi.noteMin}-${mapping.midi.noteMax} Ch${mapping.midi.channel}`
+              : `Note ${mapping.midi.note} Ch${mapping.midi.channel}`;
+
+            if (!confirm(`A mapping already exists for ${channelType} ${channelNum} (${mixerAction}):\n\nExisting: ${existingMidiInfo}\nNew: ${newMidiInfo}\n\nUpdate the existing mapping?`)) {
+              return;
+            }
+
+            // Remove the old mapping and add the new one
+            await ipcRenderer.invoke('remove-mapping', existingIndex);
+          }
+
+          await ipcRenderer.invoke('add-mapping', mapping);
+          markConfigChanged();
+        }
+
+        hideAddMapping();
+        loadMappings();
+        loadFaders(); // Reload faders to show new mapping
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Remove mapping
+    async function removeMapping(index) {
+      if (!confirm('Remove this mapping?')) return;
+
+      try {
+        await ipcRenderer.invoke('remove-mapping', index);
+        loadMappings();
+        loadFaders(); // Update faders UI
+        markConfigChanged();
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Save preset
+    async function savePreset() {
+      const name = document.getElementById('preset-name').value.trim();
+      const description = document.getElementById('preset-description').value.trim();
+
+      if (!name) {
+        alert('Please enter a preset name');
+        return;
+      }
+
+      try {
+        const result = await ipcRenderer.invoke('save-preset', name, description);
+        if (result.success) {
+          alert(`✓ Preset saved to ${result.path}`);
+          hideSavePreset();
+          updateStatus();
+          updateStatusLastSaved(Date.now());
+        } else {
+          alert(`✗ Failed to save: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Load mappings
+    async function loadMappings() {
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const channelNames = await ipcRenderer.invoke('get-channel-names', 'line', 16);
+        const listEl = document.getElementById('mappings-list');
+
+        if (mappings.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No mappings yet. Click "Create New" to add one.</div>';
+        } else {
+          listEl.innerHTML = mappings.map((mapping, index) => {
+            const midiDesc = mapping.midi.type === 'cc'
+              ? `CC ${mapping.midi.controller} (Ch ${mapping.midi.channel})`
+              : `Note ${mapping.midi.note} (Ch ${mapping.midi.channel})`;
+
+            // Extract channel number and get name
+            const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+            const channelInfo = channelNames.find(c => c.channel === channelNum);
+            const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
+            const mixerDesc = `${mapping.mixer.action} - ${channelNum}: ${channelName}`;
+
+            return `
+              <div class="mapping-card">
+                <div class="mapping-activity" id="mapping-activity-${index}"></div>
+                <div class="mapping-info">
+                  <div class="mapping-source">🎹 ${midiDesc}</div>
+                  <div class="mapping-arrow">→</div>
+                  <div class="mapping-target">🎛️ ${mixerDesc}</div>
+                </div>
+                <button class="btn-small danger" onclick="removeMapping(${index})">Delete</button>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+
+    // Load faders
+    async function loadFaders() {
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+
+        const volumeMappings = mappings.filter(m => m.mixer.action === 'volume');
+
+        // Always fetch LINE channel data (for 'all' filter mode)
+        const channelDataCache = {};
+
+        // Always fetch LINE channel data
+        try {
+          const names = await ipcRenderer.invoke('get-channel-names', 'line', 16);
+          const colors = await ipcRenderer.invoke('get-channel-colors', 'line', 16);
+          const icons = await ipcRenderer.invoke('get-channel-icons', 'line', 16);
+
+          // Fetch stereo link status for each channel
+          const links = [];
+          for (let i = 1; i <= 16; i++) {
+            const link = await ipcRenderer.invoke('get-channel-link', 'line', i);
+            links.push({ channel: i, link });
+          }
+
+          channelDataCache['line'] = { names, colors, icons, links };
+        } catch (error) {
+          // Silent error handling
+          channelDataCache['line'] = { names: [], colors: [], icons: [], links: [] };
+        }
+
+        // Fetch channel data for other channel types that have mappings
+        for (const mapping of volumeMappings) {
+          const channelType = (mapping.mixer.channel.type || 'LINE').toLowerCase();
+          if (channelType !== 'line' && !channelDataCache[channelType]) {
+            try {
+              const names = await ipcRenderer.invoke('get-channel-names', channelType, 16);
+              const colors = await ipcRenderer.invoke('get-channel-colors', channelType, 16);
+              const icons = await ipcRenderer.invoke('get-channel-icons', channelType, 16);
+
+              // Fetch stereo link status for each channel
+              const links = [];
+              for (let i = 1; i <= 16; i++) {
+                const link = await ipcRenderer.invoke('get-channel-link', channelType, i);
+                links.push({ channel: i, link });
+              }
+
+              channelDataCache[channelType] = { names, colors, icons, links };
+            } catch (error) {
+              // Silent error handling
+              channelDataCache[channelType] = { names: [], colors: [], icons: [], links: [] };
+            }
+          }
+        }
+
+        // Build fader list based on filter mode
+        let fadersToRender = [];
+
+        if (faderFilter === 'all') {
+          // Show all LINE channels 1-16, but skip second channel of stereo pairs
+          const lineData = channelDataCache['line'] || { names: [], colors: [], icons: [], links: [] };
+
+          for (let i = 1; i <= 16; i++) {
+            // Check if the PREVIOUS channel (i-1) is linked to this channel (i)
+            // If so, skip this channel as it's the R channel of a stereo pair
+            if (i > 1) {
+              const prevChannelLink = lineData.links.find(c => c.channel === (i - 1));
+              if (prevChannelLink?.link) {
+                // Skip this channel - it's the R channel of a stereo pair
+                continue;
+              }
+            }
+
+            const existingMapping = volumeMappings.find(m =>
+              (m.mixer.channel.type || 'LINE') === 'LINE' &&
+              (m.mixer.channel.channel || m.mixer.channel) === i
+            );
+
+            if (existingMapping) {
+              fadersToRender.push(existingMapping);
+            } else {
+              // Create a virtual mapping with no MIDI type
+              fadersToRender.push({
+                midi: { type: 'none', channel: 1 },
+                mixer: { action: 'volume', channel: { type: 'LINE', channel: i } }
+              });
+            }
+          }
+        } else {
+          // Show only mapped channels (excluding MAIN)
+          fadersToRender = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') !== 'MAIN');
+        }
+
+        // Separate channels by type for proper layout
+        // Layout: LINE inputs on left, then SUB, FX in regular container
+        // Right side (main container): AUX, then MAIN (from left to right)
+        const lineInputs = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'LINE');
+        const subChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'SUB');
+        const fxChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'FX');
+        const auxChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'AUX');
+        const mainMappings = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'MAIN');
+
+        // Sort each group by channel number (numerically left to right)
+        const sortByChannelNum = (a, b) => {
+          const aNum = a.mixer.channel.channel || 0;
+          const bNum = b.mixer.channel.channel || 0;
+          return aNum - bNum;
+        };
+
+        lineInputs.sort(sortByChannelNum);
+        subChannels.sort(sortByChannelNum);
+        fxChannels.sort(sortByChannelNum);
+        auxChannels.sort(sortByChannelNum);
+        mainMappings.sort(sortByChannelNum);
+
+        // Regular container: LINE, SUB, FX (left to right)
+        const sortedRegularMappings = [...lineInputs, ...subChannels, ...fxChannels];
+
+        // Main container: AUX, then MAIN (left to right)
+        const sortedMainMappings = [...auxChannels, ...mainMappings];
+
+        const container = document.getElementById('faders-container');
+        const mainContainer = document.getElementById('faders-main-container');
+
+        // Render function for creating fader HTML
+        const renderFader = (mapping) => {
+            // Extract channel number from ChannelSelector object
+            const channelType = mapping.mixer.channel.type || 'LINE';
+            const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+
+
+            // Get channel data for this type
+            const channelData = channelDataCache[channelType.toLowerCase()] || { names: [], colors: [], icons: [], links: [] };
+
+            const channelInfo = channelData.names.find(c => c.channel === channelNum);
+            const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
+
+            const channelColorInfo = channelData.colors.find(c => c.channel === channelNum);
+            // Use default grey color if mixer doesn't provide color
+            let channelColor = channelColorInfo?.color || DEFAULT_COLOR;
+
+            // Ensure channelColor is a valid string (not an object or null)
+            if (typeof channelColor !== 'string' || !channelColor) {
+              channelColor = DEFAULT_COLOR;
+            }
+
+            const channelIconInfo = channelData.icons.find(c => c.channel === channelNum);
+            const channelIcon = channelIconInfo?.icon ? getIconForId(channelIconInfo.icon) : '';
+
+            // Check if channel is part of stereo pair
+            const channelLinkInfo = channelData.links.find(c => c.channel === channelNum);
+            const isLinked = channelLinkInfo?.link || false;
+
+            // Convert hex format if needed (e.g., "b2fdfcff" -> "#b2fdfc")
+            if (channelColor && !channelColor.startsWith('#') && channelColor.length >= 6) {
+              channelColor = '#' + channelColor.substring(0, 6);
+            }
+
+            // Create unique ID that includes type and channel
+            const faderId = `${channelType}-${channelNum}`;
+
+            // Store color for this fader to preserve it across updates
+            faderColors.set(faderId, channelColor);
+
+            // Separate channel number and name for better layout
+            // For stereo channels, show "11/12" format
+            const channelNumber = channelType === 'MAIN' ? 'MAIN' :
+                                  isLinked ? `${channelNum}/${channelNum + 1}` :
+                                  `${channelNum}`;
+            const channelLabel = channelType === 'MAIN' ? '' : channelName;
+
+            // Calculate appropriate text color based on background brightness
+            const textColor = getTextColorForBackground(channelColor);
+
+            // Apply color as background of label with appropriate text color
+            const labelStyle = `background: ${channelColor}; color: ${textColor};`;
+
+            // Get MIDI mapping info (use correct property names)
+            const midiInfo = mapping.midi.type === 'none'
+              ? ''
+              : mapping.midi.type === 'cc'
+              ? `${getCCShorthand(mapping.midi.controller)} Ch${mapping.midi.channel}`
+              : mapping.midi.type === 'note-value'
+              ? `Note ${mapping.midi.noteMin}-${mapping.midi.noteMax} Ch${mapping.midi.channel}`
+              : mapping.midi.type === 'note'
+              ? `Note ${mapping.midi.note} Ch${mapping.midi.channel}`
+              : '';
+
+            // Render stereo channels as dual L/R faders
+            if (isLinked) {
+              const faderIdR = `${channelType}-${channelNum + 1}`;
+              return `
+                <div class="fader-channel" data-fader-id="${faderId}">
+                  <div class="fader-value" id="fader-value-${faderId}">0%</div>
+                  <div class="fader-indicators">
+                    <span class="fader-indicator main-assign" id="main-indicator-${faderId}" style="display: none;">M</span>
+                    <span class="fader-indicator input-source" id="input-indicator-${faderId}">LINE</span>
+                  </div>
+                  <div class="fader-controls">
+                    <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
+                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})">S</button>
+                  </div>
+                  <div class="fader-wrapper">
+                    <div class="fader-levels">
+                      <div>10</div>
+                      <div>5</div>
+                      <div>0</div>
+                      <div>-5</div>
+                      <div>-10</div>
+                      <div>-20</div>
+                      <div>-30</div>
+                      <div>∞</div>
+                    </div>
+                    <div class="fader-container-wrapper">
+                      <div style="display: flex; gap: 2px;">
+                        <div class="fader-container stereo" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}">
+                          <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
+                          <div class="fader-midi-indicator" id="fader-midi-${faderId}" style="bottom: 0%; display: none;"></div>
+                        </div>
+                        <div class="fader-container stereo" data-channel="${channelNum + 1}" data-type="${channelType}" data-fader-id="${faderIdR}">
+                          <div class="fader-fill" id="fader-fill-${faderIdR}" style="height: 0%"></div>
+                          <div class="fader-midi-indicator" id="fader-midi-${faderIdR}" style="bottom: 0%; display: none;"></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  ${channelIcon ? `<div class="fader-icon">${channelIcon}</div>` : ''}
+                  <div class="fader-channel-number">${channelNumber}</div>
+                  <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
+                  <div class="fader-mapping-info">${midiInfo}</div>
+                </div>
+              `;
+            } else {
+              // Mono channel - single fader
+              return `
+                <div class="fader-channel" data-fader-id="${faderId}">
+                  <div class="fader-value" id="fader-value-${faderId}">0%</div>
+                  <div class="fader-indicators">
+                    <span class="fader-indicator main-assign" id="main-indicator-${faderId}" style="display: none;">M</span>
+                    <span class="fader-indicator input-source" id="input-indicator-${faderId}">LINE</span>
+                  </div>
+                  <div class="fader-controls">
+                    <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
+                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})">S</button>
+                  </div>
+                  <div class="fader-wrapper">
+                    <div class="fader-levels">
+                      <div>10</div>
+                      <div>5</div>
+                      <div>0</div>
+                      <div>-5</div>
+                      <div>-10</div>
+                      <div>-20</div>
+                      <div>-30</div>
+                      <div>∞</div>
+                    </div>
+                    <div class="fader-container-wrapper">
+                      <div class="fader-container" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}">
+                        <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
+                        <div class="fader-midi-indicator" id="fader-midi-${faderId}" style="bottom: 0%; display: none;"></div>
+                      </div>
+                    </div>
+                  </div>
+                  ${channelIcon ? `<div class="fader-icon">${channelIcon}</div>` : ''}
+                  <div class="fader-channel-number">${channelNumber}</div>
+                  <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
+                  <div class="fader-mapping-info">${midiInfo}</div>
+                </div>
+              `;
+            }
+        };
+
+        // Render regular faders
+        if (sortedRegularMappings.length === 0 && sortedMainMappings.length === 0) {
+          container.innerHTML = '<div class="empty-state">No volume mappings yet. Add some mappings to see faders here.</div>';
+          mainContainer.innerHTML = '';
+        } else {
+          container.innerHTML = sortedRegularMappings.map(renderFader).join('');
+          mainContainer.innerHTML = sortedMainMappings.map(renderFader).join('');
+
+          // Add mouse interaction to faders
+          setupFaderInteraction();
+
+          // Load initial fader positions, mute states, and solo states from mixer
+          const allMappings = [...sortedRegularMappings, ...sortedMainMappings];
+          loadInitialFaderPositions(allMappings);
+          loadInitialMuteStates(allMappings);
+          loadInitialSoloStates(allMappings);
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+
+    // Load initial fader positions from the mixer
+    async function loadInitialFaderPositions(volumeMappings) {
+      for (const mapping of volumeMappings) {
+        try {
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const level = await ipcRenderer.invoke('get-mixer-level', channelType, channelNum);
+          if (level !== null) {
+            updateFaderByValue(channelType, channelNum, level);
+          }
+
+          // For stereo channels, also load the right channel
+          const isLinked = await ipcRenderer.invoke('get-channel-link', channelType, channelNum);
+          if (isLinked) {
+            const levelR = await ipcRenderer.invoke('get-mixer-level', channelType, channelNum + 1);
+            if (levelR !== null) {
+              updateFaderByValue(channelType, channelNum + 1, levelR);
+            }
+          }
+        } catch (error) {
+          // Silent error handling
+        }
+      }
+    }
+
+    // Load initial mute states from the mixer
+    async function loadInitialMuteStates(volumeMappings) {
+      for (const mapping of volumeMappings) {
+        try {
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const muted = await ipcRenderer.invoke('get-channel-mute', channelType, channelNum);
+          if (muted !== null) {
+            updateMuteButton(channelType, channelNum, muted);
+          }
+        } catch (error) {
+          // Silent error handling
+        }
+      }
+    }
+
+    // Load initial solo states from the mixer
+    async function loadInitialSoloStates(volumeMappings) {
+      for (const mapping of volumeMappings) {
+        try {
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const soloed = await ipcRenderer.invoke('get-channel-solo', channelType, channelNum);
+          if (soloed !== null) {
+            updateSoloButton(channelType, channelNum, soloed);
+          }
+        } catch (error) {
+          // Silent error handling
+        }
+      }
+    }
+
+    // Toggle mute for a channel
+    async function toggleMute(type, channel) {
+      try {
+        const result = await ipcRenderer.invoke('toggle-mute', type, channel);
+        if (!result.success) {
+          // Silent error handling
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+
+    // Update mute button visual state
+    function updateMuteButton(channelType, channelNum, muted) {
+      const faderId = `${channelType}-${channelNum}`;
+      const muteBtn = document.getElementById(`mute-btn-${faderId}`);
+      if (muteBtn) {
+        if (muted) {
+          muteBtn.classList.add('active');
+        } else {
+          muteBtn.classList.remove('active');
+        }
+      }
+    }
+
+    // Toggle solo for a channel
+    async function toggleSolo(type, channel) {
+      try {
+        const result = await ipcRenderer.invoke('toggle-solo', type, channel);
+        if (!result.success) {
+          // Silent error handling
+        }
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+
+    // Update solo button visual state
+    function updateSoloButton(channelType, channelNum, soloed) {
+      const faderId = `${channelType}-${channelNum}`;
+      const soloBtn = document.getElementById(`solo-btn-${faderId}`);
+      if (soloBtn) {
+        if (soloed) {
+          soloBtn.classList.add('active');
+        } else {
+          soloBtn.classList.remove('active');
+        }
+      }
+    }
+
+    // Setup fader mouse interaction
+    function setupFaderInteraction() {
+      const faderContainers = document.querySelectorAll('.fader-container');
+
+      faderContainers.forEach(container => {
+        let isDragging = false;
+        const channel = parseInt(container.getAttribute('data-channel'));
+        const channelType = container.getAttribute('data-type') || 'LINE';
+        const faderId = container.getAttribute('data-fader-id');
+
+        const updateFaderFromMouse = (e) => {
+          const rect = container.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const height = rect.height;
+
+          // Calculate percentage (inverted because 0 is at top, 100 at bottom)
+          let percentage = Math.max(0, Math.min(100, ((height - y) / height) * 100));
+
+          // Update UI
+          const fill = document.getElementById(`fader-fill-${faderId}`);
+          const valueDisplay = document.getElementById(`fader-value-${faderId}`);
+          if (fill && valueDisplay) {
+            fill.style.height = `${percentage}%`;
+            valueDisplay.textContent = `${Math.round(percentage)}%`;
+          }
+
+          // Send to mixer (value is 0-100 for the API)
+          ipcRenderer.invoke('set-mixer-volume', channelType, channel, percentage).catch(err => {
+            // Silent error handling
+          });
+
+          // Check if this is a stereo pair and update the right channel too
+          ipcRenderer.invoke('get-channel-link', channelType, channel).then(isLinked => {
+            if (isLinked) {
+              const faderIdR = `${channelType}-${channel + 1}`;
+              const fillR = document.getElementById(`fader-fill-${faderIdR}`);
+              if (fillR) {
+                fillR.style.height = `${percentage}%`;
+              }
+              // Send to mixer for right channel
+              ipcRenderer.invoke('set-mixer-volume', channelType, channel + 1, percentage).catch(err => {
+                // Silent error handling
+              });
+            }
+          });
+
+          // Indicate UI change
+          indicateFaderChange(channelType, channel, 'ui');
+        };
+
+        container.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          container.classList.add('dragging');
+          updateFaderFromMouse(e);
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            updateFaderFromMouse(e);
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (isDragging) {
+            isDragging = false;
+            container.classList.remove('dragging');
+          }
+        });
+      });
+
+      // Add click handler for selection and editing
+      const faderChannels = document.querySelectorAll('.fader-channel');
+      faderChannels.forEach(channel => {
+        // Single click to select (only on background, not on interactive elements)
+        channel.addEventListener('click', (e) => {
+          // Don't select if clicking on interactive elements
+          if (e.target.closest('.fader-container') ||
+              e.target.closest('.mute-btn') ||
+              e.target.closest('.solo-btn') ||
+              e.target.closest('.fader-label') ||
+              e.target.closest('.fader-icon') ||
+              e.target.closest('.fader-value') ||
+              e.target.closest('.fader-mapping-info')) {
+            return;
+          }
+          channel.classList.toggle('selected');
+          e.stopPropagation();
+        });
+
+        // Double click to edit
+        channel.addEventListener('dblclick', (e) => {
+          const faderId = channel.getAttribute('data-fader-id');
+          editFaderMapping(faderId);
+          e.stopPropagation();
+        });
+
+        // Right click for context menu
+        channel.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          const faderId = channel.getAttribute('data-fader-id');
+          showFaderContextMenu(faderId, e.clientX, e.clientY);
+        });
+      });
+    }
+
+    // Update status
+    async function updateStatus() {
+      try {
+        const mixerStatus = await ipcRenderer.invoke('get-mixer-status');
+        const midiStatus = await ipcRenderer.invoke('get-midi-status');
+        const currentPreset = await ipcRenderer.invoke('get-current-preset');
+
+        // Update mixer status (sidebar) - only if elements exist
+        const mixerIndicator = document.getElementById('mixer-status');
+        const mixerStatusText = document.getElementById('mixer-status-text');
+        const mixerIp = document.getElementById('mixer-ip');
+
+        // Track previous connection state to detect changes
+        const wasConnected = window.previousMixerConnected || false;
+        const isNowConnected = mixerStatus.connected;
+
+        if (mixerIndicator && mixerStatusText && mixerIp) {
+          if (mixerStatus.connected) {
+            mixerIndicator.classList.add('connected');
+            mixerStatusText.textContent = 'Connected';
+            mixerIp.textContent = mixerStatus.ip || '—';
+          } else {
+            mixerIndicator.classList.remove('connected');
+            mixerStatusText.textContent = 'Disconnected';
+            mixerIp.textContent = '—';
+          }
+        }
+
+        // Update mixer status (header and status bar)
+        const mixerStatusDot = document.getElementById('mixer-status-dot');
+        const mixerStatusShort = document.getElementById('mixer-status-short');
+        const statusMixer = document.getElementById('status-mixer');
+
+        if (mixerStatusDot) {
+          if (mixerStatus.connected) {
+            mixerStatusDot.classList.add('connected');
+            // Prefer mixer name over IP address
+            const displayName = mixerStatus.name || mixerStatus.ip || 'Mixer';
+            if (mixerStatusShort) mixerStatusShort.textContent = displayName;
+
+            // Update tooltip with connection details
+            const mixerConnectionEl = document.getElementById('mixer-connection-status');
+            if (mixerConnectionEl) {
+              mixerConnectionEl.title = `Mixer: ${mixerStatus.name || 'Unknown'}\nIP: ${mixerStatus.ip || 'Unknown'}\nClick to open connection panel`;
+            }
+
+            if (statusMixer) {
+              statusMixer.textContent = displayName;
+              statusMixer.classList.add('connected');
+              statusMixer.classList.remove('disconnected');
+            }
+          } else {
+            mixerStatusDot.classList.remove('connected');
+            if (mixerStatusShort) mixerStatusShort.textContent = 'Mixer';
+
+            // Update tooltip
+            const mixerConnectionEl = document.getElementById('mixer-connection-status');
+            if (mixerConnectionEl) {
+              mixerConnectionEl.title = 'Mixer: Disconnected\nClick to open connection panel';
+            }
+
+            if (statusMixer) {
+              statusMixer.textContent = 'Disconnected';
+              statusMixer.classList.remove('connected');
+              statusMixer.classList.add('disconnected');
+            }
+          }
+        }
+
+        // If mixer just connected, reload faders and mappings to get channel names
+        if (!wasConnected && isNowConnected) {
+          loadFaders();
+          loadMappings();
+        }
+
+        // Update previous state
+        window.previousMixerConnected = isNowConnected;
+
+        // Update MIDI status (sidebar) - only if elements exist
+        const midiIndicator = document.getElementById('midi-status');
+        const midiStatusText = document.getElementById('midi-status-text');
+        const midiDevice = document.getElementById('midi-device');
+
+        if (midiIndicator && midiStatusText && midiDevice) {
+          if (midiStatus.connected) {
+            midiIndicator.classList.add('connected');
+            midiStatusText.textContent = 'Connected';
+            midiDevice.textContent = midiStatus.device || '—';
+          } else {
+            midiIndicator.classList.remove('connected');
+            midiStatusText.textContent = 'Disconnected';
+            midiDevice.textContent = '—';
+          }
+        }
+
+        // Update MIDI status (header and status bar)
+        const midiStatusDot = document.getElementById('midi-status-dot');
+        const midiStatusShort = document.getElementById('midi-status-short');
+        const statusMidi = document.getElementById('status-midi');
+
+        if (midiStatusDot) {
+          if (midiStatus.connected) {
+            midiStatusDot.classList.add('connected');
+            const shortDeviceName = shortenMidiDeviceName(midiStatus.device);
+            if (midiStatusShort) midiStatusShort.textContent = shortDeviceName || 'MIDI';
+
+            // Update tooltip with MIDI details
+            const midiConnectionEl = document.getElementById('midi-connection-status');
+            if (midiConnectionEl) {
+              midiConnectionEl.title = `MIDI Device: ${shortDeviceName || 'Unknown'}\nClick to open connection panel`;
+            }
+
+            if (statusMidi) {
+              statusMidi.textContent = shortDeviceName || 'Connected';
+              statusMidi.classList.add('connected');
+              statusMidi.classList.remove('disconnected');
+            }
+          } else {
+            midiStatusDot.classList.remove('connected');
+            if (midiStatusShort) midiStatusShort.textContent = 'MIDI';
+
+            // Update tooltip
+            const midiConnectionEl = document.getElementById('midi-connection-status');
+            if (midiConnectionEl) {
+              midiConnectionEl.title = 'MIDI: Disconnected\nClick to open connection panel';
+            }
+
+            if (statusMidi) {
+              statusMidi.textContent = 'Disconnected';
+              statusMidi.classList.remove('connected');
+              statusMidi.classList.add('disconnected');
+            }
+          }
+        }
+
+        // Update preset in sidebar and status bar
+        document.getElementById('current-preset').textContent = currentPreset || 'None';
+        updateStatusProfile(currentPreset);
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+
+    // Load initial state
+    async function loadInitialState() {
+      try {
+        updateStatusInit('Discovering mixers...');
+
+        const mixers = await ipcRenderer.invoke('get-discovered-mixers');
+        const listEl = document.getElementById('mixer-list');
+
+        if (mixers.length > 0) {
+          listEl.innerHTML = mixers.map(mixer => `
+            <div class="mixer-item">
+              <div class="mixer-info">
+                <div class="mixer-name">${mixer.name}</div>
+                <div class="mixer-details">IP: ${mixer.ip} | Serial: ${mixer.serial}</div>
+              </div>
+              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.name}')">Connect</button>
+            </div>
+          `).join('');
+        }
+
+        updateStatusInit('Loading preset...');
+      } catch (error) {
+        // Silent error handling
+        updateStatusInit('Initialization failed');
+      }
+
+      updateStatus();
+      loadMappings();
+      loadFaders();
+
+      updateStatusInit('Ready');
+    }
+
+    // Update status every 2 seconds
+    setInterval(updateStatus, 2000);
+
+    // Hide context menu when clicking elsewhere
+    document.addEventListener('click', (e) => {
+      const contextMenu = document.getElementById('context-menu');
+      if (contextMenu && !contextMenu.contains(e.target)) {
+        hideContextMenu();
+      }
+    });
+
+    // Load initial state when page loads
+    loadInitialState();
+  </script>
 </body>
 </html>
 

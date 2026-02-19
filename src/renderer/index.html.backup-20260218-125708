@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudioLive MIDI Controller</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Header with activity indicators */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .activity-lights {
+      display: flex;
+      gap: 20px;
+    }
+
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+    }
+
+    .activity-light {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.15s;
+    }
+
+    .activity-light.active {
+      box-shadow: 0 0 15px currentColor;
+      background: currentColor;
+    }
+
+    .activity-light.midi { color: #00ff88; }
+    .activity-light.mixer { color: #ff6b6b; }
+
+    /* Main layout */
+    .main-layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .status-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .status-card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff4444;
+      box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
+    }
+
+    .status-indicator.connected {
+      background: #44ff44;
+      box-shadow: 0 0 10px rgba(68, 255, 68, 0.5);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-size: 0.9rem;
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      opacity: 0.8;
+    }
+
+    .info-value {
+      font-weight: 600;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.3s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.3s;
+    }
+
+    .tab:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .tab.active {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Content area */
+    .content-area {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      min-height: 600px;
+    }
+
+    /* Faders view */
+    .faders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 12px;
+    }
+
+    .fader-channel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 8px 6px;
+      border-radius: 6px;
+      min-width: 60px;
+      max-width: 70px;
+    }
+
+    .fader-value {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      min-height: 16px;
+    }
+
+    .fader-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-align: center;
+      word-break: break-word;
+      line-height: 1.2;
+      padding: 4px 6px;
+      border-radius: 3px;
+      width: 100%;
+      color: #000;
+      background: #888;
+    }
+
+    .mute-btn {
+      width: 32px;
+      height: 24px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      background: rgba(0, 0, 0, 0.3);
+      color: rgba(255, 255, 255, 0.6);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 0;
+    }
+
+    .mute-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .mute-btn.active {
+      background: #ff6b6b;
+      border-color: #ff6b6b;
+      color: #fff;
+      box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+    }
+
+    .fader-container {
+      width: 30px;
+      height: 200px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 15px;
+      position: relative;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .fader-container:hover {
+      border-color: rgba(0, 255, 136, 0.5);
+    }
+
+    .fader-container.dragging {
+      border-color: rgba(0, 255, 136, 1);
+    }
+
+    .fader-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(to top, #00ff88, #00cc66);
+      border-radius: 0 0 18px 18px;
+      transition: height 0.1s;
+    }
+
+    .fader-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .fader-levels {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 200px;
+      font-size: 0.6rem;
+      color: rgba(255, 255, 255, 0.4);
+      line-height: 1;
+    }
+
+    /* Mappings view */
+    .mappings-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .mappings-list {
+      display: grid;
+      gap: 15px;
+    }
+
+    .mapping-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .mapping-activity {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      transition: all 0.15s;
+    }
+
+    .mapping-activity.active {
+      background: #00ff88;
+      box-shadow: 0 0 10px #00ff88;
+    }
+
+    .mapping-info {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .mapping-source, .mapping-target {
+      font-size: 0.9rem;
+    }
+
+    .mapping-arrow {
+      font-size: 1.5rem;
+      opacity: 0.6;
+    }
+
+    .btn-small {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .btn-small:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-small.danger:hover {
+      background: rgba(255, 68, 68, 0.3);
+      border-color: rgba(255, 68, 68, 0.5);
+    }
+
+    /* Modal */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #667eea;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-content h2 {
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 0.9rem;
+      opacity: 0.9;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 15px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 1rem;
+    }
+
+    .form-group input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .mixer-list {
+      display: grid;
+      gap: 10px;
+      margin: 15px 0;
+    }
+
+    .mixer-item {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mixer-info {
+      flex: 1;
+    }
+
+    .mixer-name {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 5px;
+    }
+
+    .mixer-details {
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎛️ StudioLive MIDI Controller</h1>
+      <div class="activity-lights">
+        <div class="activity-item">
+          <div class="activity-light midi" id="midi-activity"></div>
+          <span>MIDI</span>
+        </div>
+        <div class="activity-item">
+          <div class="activity-light mixer" id="mixer-activity"></div>
+          <span>Mixer</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <!-- Sidebar -->
+      <div class="sidebar">
+        <div class="status-card">
+          <h2>
+            <span class="status-indicator" id="mixer-status"></span>
+            Mixer
+          </h2>
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value" id="mixer-status-text">Disconnected</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">IP:</span>
+            <span class="info-value" id="mixer-ip">—</span>
+          </div>
+          <button class="btn" onclick="showDiscovery()">🔍 Find Mixer</button>
+        </div>
+
+        <div class="status-card">
+          <h2>
+            <span class="status-indicator" id="midi-status"></span>
+            MIDI
+          </h2>
+          <div class="info-row">
+            <span class="info-label">Status:</span>
+            <span class="info-value" id="midi-status-text">Disconnected</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Device:</span>
+            <span class="info-value" id="midi-device">—</span>
+          </div>
+          <button class="btn" onclick="showMidiSelect()">🎹 Select MIDI Input</button>
+        </div>
+
+        <div class="status-card">
+          <h2>📋 Preset</h2>
+          <div class="info-row">
+            <span class="info-label">Current:</span>
+            <span class="info-value" id="current-preset">None</span>
+          </div>
+          <button class="btn" onclick="showSavePreset()">💾 Save Preset</button>
+        </div>
+
+        <div class="status-card">
+          <h2>➕ Mapping</h2>
+          <button class="btn" onclick="showAddMapping()">Create New</button>
+        </div>
+      </div>
+
+      <!-- Main content -->
+      <div class="content-area">
+        <div class="tabs">
+          <button class="tab active" onclick="showTab('faders')">🎚️ Faders</button>
+          <button class="tab" onclick="showTab('mappings')">🗺️ Mappings</button>
+        </div>
+
+        <div id="faders-view" class="tab-content active">
+          <div style="margin-bottom: 15px; padding: 8px 12px; background: rgba(0, 255, 136, 0.1); border-left: 3px solid #00ff88; border-radius: 4px;">
+            <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.6);">Mix Page</div>
+            <div style="font-size: 1rem; font-weight: 600; color: #00ff88;">MAIN</div>
+          </div>
+          <div id="faders-container" class="faders-grid"></div>
+        </div>
+
+        <div id="mappings-view" class="tab-content">
+          <div class="mappings-header">
+            <h2>Current Mappings</h2>
+          </div>
+          <div id="mappings-list" class="mappings-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="discovery-modal" class="modal">
+    <div class="modal-content">
+      <h2>🔍 Find Mixer</h2>
+      <button class="btn" id="scan-btn" onclick="scanForMixers()">Scan Network</button>
+      <div id="mixer-list" class="mixer-list">
+        <div class="empty-state">Click "Scan Network" to discover mixers</div>
+      </div>
+      <h3 style="margin-top: 20px; margin-bottom: 10px;">Manual Connection</h3>
+      <div class="form-group">
+        <input type="text" id="manual-ip" placeholder="Enter mixer IP (e.g., 192.168.1.100)" />
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="connectManual()">Connect</button>
+        <button class="btn" onclick="hideDiscovery()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="add-mapping-modal" class="modal">
+    <div class="modal-content">
+      <h2>➕ Create Mapping</h2>
+      <div class="form-group">
+        <label>MIDI Type</label>
+        <select id="midi-type">
+          <option value="cc">Control Change (CC)</option>
+          <option value="note">Note</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>MIDI Channel</label>
+        <input type="number" id="midi-channel" value="1" min="1" max="16" />
+      </div>
+      <div class="form-group" id="cc-group">
+        <label>CC Number</label>
+        <input type="number" id="midi-cc" value="1" min="0" max="127" />
+      </div>
+      <div class="form-group" id="note-group" style="display:none;">
+        <label>Note Number</label>
+        <input type="number" id="midi-note" value="60" min="0" max="127" />
+      </div>
+      <div class="form-group">
+        <label>Mixer Action</label>
+        <select id="mixer-action">
+          <option value="volume">Volume</option>
+          <option value="mute">Mute</option>
+          <option value="solo">Solo</option>
+          <option value="pan">Pan</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Mixer Channel</label>
+        <input type="number" id="mixer-channel" value="1" min="1" max="32" />
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="addMapping()">Add Mapping</button>
+        <button class="btn" onclick="hideAddMapping()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="save-preset-modal" class="modal">
+    <div class="modal-content">
+      <h2>💾 Save Preset</h2>
+      <div class="form-group">
+        <label>Preset Name</label>
+        <input type="text" id="preset-name" placeholder="My Preset" />
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <input type="text" id="preset-description" placeholder="Description" />
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="savePreset()">Save</button>
+        <button class="btn" onclick="hideSavePreset()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="midi-select-modal" class="modal">
+    <div class="modal-content">
+      <h2>🎹 Select MIDI Input</h2>
+      <div id="midi-devices-list" class="mixer-list">
+        <div class="empty-state">Loading MIDI devices...</div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="refreshMidiDevices()">🔄 Refresh</button>
+        <button class="btn" onclick="hideMidiSelect()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    // Track mapping activity
+    const mappingActivity = new Map();
+
+    // Flash activity indicator
+    function flashActivity(elementId) {
+      const el = document.getElementById(elementId);
+      if (el) {
+        el.classList.add('active');
+        setTimeout(() => el.classList.remove('active'), 150);
+      }
+    }
+
+    // Listen for MIDI activity
+    ipcRenderer.on('midi-activity', (event, midiMessage) => {
+      flashActivity('midi-activity');
+      console.log('MIDI:', midiMessage);
+    });
+
+    // Listen for mixer activity
+    ipcRenderer.on('mixer-activity', (event, mixerCommand) => {
+      flashActivity('mixer-activity');
+      console.log('Mixer:', mixerCommand);
+
+      // Update fader if it's a volume command
+      if (mixerCommand.action === 'volume' && mixerCommand.value !== undefined) {
+        updateFader(mixerCommand.channel.channel, mixerCommand.value);
+      }
+    });
+
+    // Listen for mixer level changes (from physical mixer or Universal Control)
+    ipcRenderer.on('mixer-level', (event, data) => {
+      flashActivity('mixer-activity');
+      console.log('Mixer level:', data);
+      // data.channel.type, data.channel.channel, data.level
+      // Update fader for any channel type (LINE, MAIN, AUX, etc.)
+      if (data.channel) {
+        updateFaderByValue(data.channel.type, data.channel.channel, data.level);
+      }
+    });
+
+    // Listen for mixer state ready event (when channel names are available)
+    ipcRenderer.on('mixer-state-ready', () => {
+      console.log('🎉 UI: Mixer state ready - reloading faders and mappings');
+      loadFaders();
+      loadMappings();
+    });
+
+    // Listen for mixer mute changes (from physical mixer or Universal Control)
+    ipcRenderer.on('mixer-mute', (event, data) => {
+      console.log('Mixer mute:', data);
+      // data.channel.type, data.channel.channel, data.status
+      if (data.channel) {
+        updateMuteButton(data.channel.type, data.channel.channel, data.status);
+      }
+    });
+
+    // Update fader visual (value is 0-1)
+    function updateFader(channel, value) {
+      const faderFill = document.getElementById(`fader-fill-${channel}`);
+      const faderValue = document.getElementById(`fader-value-${channel}`);
+      if (faderFill && faderValue) {
+        const percentage = Math.round(value * 100);
+        faderFill.style.height = `${percentage}%`;
+        faderValue.textContent = `${percentage}%`;
+      }
+    }
+
+    // Update fader visual by percentage value (value is 0-100)
+    // channelType and channelNum are used to create unique fader ID
+    function updateFaderByValue(channelType, channelNum, percentage) {
+      const faderId = `${channelType}-${channelNum}`;
+      const faderFill = document.getElementById(`fader-fill-${faderId}`);
+      const faderValue = document.getElementById(`fader-value-${faderId}`);
+      if (faderFill && faderValue) {
+        const roundedPercentage = Math.round(percentage);
+        faderFill.style.height = `${roundedPercentage}%`;
+        faderValue.textContent = `${roundedPercentage}%`;
+      }
+    }
+
+    // Tab switching
+    function showTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById(`${tabName}-view`).classList.add('active');
+    }
+
+    // Modal functions
+    function showDiscovery() {
+      document.getElementById('discovery-modal').classList.add('show');
+    }
+
+    function hideDiscovery() {
+      document.getElementById('discovery-modal').classList.remove('show');
+    }
+
+    function showAddMapping() {
+      document.getElementById('add-mapping-modal').classList.add('show');
+    }
+
+    function hideAddMapping() {
+      document.getElementById('add-mapping-modal').classList.remove('show');
+    }
+
+    function showSavePreset() {
+      document.getElementById('save-preset-modal').classList.add('show');
+    }
+
+    function hideSavePreset() {
+      document.getElementById('save-preset-modal').classList.remove('show');
+    }
+
+    function showMidiSelect() {
+      document.getElementById('midi-select-modal').classList.add('show');
+      loadMidiDevices();
+    }
+
+    function hideMidiSelect() {
+      document.getElementById('midi-select-modal').classList.remove('show');
+    }
+
+    // MIDI type change handler
+    document.addEventListener('DOMContentLoaded', () => {
+      const midiTypeSelect = document.getElementById('midi-type');
+      if (midiTypeSelect) {
+        midiTypeSelect.addEventListener('change', (e) => {
+          const ccGroup = document.getElementById('cc-group');
+          const noteGroup = document.getElementById('note-group');
+          if (e.target.value === 'cc') {
+            ccGroup.style.display = 'block';
+            noteGroup.style.display = 'none';
+          } else {
+            ccGroup.style.display = 'none';
+            noteGroup.style.display = 'block';
+          }
+        });
+      }
+    });
+
+    // Scan for mixers
+    async function scanForMixers() {
+      const btn = document.getElementById('scan-btn');
+      const listEl = document.getElementById('mixer-list');
+
+      btn.disabled = true;
+      btn.textContent = 'Scanning...';
+      listEl.innerHTML = '<div class="empty-state">Scanning network...</div>';
+
+      try {
+        const mixers = await ipcRenderer.invoke('discover-mixers');
+
+        if (mixers.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No mixers found. Try manual connection below.</div>';
+        } else {
+          listEl.innerHTML = mixers.map(mixer => `
+            <div class="mixer-item">
+              <div class="mixer-info">
+                <div class="mixer-name">${mixer.name}</div>
+                <div class="mixer-details">IP: ${mixer.ip} | Serial: ${mixer.serial}</div>
+              </div>
+              <button class="btn" onclick="connectToMixer('${mixer.ip}')">Connect</button>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Scan Network';
+      }
+    }
+
+    // Connect to mixer
+    async function connectToMixer(ip) {
+      try {
+        const result = await ipcRenderer.invoke('connect-mixer', ip);
+        if (result.success) {
+          alert(`✓ Connected to mixer at ${ip}`);
+          hideDiscovery();
+          updateStatus();
+        } else {
+          alert(`✗ Failed to connect: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Connect manually
+    async function connectManual() {
+      const ip = document.getElementById('manual-ip').value.trim();
+      if (!ip) {
+        alert('Please enter an IP address');
+        return;
+      }
+      await connectToMixer(ip);
+    }
+
+    // Load MIDI devices
+    async function loadMidiDevices() {
+      try {
+        const devices = await ipcRenderer.invoke('get-midi-devices');
+        const listEl = document.getElementById('midi-devices-list');
+
+        if (devices.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No MIDI devices found. Make sure Logic Pro is running and MIDI output is enabled.</div>';
+        } else {
+          listEl.innerHTML = devices.map(device => `
+            <div class="mixer-item">
+              <div class="mixer-info">
+                <div class="mixer-name">🎹 ${device}</div>
+              </div>
+              <button class="btn" onclick="connectToMidiDevice('${device}')">Connect</button>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        const listEl = document.getElementById('midi-devices-list');
+        listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+      }
+    }
+
+    // Refresh MIDI devices
+    async function refreshMidiDevices() {
+      await loadMidiDevices();
+    }
+
+    // Connect to MIDI device
+    async function connectToMidiDevice(deviceName) {
+      try {
+        const result = await ipcRenderer.invoke('connect-midi-device', deviceName);
+        if (result.success) {
+          alert(`✓ Connected to MIDI device: ${deviceName}`);
+          hideMidiSelect();
+          updateStatus();
+        } else {
+          alert(`✗ Failed to connect: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Add mapping
+    async function addMapping() {
+      const midiType = document.getElementById('midi-type').value;
+      const midiChannel = parseInt(document.getElementById('midi-channel').value);
+      const mixerAction = document.getElementById('mixer-action').value;
+      const mixerChannel = parseInt(document.getElementById('mixer-channel').value);
+
+      const mapping = {
+        midi: {
+          type: midiType,
+          channel: midiChannel
+        },
+        mixer: {
+          action: mixerAction,
+          channel: mixerChannel
+        }
+      };
+
+      if (midiType === 'cc') {
+        mapping.midi.controller = parseInt(document.getElementById('midi-cc').value);
+      } else {
+        mapping.midi.note = parseInt(document.getElementById('midi-note').value);
+      }
+
+      try {
+        await ipcRenderer.invoke('add-mapping', mapping);
+        alert('✓ Mapping added');
+        hideAddMapping();
+        loadMappings();
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Remove mapping
+    async function removeMapping(index) {
+      if (!confirm('Remove this mapping?')) return;
+
+      try {
+        await ipcRenderer.invoke('remove-mapping', index);
+        loadMappings();
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Save preset
+    async function savePreset() {
+      const name = document.getElementById('preset-name').value.trim();
+      const description = document.getElementById('preset-description').value.trim();
+
+      if (!name) {
+        alert('Please enter a preset name');
+        return;
+      }
+
+      try {
+        const result = await ipcRenderer.invoke('save-preset', name, description);
+        if (result.success) {
+          alert(`✓ Preset saved to ${result.path}`);
+          hideSavePreset();
+          updateStatus();
+        } else {
+          alert(`✗ Failed to save: ${result.error}`);
+        }
+      } catch (error) {
+        alert(`✗ Error: ${error.message}`);
+      }
+    }
+
+    // Load mappings
+    async function loadMappings() {
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const channelNames = await ipcRenderer.invoke('get-channel-names', 'line', 16);
+        const listEl = document.getElementById('mappings-list');
+
+        if (mappings.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No mappings yet. Click "Create New" to add one.</div>';
+        } else {
+          listEl.innerHTML = mappings.map((mapping, index) => {
+            const midiDesc = mapping.midi.type === 'cc'
+              ? `CC ${mapping.midi.controller} (Ch ${mapping.midi.channel})`
+              : `Note ${mapping.midi.note} (Ch ${mapping.midi.channel})`;
+
+            // Extract channel number and get name
+            const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+            const channelInfo = channelNames.find(c => c.channel === channelNum);
+            const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
+            const mixerDesc = `${mapping.mixer.action} - ${channelNum}: ${channelName}`;
+
+            return `
+              <div class="mapping-card">
+                <div class="mapping-activity" id="mapping-activity-${index}"></div>
+                <div class="mapping-info">
+                  <div class="mapping-source">🎹 ${midiDesc}</div>
+                  <div class="mapping-arrow">→</div>
+                  <div class="mapping-target">🎛️ ${mixerDesc}</div>
+                </div>
+                <button class="btn-small danger" onclick="removeMapping(${index})">Delete</button>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (error) {
+        console.error('Failed to load mappings:', error);
+      }
+    }
+
+    // Load faders
+    async function loadFaders() {
+      try {
+        console.log('🎚️ UI: Loading faders...');
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        console.log('📋 UI: Got mappings:', mappings.length);
+
+        const channelNames = await ipcRenderer.invoke('get-channel-names', 'line', 16);
+        const channelColors = await ipcRenderer.invoke('get-channel-colors', 'line', 16);
+        console.log('📝 UI: Got channel names:', channelNames);
+        console.log('🎨 UI: Got channel colors:', channelColors);
+
+        const volumeMappings = mappings.filter(m => m.mixer.action === 'volume');
+        console.log('🎚️ UI: Volume mappings:', volumeMappings.length);
+
+        // Sort mappings: regular channels first, then MAIN at the end
+        const sortedMappings = volumeMappings.sort((a, b) => {
+          const aType = a.mixer.channel.type || 'LINE';
+          const bType = b.mixer.channel.type || 'LINE';
+          if (aType === 'MAIN') return 1;
+          if (bType === 'MAIN') return -1;
+          const aNum = a.mixer.channel.channel || 0;
+          const bNum = b.mixer.channel.channel || 0;
+          return aNum - bNum;
+        });
+
+        const container = document.getElementById('faders-container');
+
+        if (sortedMappings.length === 0) {
+          container.innerHTML = '<div class="empty-state">No volume mappings yet. Add some mappings to see faders here.</div>';
+        } else {
+          container.innerHTML = sortedMappings.map(mapping => {
+            // Extract channel number from ChannelSelector object
+            const channelType = mapping.mixer.channel.type || 'LINE';
+            const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+            const channelInfo = channelNames.find(c => c.channel === channelNum);
+            const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
+            const channelColorInfo = channelColors.find(c => c.channel === channelNum);
+            const channelColor = channelColorInfo?.color || '#888';
+
+            // Create unique ID that includes type and channel
+            const faderId = `${channelType}-${channelNum}`;
+
+            // Create label with channel number prefix
+            const label = channelType === 'MAIN' ? 'MAIN' : `${channelNum}: ${channelName}`;
+
+            // Apply color as background of label
+            const labelStyle = `background: ${channelColor}; color: #000;`;
+
+            console.log(`  Channel ${channelNum}: name="${channelName}", color="${channelColor}"`);
+            return `
+              <div class="fader-channel">
+                <div class="fader-value" id="fader-value-${faderId}">0%</div>
+                <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
+                <div class="fader-wrapper">
+                  <div class="fader-levels">
+                    <div>10</div>
+                    <div>5</div>
+                    <div>0</div>
+                    <div>-5</div>
+                    <div>-10</div>
+                    <div>-20</div>
+                    <div>-30</div>
+                    <div>∞</div>
+                  </div>
+                  <div class="fader-container" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}">
+                    <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
+                  </div>
+                </div>
+                <div class="fader-label" style="${labelStyle}">${label}</div>
+              </div>
+            `;
+          }).join('');
+
+          // Add mouse interaction to faders
+          setupFaderInteraction();
+
+          // Load initial fader positions and mute states from mixer
+          loadInitialFaderPositions(sortedMappings);
+          loadInitialMuteStates(sortedMappings);
+        }
+      } catch (error) {
+        console.error('❌ Failed to load faders:', error);
+      }
+    }
+
+    // Load initial fader positions from the mixer
+    async function loadInitialFaderPositions(volumeMappings) {
+      for (const mapping of volumeMappings) {
+        try {
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const level = await ipcRenderer.invoke('get-mixer-level', channelType, channelNum);
+          if (level !== null) {
+            updateFaderByValue(channelType, channelNum, level);
+          }
+        } catch (error) {
+          console.error('Failed to load initial fader position:', error);
+        }
+      }
+    }
+
+    // Load initial mute states from the mixer
+    async function loadInitialMuteStates(volumeMappings) {
+      for (const mapping of volumeMappings) {
+        try {
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const muted = await ipcRenderer.invoke('get-channel-mute', channelType, channelNum);
+          if (muted !== null) {
+            updateMuteButton(channelType, channelNum, muted);
+          }
+        } catch (error) {
+          console.error('Failed to load initial mute state:', error);
+        }
+      }
+    }
+
+    // Toggle mute for a channel
+    async function toggleMute(type, channel) {
+      try {
+        const result = await ipcRenderer.invoke('toggle-mute', type, channel);
+        if (!result.success) {
+          console.error('Failed to toggle mute:', result.error);
+        }
+      } catch (error) {
+        console.error('Failed to toggle mute:', error);
+      }
+    }
+
+    // Update mute button visual state
+    function updateMuteButton(channelType, channelNum, muted) {
+      const faderId = `${channelType}-${channelNum}`;
+      const muteBtn = document.getElementById(`mute-btn-${faderId}`);
+      if (muteBtn) {
+        if (muted) {
+          muteBtn.classList.add('active');
+        } else {
+          muteBtn.classList.remove('active');
+        }
+      }
+    }
+
+    // Setup fader mouse interaction
+    function setupFaderInteraction() {
+      const faderContainers = document.querySelectorAll('.fader-container');
+
+      faderContainers.forEach(container => {
+        let isDragging = false;
+        const channel = parseInt(container.getAttribute('data-channel'));
+        const channelType = container.getAttribute('data-type') || 'LINE';
+        const faderId = container.getAttribute('data-fader-id');
+
+        const updateFaderFromMouse = (e) => {
+          const rect = container.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const height = rect.height;
+
+          // Calculate percentage (inverted because 0 is at top, 100 at bottom)
+          let percentage = Math.max(0, Math.min(100, ((height - y) / height) * 100));
+
+          // Update UI
+          const fill = document.getElementById(`fader-fill-${faderId}`);
+          const valueDisplay = document.getElementById(`fader-value-${faderId}`);
+          if (fill && valueDisplay) {
+            fill.style.height = `${percentage}%`;
+            valueDisplay.textContent = `${Math.round(percentage)}%`;
+          }
+
+          // Send to mixer (value is 0-100 for the API)
+          ipcRenderer.invoke('set-mixer-volume', channelType, channel, percentage).catch(err => {
+            console.error('Failed to set mixer volume:', err);
+          });
+        };
+
+        container.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          container.classList.add('dragging');
+          updateFaderFromMouse(e);
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (isDragging) {
+            updateFaderFromMouse(e);
+          }
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (isDragging) {
+            isDragging = false;
+            container.classList.remove('dragging');
+          }
+        });
+      });
+    }
+
+    // Update status
+    async function updateStatus() {
+      try {
+        const mixerStatus = await ipcRenderer.invoke('get-mixer-status');
+        const midiStatus = await ipcRenderer.invoke('get-midi-status');
+        const currentPreset = await ipcRenderer.invoke('get-current-preset');
+
+        // Update mixer status
+        const mixerIndicator = document.getElementById('mixer-status');
+        const mixerStatusText = document.getElementById('mixer-status-text');
+        const mixerIp = document.getElementById('mixer-ip');
+
+        // Track previous connection state to detect changes
+        const wasConnected = window.previousMixerConnected || false;
+        const isNowConnected = mixerStatus.connected;
+
+        if (mixerStatus.connected) {
+          mixerIndicator.classList.add('connected');
+          mixerStatusText.textContent = 'Connected';
+          mixerIp.textContent = mixerStatus.ip || '—';
+        } else {
+          mixerIndicator.classList.remove('connected');
+          mixerStatusText.textContent = 'Disconnected';
+          mixerIp.textContent = '—';
+        }
+
+        // If mixer just connected, reload faders and mappings to get channel names
+        if (!wasConnected && isNowConnected) {
+          console.log('🔌 Mixer connected - reloading faders and mappings with channel names');
+          loadFaders();
+          loadMappings();
+        }
+
+        // Update previous state
+        window.previousMixerConnected = isNowConnected;
+
+        // Update MIDI status
+        const midiIndicator = document.getElementById('midi-status');
+        const midiStatusText = document.getElementById('midi-status-text');
+        const midiDevice = document.getElementById('midi-device');
+
+        if (midiStatus.connected) {
+          midiIndicator.classList.add('connected');
+          midiStatusText.textContent = 'Connected';
+          midiDevice.textContent = midiStatus.device || '—';
+        } else {
+          midiIndicator.classList.remove('connected');
+          midiStatusText.textContent = 'Disconnected';
+          midiDevice.textContent = '—';
+        }
+
+        // Update preset
+        document.getElementById('current-preset').textContent = currentPreset || 'None';
+      } catch (error) {
+        console.error('Failed to update status:', error);
+      }
+    }
+
+    // Load initial state
+    async function loadInitialState() {
+      try {
+        const mixers = await ipcRenderer.invoke('get-discovered-mixers');
+        const listEl = document.getElementById('mixer-list');
+
+        if (mixers.length > 0) {
+          listEl.innerHTML = mixers.map(mixer => `
+            <div class="mixer-item">
+              <div class="mixer-info">
+                <div class="mixer-name">${mixer.name}</div>
+                <div class="mixer-details">IP: ${mixer.ip} | Serial: ${mixer.serial}</div>
+              </div>
+              <button class="btn" onclick="connectToMixer('${mixer.ip}')">Connect</button>
+            </div>
+          `).join('');
+        }
+      } catch (error) {
+        console.error('Failed to load initial state:', error);
+      }
+
+      updateStatus();
+      loadMappings();
+      loadFaders();
+    }
+
+    // Update status every 2 seconds
+    setInterval(updateStatus, 2000);
+
+    // Load initial state when page loads
+    loadInitialState();
+  </script>
+</body>
+</html>
+

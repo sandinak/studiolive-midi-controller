@@ -1,0 +1,222 @@
+{
+  "name": "testing preset",
+  "version": "1.0",
+  "description": "",
+  "mixerIp": "192.168.21.41",
+  "mappings": [
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 1
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 1
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 2
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 2
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 3
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 3
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 4
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 4
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 5
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 5
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 6
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 6
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 8
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 8
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 16
+      },
+      "mixer": {
+        "action": "mute",
+        "channel": {
+          "type": "LINE",
+          "channel": 1
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 17
+      },
+      "mixer": {
+        "action": "mute",
+        "channel": {
+          "type": "LINE",
+          "channel": 2
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 18
+      },
+      "mixer": {
+        "action": "mute",
+        "channel": {
+          "type": "LINE",
+          "channel": 3
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 19
+      },
+      "mixer": {
+        "action": "mute",
+        "channel": {
+          "type": "LINE",
+          "channel": 4
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 9
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "MAIN",
+          "channel": 1
+        },
+        "range": [
+          0,
+          100
+        ]
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 1,
+        "controller": 7
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 7
+        }
+      }
+    }
+  ]
+}

@@ -19,10 +19,12 @@ export interface MixerCommand {
 
 export interface MidiMapping {
   midi: {
-    type: 'cc' | 'note';
+    type: 'cc' | 'note' | 'note-value';
     channel: number;
-    controller?: number;
-    note?: number;
+    controller?: number;  // For CC messages
+    note?: number;        // For note trigger messages
+    noteMin?: number;     // For note-value mode: minimum note number
+    noteMax?: number;     // For note-value mode: maximum note number
   };
   mixer: {
     action: 'volume' | 'mute' | 'solo' | 'pan';
@@ -35,6 +37,9 @@ export interface MappingPreset {
   name: string;
   version: string;
   description?: string;
+  mixerIp?: string;  // Preferred mixer IP address
+  midiDevice?: string;  // Preferred MIDI device name
+  faderFilter?: 'all' | 'mapped';  // Fader filter state
   mappings: MidiMapping[];
 }
 

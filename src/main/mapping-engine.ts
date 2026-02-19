@@ -8,6 +8,9 @@ import * as path from 'path';
 export class MappingEngine extends EventEmitter {
   private mappings: MidiMapping[] = [];
   private currentPreset: string | null = null;
+  private preferredMixerIp: string | null = null;
+  private preferredMidiDevice: string | null = null;
+  private faderFilter: 'all' | 'mapped' = 'all';
 
   constructor() {
     super();
@@ -22,8 +25,14 @@ export class MappingEngine extends EventEmitter {
       const preset: MappingPreset = JSON.parse(data);
       this.mappings = preset.mappings;
       this.currentPreset = preset.name;
+      this.preferredMixerIp = preset.mixerIp || null;
+      this.preferredMidiDevice = preset.midiDevice || null;
+      this.faderFilter = preset.faderFilter || 'all';
+      if (this.preferredMixerIp) {
+      }
+      if (this.preferredMidiDevice) {
+      }
       this.emit('preset-loaded', preset);
-      console.log(`✓ Loaded preset: ${preset.name} (${preset.mappings.length} mappings)`);
     } catch (error) {
       this.emit('error', error);
       throw new Error(`Failed to load preset: ${error}`);
@@ -38,14 +47,22 @@ export class MappingEngine extends EventEmitter {
       name,
       version: '1.0',
       description,
+      mixerIp: this.preferredMixerIp || undefined,
+      midiDevice: this.preferredMidiDevice || undefined,
+      faderFilter: this.faderFilter,
       mappings: this.mappings
     };
 
     try {
+      // Ensure presets directory exists
+      const presetsDir = path.dirname(presetPath);
+      if (!fs.existsSync(presetsDir)) {
+        fs.mkdirSync(presetsDir, { recursive: true });
+      }
+
       fs.writeFileSync(presetPath, JSON.stringify(preset, null, 2));
       this.currentPreset = name;
       this.emit('preset-saved', preset);
-      console.log(`✓ Saved preset: ${name}`);
     } catch (error) {
       this.emit('error', error);
       throw new Error(`Failed to save preset: ${error}`);
@@ -97,6 +114,14 @@ export class MappingEngine extends EventEmitter {
       } else if (m.midi.type === 'note' && (midiMessage.type === 'note_on' || midiMessage.type === 'note_off')) {
         return m.midi.channel === midiMessage.channel &&
                m.midi.note === midiMessage.note;
+      } else if (m.midi.type === 'note-value' && midiMessage.type === 'note_on') {
+        // Note-value mode: match channel and check if note is in range
+        return m.midi.channel === midiMessage.channel &&
+               midiMessage.note !== undefined &&
+               (m.midi as any).noteMin !== undefined &&
+               (m.midi as any).noteMax !== undefined &&
+               midiMessage.note >= (m.midi as any).noteMin &&
+               midiMessage.note <= (m.midi as any).noteMax;
       }
       return false;
     });
@@ -115,9 +140,27 @@ export class MappingEngine extends EventEmitter {
     switch (mapping.mixer.action) {
       case 'volume':
       case 'pan': {
-        // Scale MIDI value (0-127) to mixer range
-        const [min, max] = mapping.mixer.range || [0, 100];
-        const scaledValue = min + (midiMessage.value / 127) * (max - min);
+        let scaledValue: number;
+
+        // Check if this is note-value mode
+        if (mapping.midi.type === 'note-value' && midiMessage.note !== undefined) {
+          const noteMin = (mapping.midi as any).noteMin || 24;
+          const noteMax = (mapping.midi as any).noteMax || 60;
+          const noteRange = noteMax - noteMin;
+
+          // Map note number to 0-100 range
+          // Formula: ((noteNumber - noteMin) / (noteMax - noteMin)) * 100
+          scaledValue = ((midiMessage.note - noteMin) / noteRange) * 100;
+
+          // Clamp to 0-100
+          scaledValue = Math.max(0, Math.min(100, scaledValue));
+
+        } else {
+          // Standard CC or note mode: scale MIDI value (0-127) to mixer range
+          const [min, max] = mapping.mixer.range || [0, 100];
+          scaledValue = min + (midiMessage.value / 127) * (max - min);
+        }
+
         command.value = scaledValue;
         break;
       }
@@ -137,6 +180,48 @@ export class MappingEngine extends EventEmitter {
    */
   getCurrentPreset(): string | null {
     return this.currentPreset;
+  }
+
+  /**
+   * Get preferred mixer IP
+   */
+  getPreferredMixerIp(): string | null {
+    return this.preferredMixerIp;
+  }
+
+  /**
+   * Set preferred mixer IP (will be saved with preset)
+   */
+  setPreferredMixerIp(ip: string): void {
+    this.preferredMixerIp = ip;
+  }
+
+  /**
+   * Get preferred MIDI device
+   */
+  getPreferredMidiDevice(): string | null {
+    return this.preferredMidiDevice;
+  }
+
+  /**
+   * Set preferred MIDI device (will be saved with preset)
+   */
+  setPreferredMidiDevice(device: string): void {
+    this.preferredMidiDevice = device;
+  }
+
+  /**
+   * Get fader filter state
+   */
+  getFaderFilter(): 'all' | 'mapped' {
+    return this.faderFilter;
+  }
+
+  /**
+   * Set fader filter state (will be saved with preset)
+   */
+  setFaderFilter(filter: 'all' | 'mapped'): void {
+    this.faderFilter = filter;
   }
 }
 

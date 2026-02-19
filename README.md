@@ -1,27 +1,50 @@
 # StudioLive MIDI Controller
 
-Control your PreSonus StudioLive III mixer using MIDI input from Logic Pro (or any MIDI controller).
+A powerful MIDI controller application for PreSonus StudioLive III mixers, designed to work seamlessly with Logic Pro and other DAWs. Control your mixer faders, mutes, and other parameters using MIDI messages, with full bidirectional communication and visual feedback.
+
+![Version](https://img.shields.io/badge/version-0.9.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Features
 
-- 🎛️ **MIDI to Mixer Control** - Map MIDI CC messages to mixer parameters
-- 🎹 **Logic Pro Integration** - Use Logic Pro as a control surface
-- 📝 **Preset System** - Save and load custom MIDI mappings
-- 🔄 **Real-time Feedback** - Monitor mixer state changes
-- ⚡ **Low Latency** - Direct network communication with mixer
+### Core Functionality
+- **Bidirectional MIDI Control**: Send MIDI from Logic Pro to control mixer faders, receive MIDI feedback when mixer changes
+- **Visual Fader Interface**: Universal Control-style faders with real-time position indicators
+- **Channel Management**: Support for all StudioLive channel types (LINE, AUX, FX, SUB, MAIN, DCA, etc.)
+- **MIDI Mapping**: Flexible mapping system supporting CC, Note, and Note-Value modes
+- **Profile Management**: Save and load complete configurations including mixer IP, MIDI device, and all mappings
+
+### Advanced Features
+- **MIDI Value Indicators**: Visual indicators showing MIDI value vs actual mixer value
+- **Stereo Channel Detection**: Automatic detection and labeling of stereo-linked channels
+- **Change Source Indicators**: Color-coded glows showing whether changes came from MIDI, API, or UI
+- **MIDI Log Window**: Real-time MIDI event monitoring with timestamps
+- **Filter Modes**: Toggle between showing all channels or only mapped channels
+- **Fader Smoothing**: Configurable smoothing for natural fader movements
+- **Auto-Discovery**: Automatic mixer discovery on local network
+- **Channel Colors & Icons**: Displays channel colors and icons from Universal Control
+
+### MIDI Modes
+1. **Control Change (CC)**: Standard MIDI CC messages (CC7, CC10, CC11, CC102-104)
+2. **Note (Trigger)**: Note on/off messages for triggering actions
+3. **Note-Value Mode**: Use note velocity as fader value (C1-C4 = 24-60)
+4. **None**: Channels can exist without MIDI mappings
 
 ## Prerequisites
 
+- **macOS** (tested on macOS 12+)
 - **Node.js** 18+ and npm
-- **PreSonus StudioLive III** mixer (16, 16R, 24R, or compatible model)
-- **Logic Pro** (or any MIDI controller/software)
-- Mixer and computer on the same network
+- **PreSonus StudioLive III** mixer on the same network
+- **Logic Pro** (or any DAW with MIDI output capability)
+- **Logic Pro Virtual Out** MIDI device configured
 
 ## Installation
 
-1. Clone this repository:
+### From Source
+
+1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/studiolive-midi-controller.git
+git clone https://github.com/sandinak/studiolive-midi-controller.git
 cd studiolive-midi-controller
 ```
 
@@ -30,149 +53,165 @@ cd studiolive-midi-controller
 npm install
 ```
 
-3. Build the project:
+3. Build the application:
 ```bash
 npm run build
 ```
 
-## Usage
-
-### Quick Start
-
-1. **Find your mixer's IP address** (check mixer's network settings)
-
-2. **Set the mixer IP** (optional, defaults to 192.168.1.100):
+4. Run the application:
 ```bash
-export MIXER_IP=192.168.1.50
+npm start
 ```
 
-3. **Run the application**:
+### From DMG
+
+1. Download the latest DMG from the releases page
+2. Open the DMG file
+3. Drag "StudioLive MIDI Controller" to your Applications folder
+4. Launch from Applications
+
+## Building a DMG
+
+To create a distributable DMG installer:
+
 ```bash
-npm run dev
+npm install  # Install electron-builder if not already installed
+npm run dist
 ```
 
-The app will:
-- Auto-connect to your mixer
-- Auto-detect and connect to MIDI devices (prefers Logic Pro)
-- Load the default Logic Pro preset
-- Display a status window
+The DMG will be created in the `dist` directory.
 
-### Logic Pro Setup
+## Quick Start
 
-1. **Enable MIDI Output** in Logic Pro:
-   - Go to **Logic Pro > Control Surfaces > Setup**
-   - Click **New > Install**
-   - Select a generic MIDI controller (e.g., "Mackie Control")
-   - Or create a custom control surface
+### 1. Configure Logic Pro MIDI
 
-2. **Configure MIDI CC Mappings**:
-   - Assign faders to CC 1-8 for channel volumes
-   - Assign buttons to CC 16-23 for mute toggles
-   - Or customize the preset file (see below)
+1. Open Logic Pro
+2. Go to **Logic Pro > Control Surfaces > Setup**
+3. Click **New > Install**
+4. Select **Logic Pro Virtual Out** as your MIDI output device
 
-3. **Enable MIDI Output**:
-   - Make sure Logic Pro is sending MIDI to the virtual MIDI port
+### 2. Connect to Mixer
 
-## Configuration
+1. Launch StudioLive MIDI Controller
+2. Click the **Mixer** connection status in the header
+3. Click **Discover Mixers** to find your StudioLive on the network
+4. Click **Connect** next to your mixer
 
-### Default Mappings
+### 3. Connect MIDI Device
 
-The default preset (`presets/logic-pro-default.json`) maps:
+1. Click the **MIDI** connection status in the header
+2. Select **Logic Pro** from the list
+3. Click **Connect**
 
-| MIDI CC | Function | Mixer Channel |
-|---------|----------|---------------|
-| CC 1-8  | Volume   | LINE 1-8      |
-| CC 16-19| Mute     | LINE 1-4      |
+### 4. Create Channel Mappings
 
-### Custom Presets
+**Option 1: Use Default Mappings**
+- Click **➕ Add Channel**
+- Select channel type and number
+- Default MIDI settings will be auto-configured (CC7 for channels 1-16, CC102 for 17-32, etc.)
 
-Edit `presets/logic-pro-default.json` or create a new preset file:
+**Option 2: Custom Mapping**
+- Click **➕ Add Channel**
+- Configure mixer channel (Type, Number, Action)
+- Configure MIDI settings (Type, CC/Note, Logic Channel)
+- Click **Add Mapping**
 
-```json
-{
-  "name": "My Custom Preset",
-  "version": "1.0",
-  "description": "Custom MIDI mapping",
-  "mappings": [
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 1,
-        "controller": 1
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "LINE",
-          "channel": 1
-        },
-        "range": [0, 100]
-      }
-    }
-  ]
-}
+### 5. Save Your Configuration
+
+- Click **💾 Save** to save your profile
+- Profiles include mixer IP, MIDI device, and all mappings
+- Click **📂 Load** to load a saved profile
+
+## Usage Guide
+
+### Fader Controls
+
+- **Drag fader**: Adjust mixer volume
+- **Click M button**: Toggle mute
+- **Double-click fader**: Edit mapping (or create if none exists)
+- **Right-click fader**: Context menu (Edit, Duplicate, Delete)
+- **Ctrl/Cmd + Click**: Select multiple faders
+
+### Toolbar Buttons
+
+- **➕ Add Channel**: Create new channel mapping
+- **➖ Remove Selected**: Remove selected channel mappings
+- **🗑️ Clear All**: Clear all MIDI mappings (faders remain visible)
+- **🔍 Show: All/Mapped**: Toggle between showing all LINE channels or only mapped channels
+
+### Visual Indicators
+
+- **Green glow**: Change from MIDI
+- **Blue glow**: Change from API (mixer or Universal Control)
+- **Purple glow**: Change from UI (dragging fader)
+- **Orange line with arrows**: Current MIDI value position
+- **White line at 75%**: 0dB reference line
+- **ST badge**: Stereo-linked channel
+- **Orange dot**: Unsaved changes
+
+### Preferences
+
+Click **⚙️ Preferences** to configure:
+- **Fader Smoothing**: Adjust transition speed (0-500ms)
+
+### MIDI Log
+
+Click **📊 MIDI Log** to open the MIDI event monitor:
+- Shows all MIDI messages with timestamps
+- Color-coded by message type (CC, Note On, Note Off)
+- Click **Clear** to clear the log
+- Click **Close** to hide the window
+
+## Configuration Files
+
+Profiles are saved as JSON files in:
+```
+~/Library/Application Support/studiolive-midi-controller/presets/
 ```
 
-**Supported Actions:**
-- `volume` - Channel fader (0-100)
-- `mute` - Mute toggle
-- `solo` - Solo toggle
-- `pan` - Pan control (-100 to 100)
-
-**Channel Types:**
-- `LINE` - Line inputs
-- `TAPE` - Tape/USB returns
-- `FX` - FX returns
-- `MAIN` - Main mix
-
-## Development
-
-### Project Structure
-
-```
-studiolive-midi-controller/
-├── src/
-│   ├── main/
-│   │   ├── index.ts           # Electron main process
-│   │   ├── midi-manager.ts    # MIDI input handling
-│   │   ├── mixer-manager.ts   # StudioLive API wrapper
-│   │   └── mapping-engine.ts  # MIDI-to-mixer translation
-│   ├── renderer/
-│   │   └── index.html         # UI
-│   └── shared/
-│       └── types.ts           # Shared TypeScript types
-├── presets/
-│   └── logic-pro-default.json # Default mappings
-└── package.json
-```
-
-### Scripts
-
-- `npm run build` - Compile TypeScript
-- `npm run dev` - Build and run in development mode
-- `npm start` - Run the built application
+Each profile contains:
+- Mixer IP address
+- MIDI device name
+- All channel mappings
 
 ## Troubleshooting
 
-### Mixer Connection Issues
-
-- Verify mixer IP address is correct
-- Ensure mixer and computer are on same network
-- Check firewall settings (port 53000)
+### Mixer Not Discovered
+- Ensure mixer is on the same network
+- Check firewall settings
+- Try manually entering mixer IP
 
 ### MIDI Not Working
+- Verify Logic Pro Virtual Out is configured
+- Check MIDI connection status (green dot = connected)
+- Restart Logic Pro if needed
 
-- Check MIDI device is connected and recognized
-- Verify Logic Pro MIDI output is enabled
-- Check console output for MIDI messages
+### Faders Not Moving
+- Check mixer connection (green dot = connected)
+- Verify channel mappings are correct
+- Check MIDI Log for incoming messages
 
-## Dependencies
+### Jerky Fader Movement
+- Increase fader smoothing in Preferences
+- Default is 300ms, try 400-500ms for smoother movement
 
-- [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api)
-- [easymidi](https://github.com/dinchak/node-easymidi)
-- [Electron](https://www.electronjs.org/)
+## Acknowledgments
+
+This project uses the excellent [presonus-studiolive-api](https://github.com/seanmavley/presonus-studiolive-api) library by Sean Mavley for communication with PreSonus StudioLive mixers. Thank you for making this project possible!
 
 ## License
 
-MIT
+MIT License - see LICENSE file for details
+
+## Author
+
+**sandinak**
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Support
+
+For issues, questions, or feature requests, please open an issue on GitHub.
 

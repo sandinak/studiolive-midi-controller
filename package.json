@@ -1,13 +1,35 @@
 {
   "name": "studiolive-midi-controller",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "description": "MIDI controller for PreSonus StudioLive mixers using Logic Pro",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "tsc -p tsconfig.main.json && electron .",
-    "build": "tsc -p tsconfig.main.json",
+    "dev": "npm run build && electron .",
+    "build": "tsc -p tsconfig.main.json && npm run copy-assets",
+    "copy-assets": "mkdir -p dist/renderer && cp src/renderer/index.html dist/renderer/",
     "start": "electron .",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "dist": "npm run build && electron-builder"
+  },
+  "build": {
+    "appId": "com.sandinak.studiolive-midi-controller",
+    "productName": "StudioLive MIDI Controller",
+    "mac": {
+      "category": "public.app-category.music",
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.icns"
+    },
+    "dmg": {
+      "title": "StudioLive MIDI Controller",
+      "icon": "assets/icon.icns"
+    },
+    "files": [
+      "dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ]
   },
   "keywords": [
     "presonus",
@@ -26,6 +48,7 @@
   "devDependencies": {
     "@types/node": "^20.11.0",
     "electron": "^28.2.0",
+    "electron-builder": "^24.13.3",
     "typescript": "^5.3.3"
   }
 }
