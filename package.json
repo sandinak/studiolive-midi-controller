@@ -14,8 +14,10 @@
   "build": {
     "appId": "com.sandinak.studiolive-midi-controller",
     "productName": "StudioLive MIDI Controller",
+    "icon": "assets/icon.icns",
     "mac": {
       "category": "public.app-category.music",
+      "icon": "assets/icon.icns",
       "target": [
         {
           "target": "dmg",

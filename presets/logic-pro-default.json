@@ -20,9 +20,8 @@
     },
     {
       "midi": {
-        "type": "cc",
-        "channel": 3,
-        "controller": 7
+        "type": "none",
+        "channel": 1
       },
       "mixer": {
         "action": "volume",
@@ -42,20 +41,6 @@
         "action": "volume",
         "channel": {
           "type": "MAIN",
-          "channel": 1
-        }
-      }
-    },
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 2,
-        "controller": 7
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "FXRETURN",
           "channel": 1
         }
       }

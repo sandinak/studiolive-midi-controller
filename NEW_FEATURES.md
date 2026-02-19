@@ -68,16 +68,12 @@ faderElement.addEventListener('dragend', handleDragEnd);
 
 ## Other Future Ideas
 
-### Stereo Fader View
-- Show stereo-linked channels as dual L/R faders side-by-side
-- Remove "ST" badge from label
-- Display both channel levels independently
-- Update MIDI indicator to work with stereo faders
-
 ### Fader Groups
 - Create custom groups of faders (e.g., "Drums", "Vocals")
 - Collapse/expand groups
 - Group-level controls (mute all, solo all)
+- Drag-and-drop between groups
+- Save group definitions in preset
 
 ### Snapshot System
 - Save/recall mixer states
@@ -94,4 +90,10 @@ faderElement.addEventListener('dragend', handleDragEnd);
 - Space to mute/unmute
 - Number keys for quick channel selection
 - Cmd/Ctrl+S to save preset
+
+### Multiple MIDI Devices
+- Connect to multiple MIDI devices
+- Device selection dropdown
+- Support for MIDI over USB and network
+
 

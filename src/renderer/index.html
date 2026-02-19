@@ -620,32 +620,6 @@
       transition: bottom 0.1s ease-out;
     }
 
-    .fader-midi-indicator::before {
-      content: '';
-      position: absolute;
-      left: -4px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 0;
-      height: 0;
-      border-top: 4px solid transparent;
-      border-bottom: 4px solid transparent;
-      border-left: 6px solid #ff9800;
-    }
-
-    .fader-midi-indicator::after {
-      content: '';
-      position: absolute;
-      right: -4px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 0;
-      height: 0;
-      border-top: 4px solid transparent;
-      border-bottom: 4px solid transparent;
-      border-right: 6px solid #ff9800;
-    }
-
     /* Zero line indicator at 0dB (75% height) */
     .fader-container::before {
       content: '';
@@ -1300,7 +1274,6 @@
   <!-- Context Menu -->
   <div id="context-menu" class="context-menu">
     <div class="context-menu-item" onclick="contextMenuEdit()">✏️ Edit Mapping</div>
-    <div class="context-menu-item" onclick="contextMenuDuplicate()">📋 Duplicate</div>
     <div class="context-menu-separator"></div>
     <div class="context-menu-item" onclick="contextMenuClearChannel()">🧹 Clear Channel</div>
     <div class="context-menu-item danger" onclick="contextMenuDelete()">🗑️ Delete</div>
@@ -1622,7 +1595,7 @@
           faderFilter = filter;
           const filterBtn = document.getElementById('filter-btn');
           if (filterBtn) {
-            filterBtn.textContent = faderFilter === 'all' ? '🔍 Show: All' : '🔍 Show: Mapped';
+            filterBtn.textContent = faderFilter === 'all' ? '🔍 View: All' : '🔍 View: Mapped';
           }
         }
       }
@@ -1691,6 +1664,14 @@
       // data.channel.type, data.channel.channel, data.status
       if (data.channel) {
         updateMuteButton(data.channel.type, data.channel.channel, data.status);
+      }
+    });
+
+    // Listen for mixer solo changes (from physical mixer or Universal Control)
+    ipcRenderer.on('mixer-solo', (event, data) => {
+      // data.channel.type, data.channel.channel, data.status
+      if (data.channel) {
+        updateSoloButton(data.channel.type, data.channel.channel, data.status);
       }
     });
 
@@ -2004,7 +1985,7 @@
             faderFilter = filter;
             const filterBtn = document.getElementById('filter-btn');
             if (filterBtn) {
-              filterBtn.textContent = faderFilter === 'all' ? '🔍 Show: All' : '🔍 Show: Mapped';
+              filterBtn.textContent = faderFilter === 'all' ? '🔍 View: All' : '🔍 View: Mapped';
             }
           }
 
@@ -2264,7 +2245,7 @@
     async function toggleFaderFilter() {
       faderFilter = faderFilter === 'all' ? 'mapped' : 'all';
       const filterBtn = document.getElementById('filter-btn');
-      filterBtn.textContent = faderFilter === 'all' ? '🔍 Show: All' : '🔍 Show: Mapped';
+      filterBtn.textContent = faderFilter === 'all' ? '🔍 View: All' : '🔍 View: Mapped';
 
       // Save filter state to mapping engine
       await ipcRenderer.invoke('set-fader-filter', faderFilter);
@@ -2370,13 +2351,6 @@
     async function contextMenuEdit() {
       if (currentContextMenuFaderId) {
         await editFaderMapping(currentContextMenuFaderId);
-      }
-      hideContextMenu();
-    }
-
-    async function contextMenuDuplicate() {
-      if (currentContextMenuFaderId) {
-        alert('Duplicate feature coming soon!');
       }
       hideContextMenu();
     }
