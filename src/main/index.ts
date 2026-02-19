@@ -274,10 +274,12 @@ ipcMain.handle('get-midi-devices', async () => {
 });
 
 ipcMain.handle('get-midi-status', async () => {
-  return {
+  const status = {
     connected: midiManager.isConnected(),
     device: midiManager.getCurrentDevice()
   };
+  console.log('[Main] get-midi-status returning:', status);
+  return status;
 });
 
 ipcMain.handle('connect-midi-device', async (_event, deviceName: string) => {
@@ -410,12 +412,61 @@ ipcMain.handle('get-channel-link', async (_event, type: string, channel: number)
   }
 });
 
+ipcMain.handle('get-channel-input-sources', async (_event, type: string = 'line', count: number = 16) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return [];
+    }
+    return mixerManager.getAllChannelInputSources(type, count);
+  } catch (error) {
+    console.error('Failed to get channel input sources:', error);
+    return [];
+  }
+});
+
 ipcMain.handle('toggle-mute', async (_event, type: string, channel: number) => {
   try {
     if (!mixerManager.isConnected()) {
       return { success: false, error: 'Not connected to mixer' };
     }
     mixerManager.toggleMute({ type: type as any, channel });
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+});
+
+ipcMain.handle('get-channel-solo', async (_event, type: string, channel: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return null;
+    }
+    return mixerManager.getChannelSolo(type, channel);
+  } catch (error) {
+    console.error('Failed to get channel solo:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('get-channel-main-assign', async (_event, type: string, channel: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return null;
+    }
+    return mixerManager.getChannelMainAssign(type, channel);
+  } catch (error) {
+    console.error('Failed to get channel main assign:', error);
+    return null;
+  }
+});
+
+ipcMain.handle('toggle-solo', async (_event, type: string, channel: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return { success: false, error: 'Not connected to mixer' };
+    }
+    mixerManager.toggleSolo({ type: type as any, channel });
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -434,6 +485,11 @@ ipcMain.handle('get-current-preset', async () => {
 
 ipcMain.handle('add-mapping', async (_event, mapping) => {
   mappingEngine.addMapping(mapping);
+  return { success: true };
+});
+
+ipcMain.handle('update-mapping', async (_event, index: number, mapping) => {
+  mappingEngine.updateMapping(index, mapping);
   return { success: true };
 });
 

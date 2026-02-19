@@ -88,6 +88,16 @@ export class MappingEngine extends EventEmitter {
   }
 
   /**
+   * Update a mapping by index
+   */
+  updateMapping(index: number, mapping: MidiMapping): void {
+    if (index >= 0 && index < this.mappings.length) {
+      this.mappings[index] = mapping;
+      this.emit('mapping-updated', mapping);
+    }
+  }
+
+  /**
    * Clear all mappings
    */
   clearMappings(): void {

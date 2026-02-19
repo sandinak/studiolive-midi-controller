@@ -178,7 +178,26 @@ export class MidiManager extends EventEmitter {
    * Check if connected to a device
    */
   isConnected(): boolean {
-    return this.input !== null;
+    console.log('[MidiManager] isConnected check:');
+    console.log('  - this.input:', this.input !== null);
+    console.log('  - this.currentDevice:', this.currentDevice);
+
+    if (!this.input || !this.currentDevice) {
+      return false;
+    }
+
+    // Verify the device is still available
+    const availableDevices = this.getAvailableDevices();
+    console.log('  - Available devices:', availableDevices);
+    console.log('  - Device in list:', availableDevices.includes(this.currentDevice));
+
+    if (!availableDevices.includes(this.currentDevice)) {
+      console.warn(`MIDI device ${this.currentDevice} is no longer available`);
+      this.disconnect();
+      return false;
+    }
+
+    return true;
   }
 
   /**

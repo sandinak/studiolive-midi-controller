@@ -17,19 +17,68 @@
     "mac": {
       "category": "public.app-category.music",
       "target": [
-        "dmg"
-      ],
-      "icon": "assets/icon.icns"
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
     },
     "dmg": {
       "title": "StudioLive MIDI Controller",
-      "icon": "assets/icon.icns"
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "StudioLive MIDI Controller"
     },
     "files": [
       "dist/**/*",
       "node_modules/**/*",
       "package.json"
-    ]
+    ],
+    "directories": {
+      "output": "release"
+    }
   },
   "keywords": [
     "presonus",

@@ -197,7 +197,7 @@ Each profile contains:
 
 ## Acknowledgments
 
-This project uses the excellent [presonus-studiolive-api](https://github.com/seanmavley/presonus-studiolive-api) library by Sean Mavley for communication with PreSonus StudioLive mixers. Thank you for making this project possible!
+This project uses the excellent [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api) library by Andrew Wong (featherbear) for communication with PreSonus StudioLive mixers. Thank you for making this project possible!
 
 ## License
 

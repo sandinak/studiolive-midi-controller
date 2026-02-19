@@ -337,9 +337,10 @@
       display: flex;
       gap: 6px;
       align-items: stretch;
-      flex: 1;
+      flex: 0 1 auto;
       overflow-x: auto;
       overflow-y: hidden;
+      min-width: 0;
     }
 
     .faders-main {
@@ -348,6 +349,8 @@
       align-items: stretch;
       padding-left: 12px;
       border-left: 2px solid rgba(255, 255, 255, 0.1);
+      flex-shrink: 0;
+      width: auto;
     }
 
     .fader-channel {
@@ -408,14 +411,59 @@
     }
 
     .fader-indicator.main-assign {
-      background: #4a90e2;
-      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 3px;
+      min-height: 18px;
+      min-width: 55px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 45px;
+    }
+
+    .fader-indicator.main-assign.assigned {
+      background: rgba(210, 180, 140, 0.9); /* Tan */
+      color: #333;
+    }
+
+    .fader-indicator.main-assign.unassigned {
+      background: rgba(100, 100, 100, 0.6); /* Grey */
+      color: #e0e0e0;
     }
 
     .fader-indicator.input-source {
       background: rgba(100, 100, 100, 0.6);
       color: #e0e0e0;
-      font-size: 0.45rem;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 3px 6px;
+      border-radius: 3px;
+      min-height: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fader-indicator.input-source.source-line {
+      background: rgba(76, 175, 80, 0.9);
+      color: #fff;
+    }
+
+    .fader-indicator.input-source.source-usb {
+      background: rgba(33, 150, 243, 0.9);
+      color: #fff;
+    }
+
+    .fader-indicator.input-source.source-network {
+      background: rgba(156, 39, 176, 0.9);
+      color: #fff;
+    }
+
+    .fader-indicator.input-source.source-sd {
+      background: rgba(255, 152, 0, 0.9);
+      color: #fff;
     }
 
     .fader-icon {
@@ -557,6 +605,7 @@
       background: linear-gradient(to bottom, #4a9b7f, #3d7a63);
       border-radius: 0 0 13px 13px;
       transition: height 0.1s;
+      min-height: 2px;
     }
 
     .fader-midi-indicator {
@@ -1662,6 +1711,12 @@
       const faderId = `${channelType}-${channelNum}`;
       const faderFill = document.getElementById(`fader-fill-${faderId}`);
       const faderValue = document.getElementById(`fader-value-${faderId}`);
+
+      // Debug logging for channels 11-14
+      if (channelNum >= 11 && channelNum <= 14) {
+        console.log(`updateFaderByValue(${channelType}, ${channelNum}, ${percentage}): faderFill=${!!faderFill}, faderValue=${!!faderValue}`);
+      }
+
       if (faderFill && faderValue) {
         const roundedPercentage = Math.round(percentage);
 
@@ -1736,8 +1791,19 @@
     }
 
     // Modal functions
-    function showDiscovery() {
+    async function showDiscovery() {
       document.getElementById('discovery-modal').classList.add('show');
+
+      // Pre-fill manual IP field with current mixer IP if connected
+      try {
+        const mixerStatus = await ipcRenderer.invoke('get-mixer-status');
+        const manualIpInput = document.getElementById('manual-ip');
+        if (manualIpInput && mixerStatus.ip) {
+          manualIpInput.value = mixerStatus.ip;
+        }
+      } catch (error) {
+        console.error('Error getting mixer status:', error);
+      }
     }
 
     function hideDiscovery() {
@@ -2632,6 +2698,10 @@
           const names = await ipcRenderer.invoke('get-channel-names', 'line', 16);
           const colors = await ipcRenderer.invoke('get-channel-colors', 'line', 16);
           const icons = await ipcRenderer.invoke('get-channel-icons', 'line', 16);
+          const inputSources = await ipcRenderer.invoke('get-channel-input-sources', 'line', 16);
+
+          // Debug logging for input sources
+          console.log('Fetched input sources for LINE channels:', inputSources);
 
           // Fetch stereo link status for each channel
           const links = [];
@@ -2640,10 +2710,12 @@
             links.push({ channel: i, link });
           }
 
-          channelDataCache['line'] = { names, colors, icons, links };
+          console.log('Fetched links for LINE channels:', links);
+
+          channelDataCache['line'] = { names, colors, icons, links, inputSources };
         } catch (error) {
           // Silent error handling
-          channelDataCache['line'] = { names: [], colors: [], icons: [], links: [] };
+          channelDataCache['line'] = { names: [], colors: [], icons: [], links: [], inputSources: [] };
         }
 
         // Fetch channel data for other channel types that have mappings
@@ -2654,6 +2726,7 @@
               const names = await ipcRenderer.invoke('get-channel-names', channelType, 16);
               const colors = await ipcRenderer.invoke('get-channel-colors', channelType, 16);
               const icons = await ipcRenderer.invoke('get-channel-icons', channelType, 16);
+              const inputSources = await ipcRenderer.invoke('get-channel-input-sources', channelType, 16);
 
               // Fetch stereo link status for each channel
               const links = [];
@@ -2662,10 +2735,10 @@
                 links.push({ channel: i, link });
               }
 
-              channelDataCache[channelType] = { names, colors, icons, links };
+              channelDataCache[channelType] = { names, colors, icons, links, inputSources };
             } catch (error) {
               // Silent error handling
-              channelDataCache[channelType] = { names: [], colors: [], icons: [], links: [] };
+              channelDataCache[channelType] = { names: [], colors: [], icons: [], links: [], inputSources: [] };
             }
           }
         }
@@ -2675,12 +2748,12 @@
 
         if (faderFilter === 'all') {
           // Show all LINE channels 1-16, but skip second channel of stereo pairs
-          const lineData = channelDataCache['line'] || { names: [], colors: [], icons: [], links: [] };
+          const lineData = channelDataCache['line'] || { names: [], colors: [], icons: [], links: [], inputSources: [] };
 
           for (let i = 1; i <= 16; i++) {
-            // Check if the PREVIOUS channel (i-1) is linked to this channel (i)
-            // If so, skip this channel as it's the R channel of a stereo pair
-            if (i > 1) {
+            // Check if this channel is the RIGHT side of a stereo pair
+            // A channel is the right side if it's even AND the previous (odd) channel is linked
+            if (i % 2 === 0) {
               const prevChannelLink = lineData.links.find(c => c.channel === (i - 1));
               if (prevChannelLink?.link) {
                 // Skip this channel - it's the R channel of a stereo pair
@@ -2703,19 +2776,30 @@
               });
             }
           }
+
+          // Add all non-LINE mapped channels (AUX, FX, SUB, MAIN, etc.)
+          const nonLineChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') !== 'LINE');
+          console.log('[Renderer] Filter mode: all');
+          console.log('[Renderer] Non-LINE channels found:', nonLineChannels.length, nonLineChannels.map(m => `${m.mixer.channel.type}-${m.mixer.channel.channel}`));
+          fadersToRender.push(...nonLineChannels);
         } else {
-          // Show only mapped channels (excluding MAIN)
-          fadersToRender = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') !== 'MAIN');
+          // Show only mapped channels
+          console.log('[Renderer] Filter mode: mapped');
+          fadersToRender = volumeMappings;
         }
 
+        console.log('[Renderer] Total fadersToRender:', fadersToRender.length);
+        console.log('[Renderer] All volume mappings:', volumeMappings.length, volumeMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
+
         // Separate channels by type for proper layout
-        // Layout: LINE inputs on left, then SUB, FX in regular container
-        // Right side (main container): AUX, then MAIN (from left to right)
+        // Layout: LINE inputs and SUB in regular container (left side)
+        // Right side (main container): AUX, FX, FXRETURN, then MAIN (from left to right)
         const lineInputs = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'LINE');
-        const subChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'SUB');
-        const fxChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'FX');
-        const auxChannels = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'AUX');
-        const mainMappings = volumeMappings.filter(m => (m.mixer.channel.type || 'LINE') === 'MAIN');
+        const subChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'SUB');
+        const fxChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'FX');
+        const fxReturnChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'FXRETURN');
+        const auxChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'AUX');
+        const mainMappings = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'MAIN');
 
         // Sort each group by channel number (numerically left to right)
         const sortByChannelNum = (a, b) => {
@@ -2727,17 +2811,42 @@
         lineInputs.sort(sortByChannelNum);
         subChannels.sort(sortByChannelNum);
         fxChannels.sort(sortByChannelNum);
+        fxReturnChannels.sort(sortByChannelNum);
         auxChannels.sort(sortByChannelNum);
         mainMappings.sort(sortByChannelNum);
 
-        // Regular container: LINE, SUB, FX (left to right)
-        const sortedRegularMappings = [...lineInputs, ...subChannels, ...fxChannels];
+        // Regular container: LINE, SUB (left to right)
+        const sortedRegularMappings = [...lineInputs, ...subChannels];
 
-        // Main container: AUX, then MAIN (left to right)
-        const sortedMainMappings = [...auxChannels, ...mainMappings];
+        // Main container: AUX, FX, FXRETURN, then MAIN (left to right)
+        const sortedMainMappings = [...auxChannels, ...fxChannels, ...fxReturnChannels, ...mainMappings];
 
         const container = document.getElementById('faders-container');
         const mainContainer = document.getElementById('faders-main-container');
+
+        // Helper function to convert inputsrc number to label
+        const getInputSourceLabel = (inputsrc) => {
+          if (inputsrc === null || inputsrc === undefined) return 'LINE';
+          switch (inputsrc) {
+            case 0: return 'LINE';
+            case 1: return 'USB';
+            case 2: return 'SD';
+            case 3: return 'AVB';
+            default: return 'LINE';
+          }
+        };
+
+        // Helper function to get CSS class for input source
+        const getInputSourceClass = (inputsrc) => {
+          if (inputsrc === null || inputsrc === undefined) return 'source-line';
+          switch (inputsrc) {
+            case 0: return 'source-line';
+            case 1: return 'source-usb';
+            case 2: return 'source-sd';
+            case 3: return 'source-network';
+            default: return 'source-line';
+          }
+        };
 
         // Render function for creating fader HTML
         const renderFader = (mapping) => {
@@ -2747,7 +2856,7 @@
 
 
             // Get channel data for this type
-            const channelData = channelDataCache[channelType.toLowerCase()] || { names: [], colors: [], icons: [], links: [] };
+            const channelData = channelDataCache[channelType.toLowerCase()] || { names: [], colors: [], icons: [], links: [], inputSources: [] };
 
             const channelInfo = channelData.names.find(c => c.channel === channelNum);
             const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
@@ -2768,6 +2877,26 @@
             const channelLinkInfo = channelData.links.find(c => c.channel === channelNum);
             const isLinked = channelLinkInfo?.link || false;
 
+            // Get input source for this channel
+            // For stereo pairs, check the RIGHT channel (channelNum + 1) to determine USB vs LINE
+            const inputSourceChannel = isLinked ? channelNum + 1 : channelNum;
+            const channelInputSourceInfo = channelData.inputSources?.find(c => c.channel === inputSourceChannel);
+
+            // Debug logging for input source
+            if (channelNum >= 11 && channelNum <= 14) {
+              console.log(`Channel ${channelNum} (${isLinked ? 'stereo' : 'mono'}): checking inputsrc for channel ${inputSourceChannel}`, channelInputSourceInfo);
+            }
+
+            // Debug logging for FX channels
+            if (channelType === 'FX') {
+              console.log(`FX Channel ${channelNum}: channelData=`, channelData);
+              console.log(`FX Channel ${channelNum}: inputSources=`, channelData.inputSources);
+              console.log(`FX Channel ${channelNum}: channelInputSourceInfo=`, channelInputSourceInfo);
+            }
+
+            const inputSourceLabel = getInputSourceLabel(channelInputSourceInfo?.inputsrc);
+            const inputSourceClass = getInputSourceClass(channelInputSourceInfo?.inputsrc);
+
             // Convert hex format if needed (e.g., "b2fdfcff" -> "#b2fdfc")
             if (channelColor && !channelColor.startsWith('#') && channelColor.length >= 6) {
               channelColor = '#' + channelColor.substring(0, 6);
@@ -2781,9 +2910,32 @@
 
             // Separate channel number and name for better layout
             // For stereo channels, show "11/12" format
-            const channelNumber = channelType === 'MAIN' ? 'MAIN' :
-                                  isLinked ? `${channelNum}/${channelNum + 1}` :
-                                  `${channelNum}`;
+            // Add channel type prefix for non-LINE channels
+            let channelNumber;
+            if (channelType === 'MAIN') {
+              channelNumber = 'MAIN';
+            } else if (channelType === 'LINE') {
+              channelNumber = isLinked ? `${channelNum}/${channelNum + 1}` : `${channelNum}`;
+            } else if (channelType === 'AUX') {
+              channelNumber = `AUX ${channelNum}`;
+            } else if (channelType === 'FX') {
+              channelNumber = `FXB ${channelNum}`;
+            } else if (channelType === 'FXRETURN') {
+              // Convert channel number to letter (1=A, 2=B, 3=C, 4=D)
+              const letter = String.fromCharCode(64 + channelNum); // 65 is 'A'
+              channelNumber = `FXR ${letter}`;
+            } else if (channelType === 'TALKBACK') {
+              channelNumber = 'TALK';
+            } else if (channelType === 'RETURN') {
+              channelNumber = 'DigRet';
+            } else if (channelType === 'SUB') {
+              channelNumber = `SUB ${channelNum}`;
+            } else if (channelType === 'DCA') {
+              channelNumber = `DCA ${channelNum}`;
+            } else {
+              // Fallback for any other channel types
+              channelNumber = isLinked ? `${channelNum}/${channelNum + 1}` : `${channelNum}`;
+            }
             const channelLabel = channelType === 'MAIN' ? '' : channelName;
 
             // Calculate appropriate text color based on background brightness
@@ -2803,20 +2955,34 @@
               ? `Note ${mapping.midi.note} Ch${mapping.midi.channel}`
               : '';
 
+            // Determine if this channel type can be assigned to main
+            // AUX, TALKBACK, and MAIN channels cannot be assigned to main
+            const canAssignToMain = !['AUX', 'TALKBACK', 'MAIN'].includes(channelType);
+
+            // Determine if this channel type has input sources
+            // LINE, FX (FX Bus), and FXRETURN (FX Return) channels have selectable input sources (LINE/USB/SD/AVB)
+            const hasInputSource = ['LINE', 'FX', 'FXRETURN'].includes(channelType);
+
+            // Debug logging for MAIN channel
+            if (channelType === 'MAIN') {
+              console.log(`MAIN Channel: canAssignToMain=${canAssignToMain}, hasInputSource=${hasInputSource}`);
+              console.log(`MAIN Channel: Will render main spacer: ${!canAssignToMain}, Will render input spacer: ${!hasInputSource}`);
+            }
+
             // Render stereo channels as dual L/R faders
             if (isLinked) {
               const faderIdR = `${channelType}-${channelNum + 1}`;
               return `
                 <div class="fader-channel" data-fader-id="${faderId}">
-                  <div class="fader-value" id="fader-value-${faderId}">0%</div>
-                  <div class="fader-indicators">
-                    <span class="fader-indicator main-assign" id="main-indicator-${faderId}" style="display: none;">M</span>
-                    <span class="fader-indicator input-source" id="input-indicator-${faderId}">LINE</span>
+                  <div class="fader-indicators" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px;">
+                    ${canAssignToMain ? `<span class="fader-indicator main-assign unassigned" id="main-indicator-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMainAssign('${channelType}', ${channelNum})" style="cursor: pointer;">Main</span>` : '<span class="fader-indicator main-assign" style="visibility: hidden;">Main</span>'}
+                    ${hasInputSource ? `<span class="fader-indicator input-source ${inputSourceClass}" id="input-indicator-${faderId}">${inputSourceLabel}</span>` : '<span class="fader-indicator input-source" style="visibility: hidden;">LINE</span>'}
                   </div>
                   <div class="fader-controls">
                     <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
                     <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})">S</button>
                   </div>
+                  <div class="fader-value" id="fader-value-${faderId}">0%</div>
                   <div class="fader-wrapper">
                     <div class="fader-levels">
                       <div>10</div>
@@ -2841,7 +3007,7 @@
                       </div>
                     </div>
                   </div>
-                  ${channelIcon ? `<div class="fader-icon">${channelIcon}</div>` : ''}
+                  <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number">${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
                   <div class="fader-mapping-info">${midiInfo}</div>
@@ -2851,15 +3017,15 @@
               // Mono channel - single fader
               return `
                 <div class="fader-channel" data-fader-id="${faderId}">
-                  <div class="fader-value" id="fader-value-${faderId}">0%</div>
-                  <div class="fader-indicators">
-                    <span class="fader-indicator main-assign" id="main-indicator-${faderId}" style="display: none;">M</span>
-                    <span class="fader-indicator input-source" id="input-indicator-${faderId}">LINE</span>
+                  <div class="fader-indicators" style="display: flex; flex-direction: column; gap: 2px; margin-bottom: 4px;">
+                    ${canAssignToMain ? `<span class="fader-indicator main-assign unassigned" id="main-indicator-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMainAssign('${channelType}', ${channelNum})" style="cursor: pointer;">Main</span>` : '<span class="fader-indicator main-assign" style="visibility: hidden;">Main</span>'}
+                    ${hasInputSource ? `<span class="fader-indicator input-source ${inputSourceClass}" id="input-indicator-${faderId}">${inputSourceLabel}</span>` : '<span class="fader-indicator input-source" style="visibility: hidden;">LINE</span>'}
                   </div>
                   <div class="fader-controls">
                     <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
                     <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})">S</button>
                   </div>
+                  <div class="fader-value" id="fader-value-${faderId}">0%</div>
                   <div class="fader-wrapper">
                     <div class="fader-levels">
                       <div>10</div>
@@ -2878,7 +3044,7 @@
                       </div>
                     </div>
                   </div>
-                  ${channelIcon ? `<div class="fader-icon">${channelIcon}</div>` : ''}
+                  <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number">${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
                   <div class="fader-mapping-info">${midiInfo}</div>
@@ -2886,6 +3052,17 @@
               `;
             }
         };
+
+        // Debug logging
+        console.log('[Renderer] Rendering faders:');
+        console.log('  - lineInputs:', lineInputs.length);
+        console.log('  - subChannels:', subChannels.length);
+        console.log('  - fxChannels:', fxChannels.length);
+        console.log('  - fxReturnChannels:', fxReturnChannels.length);
+        console.log('  - auxChannels:', auxChannels.length);
+        console.log('  - mainMappings:', mainMappings.length);
+        console.log('  - Regular (LINE, SUB):', sortedRegularMappings.length, sortedRegularMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
+        console.log('  - Main (AUX, FX, FXRETURN, MAIN):', sortedMainMappings.length, sortedMainMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
 
         // Render regular faders
         if (sortedRegularMappings.length === 0 && sortedMainMappings.length === 0) {
@@ -2898,11 +3075,12 @@
           // Add mouse interaction to faders
           setupFaderInteraction();
 
-          // Load initial fader positions, mute states, and solo states from mixer
+          // Load initial fader positions, mute states, solo states, and main assign states from mixer
           const allMappings = [...sortedRegularMappings, ...sortedMainMappings];
           loadInitialFaderPositions(allMappings);
           loadInitialMuteStates(allMappings);
           loadInitialSoloStates(allMappings);
+          loadInitialMainAssignStates(allMappings);
         }
       } catch (error) {
         // Silent error handling
@@ -2920,16 +3098,34 @@
             updateFaderByValue(channelType, channelNum, level);
           }
 
-          // For stereo channels, also load the right channel
+          // For stereo channels, set the right channel to match the left channel initially
           const isLinked = await ipcRenderer.invoke('get-channel-link', channelType, channelNum);
           if (isLinked) {
-            const levelR = await ipcRenderer.invoke('get-mixer-level', channelType, channelNum + 1);
-            if (levelR !== null) {
-              updateFaderByValue(channelType, channelNum + 1, levelR);
+            if (channelNum >= 11 && channelNum <= 14) {
+              console.log(`[Renderer] Loading initial position for stereo pair ${channelNum}/${channelNum + 1}: L=${level}%`);
+            }
+            // Force update the right channel fader to match left channel
+            if (level !== null) {
+              const faderIdR = `${channelType}-${channelNum + 1}`;
+              const faderFillR = document.getElementById(`fader-fill-${faderIdR}`);
+
+              if (faderFillR) {
+                const roundedPercentage = Math.round(level);
+                faderFillR.style.transition = 'none'; // No transition for initial load
+                faderFillR.style.height = `${roundedPercentage}%`;
+
+                if (channelNum >= 11 && channelNum <= 14) {
+                  console.log(`[Renderer] Set R channel ${channelNum + 1} to ${roundedPercentage}%`);
+                }
+              } else {
+                if (channelNum >= 11 && channelNum <= 14) {
+                  console.log(`[Renderer] ERROR: Could not find fader-fill-${faderIdR}`);
+                }
+              }
             }
           }
         } catch (error) {
-          // Silent error handling
+          console.error('[Renderer] Error loading initial fader position:', error);
         }
       }
     }
@@ -2966,12 +3162,62 @@
       }
     }
 
+    // Load initial main assign states from the mixer
+    async function loadInitialMainAssignStates(volumeMappings) {
+      console.log('[Renderer] Loading initial main assign states...');
+      for (const mapping of volumeMappings) {
+        try {
+          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelType = mapping.mixer.channel.type || 'LINE';
+          const mainAssigned = await ipcRenderer.invoke('get-channel-main-assign', channelType, channelNum);
+          console.log(`[Renderer] Channel ${channelType}-${channelNum}: mainAssigned=${mainAssigned}`);
+          if (mainAssigned !== null) {
+            updateMainAssignIndicator(channelType, channelNum, mainAssigned);
+          }
+        } catch (error) {
+          console.error(`[Renderer] Error loading main assign for ${channelType}-${channelNum}:`, error);
+        }
+      }
+    }
+
+    // Toggle main assign for a channel
+    async function toggleMainAssign(type, channel) {
+      try {
+        // For now, just log - we'll need to add the IPC handler
+        console.log(`[Renderer] Toggle main assign requested for ${type}-${channel}`);
+        const currentState = await ipcRenderer.invoke('get-channel-main-assign', type, channel);
+        console.log(`[Renderer] Current main assign state: ${currentState}`);
+        // TODO: Add toggle-main-assign IPC handler
+      } catch (error) {
+        console.error(`[Renderer] Error toggling main assign:`, error);
+      }
+    }
+
+    // Update main assign indicator visibility
+    function updateMainAssignIndicator(channelType, channelNum, isAssigned) {
+      const faderId = `${channelType}-${channelNum}`;
+      const indicator = document.getElementById(`main-indicator-${faderId}`);
+      if (indicator) {
+        if (isAssigned) {
+          indicator.classList.remove('unassigned');
+          indicator.classList.add('assigned');
+        } else {
+          indicator.classList.remove('assigned');
+          indicator.classList.add('unassigned');
+        }
+      }
+    }
+
     // Toggle mute for a channel
     async function toggleMute(type, channel) {
       try {
         const result = await ipcRenderer.invoke('toggle-mute', type, channel);
-        if (!result.success) {
-          // Silent error handling
+        if (result.success) {
+          // Get the new state and update the button
+          const muted = await ipcRenderer.invoke('get-channel-mute', type, channel);
+          if (muted !== null) {
+            updateMuteButton(type, channel, muted);
+          }
         }
       } catch (error) {
         // Silent error handling
@@ -2995,8 +3241,12 @@
     async function toggleSolo(type, channel) {
       try {
         const result = await ipcRenderer.invoke('toggle-solo', type, channel);
-        if (!result.success) {
-          // Silent error handling
+        if (result.success) {
+          // Get the new state and update the button
+          const soloed = await ipcRenderer.invoke('get-channel-solo', type, channel);
+          if (soloed !== null) {
+            updateSoloButton(type, channel, soloed);
+          }
         }
       } catch (error) {
         // Silent error handling
@@ -3022,11 +3272,11 @@
 
       faderContainers.forEach(container => {
         let isDragging = false;
-        const channel = parseInt(container.getAttribute('data-channel'));
+        let channel = parseInt(container.getAttribute('data-channel'));
         const channelType = container.getAttribute('data-type') || 'LINE';
         const faderId = container.getAttribute('data-fader-id');
 
-        const updateFaderFromMouse = (e) => {
+        const updateFaderFromMouse = async (e) => {
           const rect = container.getBoundingClientRect();
           const y = e.clientY - rect.top;
           const height = rect.height;
@@ -3034,36 +3284,53 @@
           // Calculate percentage (inverted because 0 is at top, 100 at bottom)
           let percentage = Math.max(0, Math.min(100, ((height - y) / height) * 100));
 
-          // Update UI
-          const fill = document.getElementById(`fader-fill-${faderId}`);
-          const valueDisplay = document.getElementById(`fader-value-${faderId}`);
-          if (fill && valueDisplay) {
-            fill.style.height = `${percentage}%`;
-            valueDisplay.textContent = `${Math.round(percentage)}%`;
+          // Check if this channel is the RIGHT side of a stereo pair
+          // If so, we need to use the LEFT channel as the primary channel
+          let primaryChannel = channel;
+          let isRightChannel = false;
+
+          if (channel % 2 === 0) {
+            // Even channel - might be the right side of a stereo pair
+            const leftChannelLink = await ipcRenderer.invoke('get-channel-link', channelType, channel - 1);
+            if (leftChannelLink) {
+              // This is the right channel of a stereo pair, use the left channel as primary
+              primaryChannel = channel - 1;
+              isRightChannel = true;
+            }
           }
 
-          // Send to mixer (value is 0-100 for the API)
-          ipcRenderer.invoke('set-mixer-volume', channelType, channel, percentage).catch(err => {
+          // Update both faders in the stereo pair
+          const faderIdL = `${channelType}-${primaryChannel}`;
+          const faderIdR = `${channelType}-${primaryChannel + 1}`;
+
+          // Update left fader UI
+          const fillL = document.getElementById(`fader-fill-${faderIdL}`);
+          const valueDisplayL = document.getElementById(`fader-value-${faderIdL}`);
+          if (fillL && valueDisplayL) {
+            fillL.style.height = `${percentage}%`;
+            valueDisplayL.textContent = `${Math.round(percentage)}%`;
+          }
+
+          // Send to mixer for left channel
+          ipcRenderer.invoke('set-mixer-volume', channelType, primaryChannel, percentage).catch(err => {
             // Silent error handling
           });
 
           // Check if this is a stereo pair and update the right channel too
-          ipcRenderer.invoke('get-channel-link', channelType, channel).then(isLinked => {
-            if (isLinked) {
-              const faderIdR = `${channelType}-${channel + 1}`;
-              const fillR = document.getElementById(`fader-fill-${faderIdR}`);
-              if (fillR) {
-                fillR.style.height = `${percentage}%`;
-              }
-              // Send to mixer for right channel
-              ipcRenderer.invoke('set-mixer-volume', channelType, channel + 1, percentage).catch(err => {
-                // Silent error handling
-              });
+          const isLinked = await ipcRenderer.invoke('get-channel-link', channelType, primaryChannel);
+          if (isLinked) {
+            const fillR = document.getElementById(`fader-fill-${faderIdR}`);
+            if (fillR) {
+              fillR.style.height = `${percentage}%`;
             }
-          });
+            // Send to mixer for right channel
+            ipcRenderer.invoke('set-mixer-volume', channelType, primaryChannel + 1, percentage).catch(err => {
+              // Silent error handling
+            });
+          }
 
           // Indicate UI change
-          indicateFaderChange(channelType, channel, 'ui');
+          indicateFaderChange(channelType, primaryChannel, 'ui');
         };
 
         container.addEventListener('mousedown', (e) => {

@@ -317,6 +317,26 @@ export class MixerManager extends EventEmitter {
   }
 
   /**
+   * Get channel solo state from mixer state
+   * @param type Channel type (e.g., 'line', 'aux', 'fxreturn')
+   * @param channel Channel number (1-based)
+   * @returns Solo state (true/false) or null if not available
+   */
+  getChannelSolo(type: string, channel: number): boolean | null {
+    if (!this.client) {
+      return null;
+    }
+    try {
+      const path = `${type.toLowerCase()}.ch${channel}.solo`;
+      const solo = (this.client as any).state?.get(path);
+      return solo !== null ? Boolean(solo) : null;
+    } catch (error) {
+      console.warn(`Failed to get channel solo for ${type}.ch${channel}:`, error);
+      return null;
+    }
+  }
+
+  /**
    * Get channel icon from mixer state
    * @param type Channel type (e.g., 'line', 'aux', 'fxreturn')
    * @param channel Channel number (1-based)
@@ -372,6 +392,106 @@ export class MixerManager extends EventEmitter {
       console.warn(`Failed to get channel link for ${type}.ch${channel}:`, error);
       return null;
     }
+  }
+
+  /**
+   * Get channel main assign state from mixer state
+   * @param type Channel type (e.g., 'line', 'aux', 'fxreturn')
+   * @param channel Channel number (1-based)
+   * @returns Main assign state (true/false) or null if not available
+   */
+  getChannelMainAssign(type: string, channel: number): boolean | null {
+    if (!this.client) {
+      return null;
+    }
+    try {
+      const path = `${type.toLowerCase()}.ch${channel}.lr`;
+      const lr = (this.client as any).state?.get(path);
+
+      // Debug logging for all channels
+      console.log(`[MixerManager] getChannelMainAssign(${type}, ${channel}): path=${path}, value=${lr}`);
+
+      return lr !== null && lr !== undefined ? Boolean(lr) : null;
+    } catch (error) {
+      console.warn(`Failed to get channel main assign for ${type}.ch${channel}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get channel input source from mixer state
+   * @param type Channel type (e.g., 'line', 'aux', 'fxreturn')
+   * @param channel Channel number (1-based)
+   * @returns Input source number (0-3) or null if not available
+   * Note: The mixer returns a float value (0.0, 0.333, 0.667, 1.0) which maps to:
+   * 0.0 = LINE (0), 0.333 = USB (1), 0.667 = SD (2), 1.0 = AVB/Network (3)
+   */
+  getChannelInputSource(type: string, channel: number): number | null {
+    if (!this.client) {
+      return null;
+    }
+    try {
+      const path = `${type.toLowerCase()}.ch${channel}.inputsrc`;
+      const inputsrc = (this.client as any).state?.get(path);
+
+      if (inputsrc === null || inputsrc === undefined) {
+        return null;
+      }
+
+      // Convert float value (0.0 to 1.0) to discrete input source number (0-3)
+      // Based on actual mixer output:
+      // 0.0 = LINE, 0.333 = SD, 0.667 = USB, 1.0 = AVB/Network
+      const floatValue = Number(inputsrc);
+      let discreteValue: number;
+
+      if (floatValue < 0.17) {
+        discreteValue = 0; // LINE (0.0)
+      } else if (floatValue < 0.5) {
+        discreteValue = 2; // SD (0.333)
+      } else if (floatValue < 0.85) {
+        discreteValue = 1; // USB (0.667)
+      } else {
+        discreteValue = 3; // AVB/Network (1.0)
+      }
+
+      // Debug logging for channels 11-14
+      if (channel >= 11 && channel <= 14) {
+        console.log(`[MixerManager] getChannelInputSource(${type}, ${channel}): path=${path}, float=${floatValue}, discrete=${discreteValue}`);
+
+        // Log all available properties for this channel to help debug
+        if (channel === 12) {
+          const channelPath = `${type.toLowerCase()}.ch${channel}`;
+          console.log(`[MixerManager] Available properties for ${channelPath}:`,
+            Object.keys((this.client as any).state?.data || {})
+              .filter(key => key.startsWith(channelPath))
+              .slice(0, 20)
+          );
+        }
+      }
+
+      return discreteValue;
+    } catch (error) {
+      console.warn(`Failed to get channel input source for ${type}.ch${channel}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all channel input sources for a given type
+   * @param type Channel type (default: 'line')
+   * @param count Number of channels to fetch (default: 16)
+   * @returns Array of channel info with channel number and input source
+   */
+  getAllChannelInputSources(type: string = 'line', count: number = 16): { channel: number; inputsrc: number | null }[] {
+    const sources = [];
+    for (let i = 1; i <= count; i++) {
+      const inputsrc = this.getChannelInputSource(type, i);
+      sources.push({
+        channel: i,
+        inputsrc: inputsrc
+      });
+    }
+    return sources;
   }
 }
 
