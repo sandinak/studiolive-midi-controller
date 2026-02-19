@@ -14,9 +14,25 @@ const mappingEngine = new MappingEngine();
 let discoveredMixers: DiscoveryType[] = [];
 
 function createWindow() {
+  // Use .icns for macOS, .png for other platforms
+  const iconPath = process.platform === 'darwin'
+    ? path.join(__dirname, '../../assets/icon.icns')
+    : path.join(__dirname, '../../assets/icon.png');
+
+  console.log(`Setting app icon to: ${iconPath}`);
+  console.log(`Icon file exists: ${require('fs').existsSync(iconPath)}`);
+
+  // On macOS, set the dock icon
+  if (process.platform === 'darwin') {
+    const { nativeImage } = require('electron');
+    const image = nativeImage.createFromPath(iconPath);
+    app.dock.setIcon(image);
+  }
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    icon: iconPath,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -76,7 +92,7 @@ async function initializeApp() {
             break;
         }
       } catch (error) {
-        console.error('Error executing mixer command:', error);
+        // Silent fail
       }
     }
   });
@@ -114,7 +130,7 @@ async function initializeApp() {
         }
       }
     } catch (error) {
-      console.error('Failed to send MIDI feedback:', error);
+      // Silent fail
     }
   });
 
@@ -129,6 +145,13 @@ async function initializeApp() {
     // Forward to renderer for UI updates
     if (mainWindow) {
       mainWindow.webContents.send('mixer-solo', data);
+    }
+  });
+
+  mixerManager.on('propertyChange', (data) => {
+    // Forward property changes (main assignment, input source, etc.) to renderer
+    if (mainWindow) {
+      mainWindow.webContents.send('mixer-property-change', data);
     }
   });
 
@@ -172,7 +195,7 @@ async function initializeApp() {
         const mixer = discoveredMixers.find(m => m.ip === preferredIp);
         await mixerManager.connect(preferredIp, mixer?.name);
       } catch (error) {
-        console.error(`Failed to connect to preferred IP ${preferredIp}:`, error);
+        // Silent fail
       }
     }
 
@@ -192,14 +215,14 @@ async function initializeApp() {
         const mixerIp = process.env.MIXER_IP;
         if (mixerIp) {
           await mixerManager.connect(mixerIp).catch(err => {
-            console.error('Failed to connect to mixer:', err.message);
+            // Silent fail
           });
         } else {
         }
       }
     }
   } catch (error) {
-    console.error('Discovery error:', error);
+    // Silent fail
   }
 
   // List available MIDI devices
@@ -215,7 +238,7 @@ async function initializeApp() {
     try {
       midiManager.connect(targetDevice);
     } catch (error) {
-      console.error('Failed to connect to MIDI device:', error);
+      // Silent fail
     }
   } else {
   }
@@ -249,12 +272,12 @@ ipcMain.handle('discover-mixers', async () => {
   return discoveredMixers;
 });
 
-ipcMain.handle('connect-mixer', async (_event, ip: string, name?: string) => {
+ipcMain.handle('connect-mixer', async (_event, ip: string, model?: string, deviceName?: string) => {
   try {
-    await mixerManager.connect(ip, name);
+    await mixerManager.connect(ip, model, deviceName);
     // Save this IP as preferred for future connections
     mappingEngine.setPreferredMixerIp(ip);
-    return { success: true, ip, name };
+    return { success: true, ip, model, deviceName };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
@@ -265,7 +288,9 @@ ipcMain.handle('get-mixer-status', async () => {
   return {
     connected: mixerManager.isConnected(),
     ip: mixerManager.getMixerIp(),
-    name: mixerManager.getMixerName()
+    model: mixerManager.getMixerModel(),
+    deviceName: mixerManager.getMixerDeviceName(),
+    name: mixerManager.getMixerName() // For backward compatibility
   };
 });
 
@@ -274,12 +299,10 @@ ipcMain.handle('get-midi-devices', async () => {
 });
 
 ipcMain.handle('get-midi-status', async () => {
-  const status = {
+  return {
     connected: midiManager.isConnected(),
     device: midiManager.getCurrentDevice()
   };
-  console.log('[Main] get-midi-status returning:', status);
-  return status;
 });
 
 ipcMain.handle('connect-midi-device', async (_event, deviceName: string) => {
@@ -329,7 +352,6 @@ ipcMain.handle('set-mixer-volume', async (_event, type: string, channel: number,
     return { success: true };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`Failed to set mixer volume:`, error);
     return { success: false, error: errorMessage };
   }
 });
@@ -342,7 +364,6 @@ ipcMain.handle('get-channel-names', async (_event, type: string = 'line', count:
     const names = mixerManager.getAllChannelNames(type, count);
     return names;
   } catch (error) {
-    console.error('❌ Failed to get channel names:', error);
     return [];
   }
 });
@@ -354,7 +375,6 @@ ipcMain.handle('get-mixer-level', async (_event, type: string, channel: number) 
     }
     return mixerManager.getLevel({ type: type as any, channel });
   } catch (error) {
-    console.error('Failed to get mixer level:', error);
     return null;
   }
 });
@@ -371,7 +391,6 @@ ipcMain.handle('get-channel-colors', async (_event, type: string = 'line', count
     }
     return colors;
   } catch (error) {
-    console.error('Failed to get channel colors:', error);
     return [];
   }
 });
@@ -383,7 +402,6 @@ ipcMain.handle('get-channel-mute', async (_event, type: string, channel: number)
     }
     return mixerManager.getChannelMute(type, channel);
   } catch (error) {
-    console.error('Failed to get channel mute:', error);
     return null;
   }
 });
@@ -395,7 +413,6 @@ ipcMain.handle('get-channel-icons', async (_event, type: string = 'line', count:
     }
     return mixerManager.getAllChannelIcons(type, count);
   } catch (error) {
-    console.error('Failed to get channel icons:', error);
     return [];
   }
 });
@@ -407,7 +424,6 @@ ipcMain.handle('get-channel-link', async (_event, type: string, channel: number)
     }
     return mixerManager.getChannelLink(type, channel);
   } catch (error) {
-    console.error('Failed to get channel link:', error);
     return null;
   }
 });
@@ -419,7 +435,6 @@ ipcMain.handle('get-channel-input-sources', async (_event, type: string = 'line'
     }
     return mixerManager.getAllChannelInputSources(type, count);
   } catch (error) {
-    console.error('Failed to get channel input sources:', error);
     return [];
   }
 });
@@ -444,7 +459,6 @@ ipcMain.handle('get-channel-solo', async (_event, type: string, channel: number)
     }
     return mixerManager.getChannelSolo(type, channel);
   } catch (error) {
-    console.error('Failed to get channel solo:', error);
     return null;
   }
 });
@@ -456,7 +470,6 @@ ipcMain.handle('get-channel-main-assign', async (_event, type: string, channel: 
     }
     return mixerManager.getChannelMainAssign(type, channel);
   } catch (error) {
-    console.error('Failed to get channel main assign:', error);
     return null;
   }
 });

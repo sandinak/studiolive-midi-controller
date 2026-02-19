@@ -8,7 +8,8 @@ import { EventEmitter } from 'events';
 export class MixerManager extends EventEmitter {
   private client: StudioLiveClient | null = null;
   private mixerIp: string | null = null;
-  private mixerName: string | null = null;
+  private mixerModel: string | null = null;
+  private mixerDeviceName: string | null = null;
 
   constructor() {
     super();
@@ -17,7 +18,7 @@ export class MixerManager extends EventEmitter {
   /**
    * Connect to the StudioLive mixer
    */
-  async connect(ipAddress: string, mixerName?: string): Promise<void> {
+  async connect(ipAddress: string, model?: string, deviceName?: string): Promise<void> {
     if (this.client) {
       await this.disconnect();
     }
@@ -26,7 +27,8 @@ export class MixerManager extends EventEmitter {
       // Constructor takes an object with host and port
       this.client = new StudioLiveClient({ host: ipAddress, port: 53000 });
       this.mixerIp = ipAddress;
-      this.mixerName = mixerName || null;
+      this.mixerModel = model || null;
+      this.mixerDeviceName = deviceName || null;
 
       // Set up event listeners
       this.client.on('level', (data) => {
@@ -39,6 +41,14 @@ export class MixerManager extends EventEmitter {
 
       this.client.on('solo', (data) => {
         this.emit('solo', data);
+      });
+
+      // Listen for property changes (main assignment, input source, etc.)
+      this.client.on('propertyChange', (data: any) => {
+        // Temporary debugging
+        console.log('[MixerManager] propertyChange event:', JSON.stringify(data, null, 2));
+        // Forward property changes to the renderer
+        this.emit('propertyChange', data);
       });
 
       // Event is 'closed' not 'close'
@@ -88,7 +98,8 @@ export class MixerManager extends EventEmitter {
       this.client = null;
       const ip = this.mixerIp;
       this.mixerIp = null;
-      this.mixerName = null;
+      this.mixerModel = null;
+      this.mixerDeviceName = null;
       this.emit('disconnected', ip);
     }
   }
@@ -168,10 +179,32 @@ export class MixerManager extends EventEmitter {
   }
 
   /**
-   * Get current mixer name
-   * First tries to get from mixer state, falls back to stored name
+   * Get current mixer model name
+   */
+  getMixerModel(): string | null {
+    return this.mixerModel;
+  }
+
+  /**
+   * Get current mixer device name (user-assigned name)
+   */
+  getMixerDeviceName(): string | null {
+    return this.mixerDeviceName;
+  }
+
+  /**
+   * Get current mixer name (for backward compatibility)
+   * Returns device name if available, otherwise model
    */
   getMixerName(): string | null {
+    return this.mixerDeviceName || this.mixerModel;
+  }
+
+  /**
+   * DEPRECATED: Old getMixerName implementation
+   * First tries to get from mixer state, falls back to stored name
+   */
+  getMixerNameFromState(): string | null {
     // Try to get the device name from the mixer state
     if (this.client && (this.client as any).state) {
       try {
@@ -180,11 +213,11 @@ export class MixerManager extends EventEmitter {
           return deviceName;
         }
       } catch (error) {
-        console.warn('Failed to get device name from state:', error);
+        // Ignore error, fall back to stored name
       }
     }
-    // Fall back to stored name
-    return this.mixerName;
+    // Fall back to stored device name or model
+    return this.mixerDeviceName || this.mixerModel;
   }
 
   /**
@@ -226,7 +259,6 @@ export class MixerManager extends EventEmitter {
       const result = name || `Ch ${channel}`;
       return result;
     } catch (error) {
-      console.warn(`Failed to get channel name for ${type}.ch${channel}:`, error);
       return `Ch ${channel}`;
     }
   }
@@ -259,7 +291,6 @@ export class MixerManager extends EventEmitter {
     try {
       return this.client.getLevel(channel);
     } catch (error) {
-      console.warn(`Failed to get level for channel ${JSON.stringify(channel)}:`, error);
       return null;
     }
   }
@@ -291,7 +322,6 @@ export class MixerManager extends EventEmitter {
 
       return null;
     } catch (error) {
-      console.warn(`Failed to get channel color for ${type}.ch${channel}:`, error);
       return null;
     }
   }
@@ -311,7 +341,6 @@ export class MixerManager extends EventEmitter {
       const mute = (this.client as any).state?.get(path);
       return mute !== null ? Boolean(mute) : null;
     } catch (error) {
-      console.warn(`Failed to get channel mute for ${type}.ch${channel}:`, error);
       return null;
     }
   }
@@ -331,7 +360,6 @@ export class MixerManager extends EventEmitter {
       const solo = (this.client as any).state?.get(path);
       return solo !== null ? Boolean(solo) : null;
     } catch (error) {
-      console.warn(`Failed to get channel solo for ${type}.ch${channel}:`, error);
       return null;
     }
   }
@@ -351,7 +379,6 @@ export class MixerManager extends EventEmitter {
       const iconId = (this.client as any).state?.get(path);
       return iconId || null;
     } catch (error) {
-      console.warn(`Failed to get channel icon for ${type}.ch${channel}:`, error);
       return null;
     }
   }
@@ -389,7 +416,6 @@ export class MixerManager extends EventEmitter {
       const link = (this.client as any).state?.get(path);
       return link !== null ? Boolean(link) : null;
     } catch (error) {
-      console.warn(`Failed to get channel link for ${type}.ch${channel}:`, error);
       return null;
     }
   }
@@ -407,13 +433,8 @@ export class MixerManager extends EventEmitter {
     try {
       const path = `${type.toLowerCase()}.ch${channel}.lr`;
       const lr = (this.client as any).state?.get(path);
-
-      // Debug logging for all channels
-      console.log(`[MixerManager] getChannelMainAssign(${type}, ${channel}): path=${path}, value=${lr}`);
-
       return lr !== null && lr !== undefined ? Boolean(lr) : null;
     } catch (error) {
-      console.warn(`Failed to get channel main assign for ${type}.ch${channel}:`, error);
       return null;
     }
   }
@@ -424,7 +445,7 @@ export class MixerManager extends EventEmitter {
    * @param channel Channel number (1-based)
    * @returns Input source number (0-3) or null if not available
    * Note: The mixer returns a float value (0.0, 0.333, 0.667, 1.0) which maps to:
-   * 0.0 = LINE (0), 0.333 = USB (1), 0.667 = SD (2), 1.0 = AVB/Network (3)
+   * 0.0 = Analog (0), 0.333 = Network (1), 0.667 = USB (2), 1.0 = SD Card (3)
    */
   getChannelInputSource(type: string, channel: number): number | null {
     if (!this.client) {
@@ -440,38 +461,22 @@ export class MixerManager extends EventEmitter {
 
       // Convert float value (0.0 to 1.0) to discrete input source number (0-3)
       // Based on actual mixer output:
-      // 0.0 = LINE, 0.333 = SD, 0.667 = USB, 1.0 = AVB/Network
+      // 0.0 = Analog, 0.333 = Network, 0.667 = USB, 1.0 = SD Card
       const floatValue = Number(inputsrc);
       let discreteValue: number;
 
-      if (floatValue < 0.17) {
-        discreteValue = 0; // LINE (0.0)
+      if (floatValue < 0.2) {
+        discreteValue = 0; // Analog (0.0)
       } else if (floatValue < 0.5) {
-        discreteValue = 2; // SD (0.333)
+        discreteValue = 1; // Network (0.333)
       } else if (floatValue < 0.85) {
-        discreteValue = 1; // USB (0.667)
+        discreteValue = 2; // USB (0.667)
       } else {
-        discreteValue = 3; // AVB/Network (1.0)
-      }
-
-      // Debug logging for channels 11-14
-      if (channel >= 11 && channel <= 14) {
-        console.log(`[MixerManager] getChannelInputSource(${type}, ${channel}): path=${path}, float=${floatValue}, discrete=${discreteValue}`);
-
-        // Log all available properties for this channel to help debug
-        if (channel === 12) {
-          const channelPath = `${type.toLowerCase()}.ch${channel}`;
-          console.log(`[MixerManager] Available properties for ${channelPath}:`,
-            Object.keys((this.client as any).state?.data || {})
-              .filter(key => key.startsWith(channelPath))
-              .slice(0, 20)
-          );
-        }
+        discreteValue = 3; // SD Card (1.0)
       }
 
       return discreteValue;
     } catch (error) {
-      console.warn(`Failed to get channel input source for ${type}.ch${channel}:`, error);
       return null;
     }
   }

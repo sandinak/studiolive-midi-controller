@@ -43,7 +43,6 @@ export class MidiManager extends EventEmitter {
       try {
         this.output = new easymidi.Output(deviceName);
       } catch (outputError) {
-        console.warn(`Could not open MIDI output on ${deviceName}:`, outputError);
         this.output = null;
       }
 
@@ -121,7 +120,6 @@ export class MidiManager extends EventEmitter {
    */
   sendCC(channel: number, controller: number, value: number): void {
     if (!this.output) {
-      console.warn('No MIDI output available');
       return;
     }
     try {
@@ -129,7 +127,7 @@ export class MidiManager extends EventEmitter {
       const midiChannel = (channel - 1) as any;
       this.output.send('cc', { channel: midiChannel, controller, value });
     } catch (error) {
-      console.error('Failed to send MIDI CC:', error);
+      // Silent fail
     }
   }
 
@@ -138,7 +136,6 @@ export class MidiManager extends EventEmitter {
    */
   sendNoteOn(channel: number, note: number, velocity: number): void {
     if (!this.output) {
-      console.warn('No MIDI output available');
       return;
     }
     try {
@@ -146,7 +143,7 @@ export class MidiManager extends EventEmitter {
       const midiChannel = (channel - 1) as any;
       this.output.send('noteon', { channel: midiChannel, note, velocity });
     } catch (error) {
-      console.error('Failed to send MIDI Note On:', error);
+      // Silent fail
     }
   }
 
@@ -155,7 +152,6 @@ export class MidiManager extends EventEmitter {
    */
   sendNoteOff(channel: number, note: number): void {
     if (!this.output) {
-      console.warn('No MIDI output available');
       return;
     }
     try {
@@ -163,7 +159,7 @@ export class MidiManager extends EventEmitter {
       const midiChannel = (channel - 1) as any;
       this.output.send('noteoff', { channel: midiChannel, note, velocity: 0 });
     } catch (error) {
-      console.error('Failed to send MIDI Note Off:', error);
+      // Silent fail
     }
   }
 
@@ -178,21 +174,14 @@ export class MidiManager extends EventEmitter {
    * Check if connected to a device
    */
   isConnected(): boolean {
-    console.log('[MidiManager] isConnected check:');
-    console.log('  - this.input:', this.input !== null);
-    console.log('  - this.currentDevice:', this.currentDevice);
-
     if (!this.input || !this.currentDevice) {
       return false;
     }
 
     // Verify the device is still available
     const availableDevices = this.getAvailableDevices();
-    console.log('  - Available devices:', availableDevices);
-    console.log('  - Device in list:', availableDevices.includes(this.currentDevice));
 
     if (!availableDevices.includes(this.currentDevice)) {
-      console.warn(`MIDI device ${this.currentDevice} is no longer available`);
       this.disconnect();
       return false;
     }

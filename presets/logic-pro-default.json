@@ -44,6 +44,34 @@
           "channel": 1
         }
       }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 4,
+        "controller": 7
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "SUB",
+          "channel": 1
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 5,
+        "controller": 7
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "FXRETURN",
+          "channel": 1
+        }
+      }
     }
   ]
 }

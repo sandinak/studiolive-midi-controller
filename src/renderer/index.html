@@ -12,12 +12,14 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif;
       background: #0d0d0d;
       color: #e0e0e0;
       padding: 0;
       min-height: 100vh;
       padding-bottom: 50px; /* Space for status bar */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     .container {
@@ -446,13 +448,8 @@
       justify-content: center;
     }
 
-    .fader-indicator.input-source.source-line {
+    .fader-indicator.input-source.source-analog {
       background: rgba(76, 175, 80, 0.9);
-      color: #fff;
-    }
-
-    .fader-indicator.input-source.source-usb {
-      background: rgba(33, 150, 243, 0.9);
       color: #fff;
     }
 
@@ -461,7 +458,12 @@
       color: #fff;
     }
 
-    .fader-indicator.input-source.source-sd {
+    .fader-indicator.input-source.source-usb {
+      background: rgba(33, 150, 243, 0.9);
+      color: #fff;
+    }
+
+    .fader-indicator.input-source.source-sdcard {
       background: rgba(255, 152, 0, 0.9);
       color: #fff;
     }
@@ -500,13 +502,17 @@
     }
 
     .fader-mapping-info {
-      font-size: 0.55rem;
+      font-size: 0.65rem;
+      font-weight: 600;
       color: #ffffff;
       text-align: center;
-      padding: 2px 4px;
+      padding: 3px 5px;
       line-height: 1.2;
       width: 100%;
-      min-height: 16px; /* Fixed height to ensure consistent alignment */
+      min-height: 18px; /* Fixed height to ensure consistent alignment */
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 3px;
+      opacity: 0.95;
     }
 
     .mute-btn {
@@ -1377,46 +1383,217 @@
     }
 
     // Icon mapping from Universal Control icon IDs to emoji
-    // More specific matches first (e.g., 'acousticguitar' before 'guitar')
+    // Based on PreSonus StudioLive icon categories
     const ICON_MAP = {
-      'acousticguitar': '🪕',  // Acoustic guitar
-      'acoustic': '🪕',
-      'electricguitar': '🎸',  // Electric guitar
-      'electric': '🎸',
-      'bass': '🎸',            // Bass guitar (different from regular guitar)
-      'guitar': '🎸',          // Generic guitar
-      'mic': '🎤',
-      'vocal': '🎤',
-      'keys': '🎹',
-      'piano': '🎹',
-      'keyboard': '🎹',
+      // Drums
+      'drumpad': '🎛️',        // Digital drum pad
+      'drumset': '🥁',
       'drums': '🥁',
+      'kickin': '🥁',
+      'kickout': '🥁',
+      'kick': '🥁',
+      'snare': '🥁',
+      'snaretop': '🥁',
+      'snarebottom': '🥁',
+      'racktom': '🥁',
+      'floortom': '🥁',
+      'midtom': '🥁',
+      'hihat': '🥁',
+      'hightom': '🥁',
+      'ohleft': '🥁',
+      'ohright': '🥁',
+      'oh': '🥁',
+
+      // Guitars
+      'electricguitar': '🎸',
+      'electric2': '🎸',
+      'electric': '🎸',
+      'acousticguitar': '🪕',
+      'acoustic2': '🪕',
+      'acoustic': '🪕',
+      'bass': '🎸',
+      'dobro': '🪕',
+      'banjo': '🪕',
+      'guitar': '🎸',
+      'mandolin': '🪕',
+      'pedalsteel': '🎸',
+      'shamisen': '🎸',
+      'sitar': '🪕',
+      'ukulele': '🪕',
+
+      // Keyboards
+      'piano': '🎹',
+      'organ': '🎹',
+      'pipeorgan': '🎹',
+      'keys': '🎹',
+      'keyboard': '🎹',
+      'keyboardstier': '🎹',
       'synth': '🎹',
-      'strings': '🎻',
-      'violin': '🎻',
-      'brass': '🎺',
-      'trumpet': '🎺',
-      'woodwind': '🎷',
-      'sax': '🎷',
+      'vibraphone': '🎹',
+      'accordion': '🪗',
+      'clavinet': '🎹',
+      'harpsichord': '🎹',
+
+      // Other (most important for your use case)
+      'metronome': '🎼',       // Metronome/click (using musical score icon)
+      'click': '🎼',
+      'computer': '💻',        // Computer/backing
+      'backing': '💻',
+      'headphones': '🎧',      // Headphones/headset
+      'headphone': '🎧',
+      'headset': '🎧',
+      'microphone': '🎤',
+      'mic': '🎤',
+      'broadcaster': '📻',
+      'djbox': '🎛️',
+      'externalfx': '✨',
+      'firewire': '🔌',
+      'fohmain': '🔊',
+      'handclap': '👏',
+      'iem': '🎧',
+      'ipad': '📱',
+      'ipod': '📱',
+      'mix': '🎛️',
+      'phone': '📱',
+      'rock': '🎸',
+      'sidefillmonitor': '🔊',
+      'smiley': '😊',
+      'ssd': '💾',
+      'tablet': '📱',
+      'talkback': '💬',
+      'telephone': '☎️',
+      'thumbup': '👍',
+      'turntable': '💿',
+      'video': '📹',
+      'wedgemonitor': '🔊',
+      'wirelessmic': '🎤',
+      'cryroom': '👶',
+      'delayfill': '🔊',
+
+      // Percussion
+      'bell': '🔔',
+      'bongo': '🥁',
+      'chimes': '🎐',
+      'congas': '🥁',
+      'cowbell': '🔔',
+      'cymbal': '🥁',
+      'cymbals': '🥁',
+      'handpan': '🥁',
+      'kalimba': '🎹',
+      'miscperc': '🥁',
+      'orchestrdrum': '🥁',
+      'shakers': '🥁',
+      'steeldrum': '🥁',
+      'tambourine': '🥁',
+      'timbales': '🥁',
+      'timpani': '🥁',
+      'triangle': '🔺',
+      'washboard': '🥁',
+      'woodblock': '🥁',
+      'xylophone': '🎹',
       'percussion': '🥁',
+
+      // Strings
+      'cello': '🎻',
+      'fiddle': '🎻',
+      'harp': '🎻',
+      'stringsection': '🎻',
+      'uprightbass': '🎻',
+      'viola': '🎻',
+      'violin': '🎻',
+      'strings': '🎻',
+
+      // Vocals
+      'backupvocals': '🎤',
+      'choirsingle': '🎤',
+      'choir': '🎤',
+      'crowdambient': '🎤',
+      'leadvocals': '🎤',
+      'speech': '🎤',
+      'vocalcue': '🎤',
+      'vocalmic': '🎤',
+      'vocals': '🎤',
+      'vocal': '🎤',
+
+      // Woodwinds
+      'altosaxophone': '🎷',
+      'baritone': '🎷',
+      'bassclarinet': '🎷',
+      'bassoon': '🎷',
+      'clarinet': '🎷',
+      'flute': '🎷',
+      'oboe': '🎷',
+      'sax': '🎷',
+      'saxophone': '🎷',
+      'sopranophone': '🎷',
+      'tenorsaphone': '🎷',
+      'woodwinds': '🎷',
+
+      // Brass
+      'brasssection': '🎺',
+      'brass': '🎺',
+      'cornet': '🎺',
+      'flugelhorn': '🎺',
+      'frenchhorn': '🎺',
+      'trombone': '🎺',
+      'trumpet': '🎺',
+      'tuba': '🎺',
+
+      // FX and routing
       'fx': '✨',
       'effect': '✨',
       'return': '↩️',
       'aux': '🔊',
       'main': '🔊',
+
+      // Default
       'default': '🎚️'
     };
 
-    function getIconForId(iconId) {
+    function getIconForId(iconId, channelType, channelNum) {
       if (!iconId) return '';
-      const id = iconId.toLowerCase().replace(/[_\s-]/g, '');  // Remove separators
+      const id = iconId.toLowerCase().replace(/[_\s-\/]/g, '');  // Remove separators including slashes
 
-      // Check for specific matches first (order matters!)
+      // Check for specific matches first (order matters - more specific before generic!)
       const orderedKeys = [
-        'acousticguitar', 'acoustic', 'electricguitar', 'electric', 'bass',
-        'guitar', 'mic', 'vocal', 'keys', 'piano', 'keyboard', 'drums',
-        'synth', 'strings', 'violin', 'brass', 'trumpet', 'woodwind', 'sax',
-        'percussion', 'fx', 'effect', 'return', 'aux', 'main'
+        // Specific drum parts first
+        'drumpad', 'drumset', 'snarebottom', 'snaretop', 'racktom', 'floortom', 'midtom',
+        'hightom', 'kickin', 'kickout', 'ohleft', 'ohright', 'hihat',
+        // Then generic drums
+        'kick', 'snare', 'drums', 'oh',
+        // Specific guitars
+        'electricguitar', 'electric2', 'acousticguitar', 'acoustic2', 'uprightbass',
+        // Then generic guitars
+        'electric', 'acoustic', 'bass', 'guitar', 'dobro', 'banjo', 'mandolin',
+        'pedalsteel', 'shamisen', 'sitar', 'ukulele',
+        // Keyboards - specific first
+        'pipeorgan', 'keyboardstier', 'vibraphone', 'harpsichord',
+        // Then generic keyboards
+        'piano', 'organ', 'keys', 'keyboard', 'synth', 'accordion', 'clavinet',
+        // Other (important for your channels)
+        'metronome', 'computer', 'headphones', 'headphone', 'headset', 'microphone',
+        'broadcaster', 'djbox', 'externalfx', 'firewire', 'fohmain', 'handclap',
+        'sidefillmonitor', 'wedgemonitor', 'wirelessmic', 'cryroom', 'delayfill',
+        'iem', 'ipad', 'ipod', 'mix', 'phone', 'rock', 'smiley', 'ssd', 'tablet',
+        'talkback', 'telephone', 'thumbup', 'turntable', 'video',
+        // Percussion - specific first
+        'orchestrdrum', 'miscperc', 'steeldrum', 'bassclarinet', 'altosaxophone',
+        'tenorsaphone', 'sopranophone', 'brasssection', 'stringsection', 'backupvocals',
+        'leadvocals', 'choirsingle', 'crowdambient', 'vocalcue', 'vocalmic',
+        // Then generic percussion
+        'bell', 'bongo', 'chimes', 'congas', 'cowbell', 'cymbal', 'cymbals', 'handpan',
+        'kalimba', 'shakers', 'tambourine', 'timbales', 'timpani', 'triangle',
+        'washboard', 'woodblock', 'xylophone', 'percussion',
+        // Strings
+        'cello', 'fiddle', 'harp', 'viola', 'violin', 'strings',
+        // Vocals
+        'choir', 'speech', 'vocals', 'vocal', 'mic',
+        // Woodwinds
+        'bassoon', 'baritone', 'clarinet', 'flute', 'oboe', 'saxophone', 'sax', 'woodwinds',
+        // Brass
+        'frenchhorn', 'flugelhorn', 'cornet', 'trombone', 'trumpet', 'tuba', 'brass',
+        // FX and routing
+        'fx', 'effect', 'return', 'aux', 'main'
       ];
 
       for (const key of orderedKeys) {
@@ -1672,6 +1849,32 @@
       // data.channel.type, data.channel.channel, data.status
       if (data.channel) {
         updateSoloButton(data.channel.type, data.channel.channel, data.status);
+      }
+    });
+
+    // Listen for mixer property changes (main assignment, input source, etc.)
+    ipcRenderer.on('mixer-property-change', (event, data) => {
+      // data.channel.type, data.channel.channel, data.value, data.type
+      if (data.channel && data.type) {
+        const channelType = data.channel.type;
+        const channelNum = data.channel.channel;
+
+        if (data.type === 'lr') {
+          // Main assignment changed
+          updateMainAssignIndicator(channelType, channelNum, data.value);
+        } else if (data.type === 'inputsrc') {
+          // Input source changed
+          updateInputSourceIndicator(channelType, channelNum, data.value);
+        } else if (data.type === 'icon') {
+          // Channel icon changed
+          updateChannelIcon(channelType, channelNum, data.value);
+        } else if (data.type === 'name') {
+          // Channel name changed
+          updateChannelName(channelType, channelNum, data.value);
+        } else if (data.type === 'link') {
+          // Channel link status changed - need to reload faders
+          loadFaders();
+        }
       }
     });
 
@@ -2096,15 +2299,21 @@
         if (mixers.length === 0) {
           listEl.innerHTML = '<div class="empty-state">No mixers found. Try manual connection below.</div>';
         } else {
-          listEl.innerHTML = mixers.map(mixer => `
-            <div class="mixer-item">
+          listEl.innerHTML = mixers.map(mixer => {
+            // Format display: IP {model} {deviceName}
+            const displayName = `${mixer.ip} ${mixer.model || mixer.name}${mixer.deviceName ? ' ' + mixer.deviceName : ''}`;
+            // Tooltip: Show all three fields
+            const tooltip = `IP: ${mixer.ip}\\nModel: ${mixer.model || mixer.name}${mixer.deviceName ? '\\nDevice Name: ' + mixer.deviceName : ''}\\nSerial: ${mixer.serial}`;
+
+            return `
+            <div class="mixer-item" title="${tooltip}">
               <div class="mixer-info">
-                <div class="mixer-name">${mixer.name}</div>
-                <div class="mixer-details">IP: ${mixer.ip} | Serial: ${mixer.serial}</div>
+                <div class="mixer-name">${displayName}</div>
+                <div class="mixer-details">Serial: ${mixer.serial}</div>
               </div>
-              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.name}')">Connect</button>
+              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.model || mixer.name}', '${mixer.deviceName || ''}')">Connect</button>
             </div>
-          `).join('');
+          `}).join('');
         }
       } catch (error) {
         listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
@@ -2115,9 +2324,9 @@
     }
 
     // Connect to mixer
-    async function connectToMixer(ip, name) {
+    async function connectToMixer(ip, model, deviceName) {
       try {
-        const result = await ipcRenderer.invoke('connect-mixer', ip, name);
+        const result = await ipcRenderer.invoke('connect-mixer', ip, model, deviceName);
         if (result.success) {
           hideDiscovery();
           updateStatus();
@@ -2766,8 +2975,8 @@
         console.log('[Renderer] All volume mappings:', volumeMappings.length, volumeMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
 
         // Separate channels by type for proper layout
-        // Layout: LINE inputs and SUB in regular container (left side)
-        // Right side (main container): AUX, FX, FXRETURN, then MAIN (from left to right)
+        // Layout: LINE inputs in regular container (left side)
+        // Right side (main container): SUB, AUX, FX, FXRETURN, then MAIN (from left to right)
         const lineInputs = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'LINE');
         const subChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'SUB');
         const fxChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'FX');
@@ -2789,36 +2998,36 @@
         auxChannels.sort(sortByChannelNum);
         mainMappings.sort(sortByChannelNum);
 
-        // Regular container: LINE, SUB (left to right)
-        const sortedRegularMappings = [...lineInputs, ...subChannels];
+        // Regular container: LINE only (left to right)
+        const sortedRegularMappings = [...lineInputs];
 
-        // Main container: AUX, FX, FXRETURN, then MAIN (left to right)
-        const sortedMainMappings = [...auxChannels, ...fxChannels, ...fxReturnChannels, ...mainMappings];
+        // Main container: SUB, AUX, FX, FXRETURN, then MAIN (left to right)
+        const sortedMainMappings = [...subChannels, ...auxChannels, ...fxChannels, ...fxReturnChannels, ...mainMappings];
 
         const container = document.getElementById('faders-container');
         const mainContainer = document.getElementById('faders-main-container');
 
         // Helper function to convert inputsrc number to label
         const getInputSourceLabel = (inputsrc) => {
-          if (inputsrc === null || inputsrc === undefined) return 'LINE';
+          if (inputsrc === null || inputsrc === undefined) return 'Analog';
           switch (inputsrc) {
-            case 0: return 'LINE';
-            case 1: return 'USB';
-            case 2: return 'SD';
-            case 3: return 'AVB';
-            default: return 'LINE';
+            case 0: return 'Analog';
+            case 1: return 'Network';
+            case 2: return 'USB';
+            case 3: return 'SD Card';
+            default: return 'Analog';
           }
         };
 
         // Helper function to get CSS class for input source
         const getInputSourceClass = (inputsrc) => {
-          if (inputsrc === null || inputsrc === undefined) return 'source-line';
+          if (inputsrc === null || inputsrc === undefined) return 'source-analog';
           switch (inputsrc) {
-            case 0: return 'source-line';
-            case 1: return 'source-usb';
-            case 2: return 'source-sd';
-            case 3: return 'source-network';
-            default: return 'source-line';
+            case 0: return 'source-analog';
+            case 1: return 'source-network';
+            case 2: return 'source-usb';
+            case 3: return 'source-sdcard';
+            default: return 'source-analog';
           }
         };
 
@@ -2845,7 +3054,13 @@
             }
 
             const channelIconInfo = channelData.icons.find(c => c.channel === channelNum);
-            const channelIcon = channelIconInfo?.icon ? getIconForId(channelIconInfo.icon) : '';
+
+            // Temporary debugging for channels 10-14 to see what icon IDs the mixer reports
+            if (channelType === 'LINE' && channelNum >= 10 && channelNum <= 14) {
+              console.log(`[Icon Debug] Channel ${channelNum} (${channelName}): iconId="${channelIconInfo?.icon}"`);
+            }
+
+            const channelIcon = channelIconInfo?.icon ? getIconForId(channelIconInfo.icon, channelType, channelNum) : getIconForId('', channelType, channelNum);
 
             // Check if channel is part of stereo pair
             const channelLinkInfo = channelData.links.find(c => c.channel === channelNum);
@@ -2910,6 +3125,7 @@
               // Fallback for any other channel types
               channelNumber = isLinked ? `${channelNum}/${channelNum + 1}` : `${channelNum}`;
             }
+            // Show name for SUB channels and other non-MAIN channels
             const channelLabel = channelType === 'MAIN' ? '' : channelName;
 
             // Calculate appropriate text color based on background brightness
@@ -3035,8 +3251,8 @@
         console.log('  - fxReturnChannels:', fxReturnChannels.length);
         console.log('  - auxChannels:', auxChannels.length);
         console.log('  - mainMappings:', mainMappings.length);
-        console.log('  - Regular (LINE, SUB):', sortedRegularMappings.length, sortedRegularMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
-        console.log('  - Main (AUX, FX, FXRETURN, MAIN):', sortedMainMappings.length, sortedMainMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
+        console.log('  - Regular (LINE only):', sortedRegularMappings.length, sortedRegularMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
+        console.log('  - Main (SUB, AUX, FX, FXRETURN, MAIN):', sortedMainMappings.length, sortedMainMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
 
         // Render regular faders
         if (sortedRegularMappings.length === 0 && sortedMainMappings.length === 0) {
@@ -3179,6 +3395,73 @@
           indicator.classList.remove('assigned');
           indicator.classList.add('unassigned');
         }
+      }
+    }
+
+    // Update input source indicator
+    function updateInputSourceIndicator(channelType, channelNum, inputSrc) {
+      console.log('[UI] updateInputSourceIndicator called:', channelType, channelNum, inputSrc);
+      const faderId = `${channelType}-${channelNum}`;
+      console.log('[UI] Looking for element:', `input-indicator-${faderId}`);
+      const indicator = document.getElementById(`input-indicator-${faderId}`);
+      console.log('[UI] Found indicator:', indicator);
+      if (indicator) {
+        // Remove all source classes
+        indicator.classList.remove('source-analog', 'source-network', 'source-usb', 'source-sdcard');
+
+        // Determine label and class based on inputSrc value
+        let label = 'Analog';
+        let cssClass = 'source-analog';
+
+        if (inputSrc !== null && inputSrc !== undefined) {
+          switch (inputSrc) {
+            case 0:
+              label = 'Analog';
+              cssClass = 'source-analog';
+              break;
+            case 1:
+              label = 'Network';
+              cssClass = 'source-network';
+              break;
+            case 2:
+              label = 'USB';
+              cssClass = 'source-usb';
+              break;
+            case 3:
+              label = 'SD Card';
+              cssClass = 'source-sdcard';
+              break;
+          }
+        }
+
+        // Update the indicator
+        indicator.textContent = label;
+        indicator.classList.add(cssClass);
+      }
+    }
+
+    // Update channel icon
+    function updateChannelIcon(channelType, channelNum, iconId) {
+      const faderId = `${channelType}-${channelNum}`;
+      const iconElement = document.querySelector(`[data-fader-id="${faderId}"] .fader-icon`);
+      if (iconElement) {
+        // Map icon ID to emoji (same mapping as in loadFaders)
+        const iconMap = {
+          0: '🎤', 1: '🎸', 2: '🎹', 3: '🥁', 4: '🎺', 5: '🎻',
+          6: '🎵', 7: '🎶', 8: '🔊', 9: '🎧', 10: '📻', 11: '🎙️'
+        };
+        const icon = iconMap[iconId] || '🎵';
+        iconElement.textContent = icon;
+        iconElement.style.visibility = 'visible';
+      }
+    }
+
+    // Update channel name
+    function updateChannelName(channelType, channelNum, name) {
+      const faderId = `${channelType}-${channelNum}`;
+      const labelElement = document.querySelector(`[data-fader-id="${faderId}"] .fader-label`);
+      if (labelElement) {
+        labelElement.textContent = name || '';
       }
     }
 
@@ -3399,14 +3682,18 @@
         if (mixerStatusDot) {
           if (mixerStatus.connected) {
             mixerStatusDot.classList.add('connected');
-            // Prefer mixer name over IP address
-            const displayName = mixerStatus.name || mixerStatus.ip || 'Mixer';
+            // Show {deviceName} if defined, else {model}
+            const displayName = mixerStatus.deviceName || mixerStatus.model || mixerStatus.name || mixerStatus.ip || 'Mixer';
             if (mixerStatusShort) mixerStatusShort.textContent = displayName;
 
-            // Update tooltip with connection details
+            // Update tooltip with all three fields
             const mixerConnectionEl = document.getElementById('mixer-connection-status');
             if (mixerConnectionEl) {
-              mixerConnectionEl.title = `Mixer: ${mixerStatus.name || 'Unknown'}\nIP: ${mixerStatus.ip || 'Unknown'}\nClick to open connection panel`;
+              const tooltipParts = [`IP: ${mixerStatus.ip || 'Unknown'}`];
+              if (mixerStatus.model) tooltipParts.push(`Model: ${mixerStatus.model}`);
+              if (mixerStatus.deviceName) tooltipParts.push(`Device Name: ${mixerStatus.deviceName}`);
+              tooltipParts.push('Click to open connection panel');
+              mixerConnectionEl.title = tooltipParts.join('\n');
             }
 
             if (statusMixer) {
@@ -3515,15 +3802,21 @@
         const listEl = document.getElementById('mixer-list');
 
         if (mixers.length > 0) {
-          listEl.innerHTML = mixers.map(mixer => `
-            <div class="mixer-item">
+          listEl.innerHTML = mixers.map(mixer => {
+            // Format display: IP {model} {deviceName}
+            const displayName = `${mixer.ip} ${mixer.model || mixer.name}${mixer.deviceName ? ' ' + mixer.deviceName : ''}`;
+            // Tooltip: Show all three fields
+            const tooltip = `IP: ${mixer.ip}\\nModel: ${mixer.model || mixer.name}${mixer.deviceName ? '\\nDevice Name: ' + mixer.deviceName : ''}\\nSerial: ${mixer.serial}`;
+
+            return `
+            <div class="mixer-item" title="${tooltip}">
               <div class="mixer-info">
-                <div class="mixer-name">${mixer.name}</div>
-                <div class="mixer-details">IP: ${mixer.ip} | Serial: ${mixer.serial}</div>
+                <div class="mixer-name">${displayName}</div>
+                <div class="mixer-details">Serial: ${mixer.serial}</div>
               </div>
-              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.name}')">Connect</button>
+              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.model || mixer.name}', '${mixer.deviceName || ''}')">Connect</button>
             </div>
-          `).join('');
+          `}).join('');
         }
 
         updateStatusInit('Loading preset...');

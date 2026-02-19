@@ -8,6 +8,7 @@ import * as path from 'path';
 export class MappingEngine extends EventEmitter {
   private mappings: MidiMapping[] = [];
   private currentPreset: string | null = null;
+  private currentPresetPath: string | null = null;
   private preferredMixerIp: string | null = null;
   private preferredMidiDevice: string | null = null;
   private faderFilter: 'all' | 'mapped' = 'all';
@@ -25,6 +26,7 @@ export class MappingEngine extends EventEmitter {
       const preset: MappingPreset = JSON.parse(data);
       this.mappings = preset.mappings;
       this.currentPreset = preset.name;
+      this.currentPresetPath = presetPath;
       this.preferredMixerIp = preset.mixerIp || null;
       this.preferredMidiDevice = preset.midiDevice || null;
       this.faderFilter = preset.faderFilter || 'all';
@@ -62,10 +64,25 @@ export class MappingEngine extends EventEmitter {
 
       fs.writeFileSync(presetPath, JSON.stringify(preset, null, 2));
       this.currentPreset = name;
+      this.currentPresetPath = presetPath;
       this.emit('preset-saved', preset);
     } catch (error) {
       this.emit('error', error);
       throw new Error(`Failed to save preset: ${error}`);
+    }
+  }
+
+  /**
+   * Auto-save current preset (if one is loaded)
+   */
+  autoSavePreset(): void {
+    if (this.currentPresetPath && this.currentPreset) {
+      try {
+        this.savePreset(this.currentPresetPath, this.currentPreset);
+        console.log(`✓ Auto-saved preset: ${this.currentPreset}`);
+      } catch (error) {
+        console.error('Failed to auto-save preset:', error);
+      }
     }
   }
 
@@ -204,6 +221,9 @@ export class MappingEngine extends EventEmitter {
    */
   setPreferredMixerIp(ip: string): void {
     this.preferredMixerIp = ip;
+    console.log(`✓ Set preferred mixer IP: ${ip}`);
+    // Auto-save if a preset is loaded
+    this.autoSavePreset();
   }
 
   /**
@@ -218,6 +238,9 @@ export class MappingEngine extends EventEmitter {
    */
   setPreferredMidiDevice(device: string): void {
     this.preferredMidiDevice = device;
+    console.log(`✓ Set preferred MIDI device: ${device}`);
+    // Auto-save if a preset is loaded
+    this.autoSavePreset();
   }
 
   /**
