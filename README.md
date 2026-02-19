@@ -56,11 +56,17 @@ node --version  # Should show v18 or higher
 npm --version
 ```
 
-3. **Clone the repository**:
+3. **Clone the repositories**:
 ```bash
+# Clone the PreSonus API library (required dependency)
+git clone https://github.com/featherbear/presonus-studiolive-api.git
+
+# Clone the main application
 git clone https://github.com/sandinak/studiolive-midi-controller.git
 cd studiolive-midi-controller
 ```
+
+> **Note:** The `presonus-studiolive-api` repository must be cloned in the same parent directory as `studiolive-midi-controller` because the application references it as a local dependency.
 
 4. **Install project dependencies**:
 ```bash
