@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build && electron .",
     "build": "tsc -p tsconfig.main.json && npm run copy-assets",
-    "copy-assets": "mkdir -p dist/renderer && cp src/renderer/index.html dist/renderer/",
+    "copy-assets": "mkdir -p dist/renderer && cp src/renderer/index.html dist/renderer/ && mkdir -p dist/renderer/icons && cp assets/icons/*.svg assets/icons/*.png dist/renderer/icons/ 2>/dev/null || true && mkdir -p dist/assets && cp assets/icon.icns assets/icon.png dist/assets/ 2>/dev/null || true",
     "start": "electron .",
     "clean": "rm -rf dist",
     "dist": "npm run build && electron-builder"

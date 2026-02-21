@@ -61,6 +61,7 @@ async function initializeApp() {
     // Translate MIDI to mixer command
     const command = mappingEngine.translateMidiToMixer(midiMessage);
     if (command) {
+      console.log(`[MIDI→Mixer] Translated: ${command.action} ${'type' in command.channel ? command.channel.type : ''}/${command.channel.channel ?? ''} value=${command.value ?? 'n/a'}`);
 
       // Forward to renderer for UI updates
       if (mainWindow) {
@@ -71,28 +72,35 @@ async function initializeApp() {
       try {
         switch (command.action) {
           case 'volume':
-            if (command.value !== undefined) {
+            if (command.value !== undefined && 'type' in command.channel) {
               mixerManager.setVolume(command.channel, command.value);
             }
             break;
           case 'mute':
-            if (command.toggle) {
+            if (command.toggle && 'type' in command.channel) {
               mixerManager.toggleMute(command.channel);
             }
             break;
           case 'solo':
-            if (command.toggle) {
+            if (command.toggle && 'type' in command.channel) {
               mixerManager.toggleSolo(command.channel);
             }
             break;
           case 'pan':
-            if (command.value !== undefined) {
+            if (command.value !== undefined && 'type' in command.channel) {
               mixerManager.setPan(command.channel, command.value);
+            }
+            break;
+          case 'mutegroup':
+            if (command.toggle !== undefined && 'channel' in command.channel && typeof command.channel.channel === 'number') {
+              // Handle mute group toggle
+              const muteGroupNum = command.channel.channel;
+              mixerManager.setMuteGroupState(muteGroupNum, command.toggle);
             }
             break;
         }
       } catch (error) {
-        // Silent fail
+        console.error(`[MIDI→Mixer] Error executing command:`, error);
       }
     }
   });
@@ -104,12 +112,16 @@ async function initializeApp() {
       mainWindow.webContents.send('mixer-level', data);
     }
 
-    // Send MIDI feedback for external mixer changes
+    // Send MIDI feedback for external mixer changes (only if enabled)
+    if (!mappingEngine.getMidiFeedbackEnabled()) {
+      return;
+    }
+
     try {
       const mappings = mappingEngine.getMappings();
       const mapping = mappings.find(m =>
         m.mixer.action === 'volume' &&
-        (m.mixer.channel.type || 'LINE') === data.channel.type &&
+        ('type' in m.mixer.channel ? (m.mixer.channel.type || 'LINE') : 'LINE') === data.channel.type &&
         (m.mixer.channel.channel || m.mixer.channel) == data.channel.channel
       );
 
@@ -130,7 +142,7 @@ async function initializeApp() {
         }
       }
     } catch (error) {
-      // Silent fail
+      console.error(`[Mixer→MIDI] Error sending MIDI feedback:`, error);
     }
   });
 
@@ -173,6 +185,7 @@ async function initializeApp() {
   const presetPath = path.join(__dirname, '../../presets/logic-pro-default.json');
   try {
     mappingEngine.loadPreset(presetPath);
+    console.log(`[Main] MIDI feedback ${mappingEngine.getMidiFeedbackEnabled() ? 'enabled' : 'disabled'}`);
     // Store the current preset path and notify renderer
     (global as any).currentPresetPath = presetPath;
     if (mainWindow) {
@@ -184,25 +197,59 @@ async function initializeApp() {
   } catch (error) {
   }
 
+  // Auto-connect to MIDI device BEFORE mixer (mixer connect can block)
+  console.log('[Main] Starting MIDI auto-connect...');
+  const devices = midiManager.getAvailableDevices();
+  console.log(`[Main] Found ${devices.length} MIDI devices:`, devices);
+
+  // Try preferred MIDI device first (from preset)
+  const preferredMidiDevice = mappingEngine.getPreferredMidiDevice();
+  let targetDevice: string | null = null;
+
+  if (preferredMidiDevice && devices.includes(preferredMidiDevice)) {
+    console.log(`[Main] Using preferred MIDI device: ${preferredMidiDevice}`);
+    targetDevice = preferredMidiDevice;
+  } else {
+    // Fall back to Logic Pro if found, or first available device
+    const logicDevice = devices.find(d => d.toLowerCase().includes('logic'));
+    targetDevice = logicDevice || devices[0];
+    if (targetDevice) {
+      console.log(`[Main] Auto-connecting to MIDI device: ${targetDevice}`);
+    }
+  }
+
+  if (targetDevice) {
+    try {
+      midiManager.connect(targetDevice);
+      console.log(`[Main] Successfully connected to MIDI device: ${targetDevice}`);
+    } catch (error) {
+      console.error(`[Main] Failed to connect to MIDI device:`, error);
+    }
+  } else {
+    console.log('[Main] No MIDI devices available');
+  }
+
   // Try autodiscovery first, but prefer saved IP from preset
   try {
     const preferredIp = mappingEngine.getPreferredMixerIp();
 
     if (preferredIp) {
       try {
-        // Try to discover to get the mixer name
-        discoveredMixers = await MixerManager.discover(5000);
-        const mixer = discoveredMixers.find(m => m.ip === preferredIp);
-        await mixerManager.connect(preferredIp, mixer?.name);
+        // Connect directly to preferred mixer without discovery
+        // The mixer will provide its name and model via the state once connected
+        console.log(`[Main] Connecting to preferred mixer at ${preferredIp}...`);
+        await mixerManager.connect(preferredIp);
+        console.log(`[Main] Successfully connected to preferred mixer`);
       } catch (error) {
-        // Silent fail
+        console.error(`[Main] Failed to connect to preferred mixer:`, error);
+        // Silent fail - will try discovery below
       }
     }
 
     // If not connected yet, try autodiscovery
     if (!mixerManager.isConnected()) {
       if (discoveredMixers.length === 0) {
-        discoveredMixers = await MixerManager.discover(5000);
+        discoveredMixers = await MixerManager.discover(10000);
       }
 
       if (discoveredMixers.length > 0) {
@@ -223,24 +270,6 @@ async function initializeApp() {
     }
   } catch (error) {
     // Silent fail
-  }
-
-  // List available MIDI devices
-  const devices = midiManager.getAvailableDevices();
-  devices.forEach((device, index) => {
-  });
-
-  // Auto-connect to first available MIDI device (or Logic Pro if found)
-  const logicDevice = devices.find(d => d.toLowerCase().includes('logic'));
-  const targetDevice = logicDevice || devices[0];
-  
-  if (targetDevice) {
-    try {
-      midiManager.connect(targetDevice);
-    } catch (error) {
-      // Silent fail
-    }
-  } else {
   }
 
 }
@@ -267,8 +296,14 @@ ipcMain.handle('get-discovered-mixers', async () => {
   return discoveredMixers;
 });
 
+ipcMain.handle('get-preferred-mixer-ip', async () => {
+  return mappingEngine.getPreferredMixerIp();
+});
+
 ipcMain.handle('discover-mixers', async () => {
-  discoveredMixers = await MixerManager.discover(5000);
+  console.log('📞 IPC: discover-mixers called');
+  discoveredMixers = await MixerManager.discover(10000);
+  console.log(`📤 IPC: Returning ${discoveredMixers.length} discovered mixer(s)`);
   return discoveredMixers;
 });
 
@@ -326,26 +361,28 @@ ipcMain.handle('set-mixer-volume', async (_event, type: string, channel: number,
     // Value should be 0-100 for the API
     mixerManager.setVolume({ type: type as any, channel }, value);
 
-    // Send MIDI feedback based on the mapping
-    const mappings = mappingEngine.getMappings();
-    const mapping = mappings.find(m =>
-      m.mixer.action === 'volume' &&
-      (m.mixer.channel.type || 'LINE') === type &&
-      (m.mixer.channel.channel || m.mixer.channel) == channel
-    );
+    // Send MIDI feedback based on the mapping (only if enabled)
+    if (mappingEngine.getMidiFeedbackEnabled()) {
+      const mappings = mappingEngine.getMappings();
+      const mapping = mappings.find(m =>
+        m.mixer.action === 'volume' &&
+        ('type' in m.mixer.channel ? (m.mixer.channel.type || 'LINE') : 'LINE') === type &&
+        (m.mixer.channel.channel || m.mixer.channel) == channel
+      );
 
-    if (mapping && midiManager.hasOutput()) {
-      if (mapping.midi.type === 'cc') {
-        // Send CC message with scaled value (0-100 -> 0-127)
-        const midiValue = Math.round((value / 100) * 127);
-        midiManager.sendCC(mapping.midi.channel, mapping.midi.controller!, midiValue);
-      } else if (mapping.midi.type === 'note-value') {
-        // Send note-on with note number based on value
-        const noteMin = mapping.midi.noteMin || 24;
-        const noteMax = mapping.midi.noteMax || 60;
-        const noteRange = noteMax - noteMin;
-        const noteNumber = Math.round(noteMin + (value / 100) * noteRange);
-        midiManager.sendNoteOn(mapping.midi.channel, noteNumber, 100);
+      if (mapping && midiManager.hasOutput()) {
+        if (mapping.midi.type === 'cc') {
+          // Send CC message with scaled value (0-100 -> 0-127)
+          const midiValue = Math.round((value / 100) * 127);
+          midiManager.sendCC(mapping.midi.channel, mapping.midi.controller!, midiValue);
+        } else if (mapping.midi.type === 'note-value') {
+          // Send note-on with note number based on value
+          const noteMin = mapping.midi.noteMin || 24;
+          const noteMax = mapping.midi.noteMax || 60;
+          const noteRange = noteMax - noteMin;
+          const noteNumber = Math.round(noteMin + (value / 100) * noteRange);
+          midiManager.sendNoteOn(mapping.midi.channel, noteNumber, 100);
+        }
       }
     }
 
@@ -434,6 +471,86 @@ ipcMain.handle('get-channel-input-sources', async (_event, type: string = 'line'
       return [];
     }
     return mixerManager.getAllChannelInputSources(type, count);
+  } catch (error) {
+    return [];
+  }
+});
+
+ipcMain.handle('get-dca-group-assignments', async (_event, dcaChannel: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return [];
+    }
+    return mixerManager.getDCAGroupAssignments(dcaChannel);
+  } catch (error) {
+    return [];
+  }
+});
+
+ipcMain.handle('get-autofilter-group-assignments', async (_event, autoGroupChannel: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return [];
+    }
+    return mixerManager.getAutoFilterGroupAssignments(autoGroupChannel);
+  } catch (error) {
+    return [];
+  }
+});
+
+ipcMain.handle('get-autofilter-group-names', async (_event, count: number = 8) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return [];
+    }
+    return mixerManager.getAllAutoFilterGroupNames(count);
+  } catch (error) {
+    return [];
+  }
+});
+
+// Mute group handlers
+ipcMain.handle('get-mute-group-names', async () => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return [];
+    }
+    return mixerManager.getAllMuteGroupNames();
+  } catch (error) {
+    return [];
+  }
+});
+
+ipcMain.handle('toggle-mute-group', async (_event, groupNum: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return { success: false, error: 'Not connected to mixer' };
+    }
+    mixerManager.toggleMuteGroup(groupNum);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+});
+
+ipcMain.handle('get-mute-group-state', async (_event, groupNum: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return false;
+    }
+    return mixerManager.getMuteGroupState(groupNum);
+  } catch (error) {
+    return false;
+  }
+});
+
+ipcMain.handle('get-mute-group-assignments', async (_event, groupNum: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return [];
+    }
+    return mixerManager.getMuteGroupAssignments(groupNum);
   } catch (error) {
     return [];
   }
@@ -606,4 +723,100 @@ ipcMain.handle('set-fader-filter', (_event, filter: 'all' | 'mapped') => {
 ipcMain.handle('get-current-preset-path', async () => {
   return (global as any).currentPresetPath || null;
 });
+
+ipcMain.handle('set-midi-feedback-enabled', async (_event, enabled: boolean) => {
+  mappingEngine.setMidiFeedbackEnabled(enabled);
+  return { success: true };
+});
+
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    const https = require('https');
+    const currentVersion = require('../../package.json').version;
+
+    return new Promise((resolve) => {
+      const options = {
+        hostname: 'api.github.com',
+        path: '/repos/sandinak/studiolive-midi-controller/releases/latest',
+        method: 'GET',
+        headers: {
+          'User-Agent': 'StudioLive-MIDI-Controller'
+        }
+      };
+
+      const req = https.request(options, (res: any) => {
+        let data = '';
+
+        res.on('data', (chunk: any) => {
+          data += chunk;
+        });
+
+        res.on('end', () => {
+          try {
+            const release = JSON.parse(data);
+            const latestVersion = release.tag_name?.replace(/^v/, '') || currentVersion;
+            const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
+
+            resolve({
+              success: true,
+              currentVersion,
+              latestVersion,
+              updateAvailable,
+              downloadUrl: release.html_url,
+              releaseNotes: release.body
+            });
+          } catch (error) {
+            resolve({
+              success: false,
+              currentVersion,
+              error: 'Failed to parse release data'
+            });
+          }
+        });
+      });
+
+      req.on('error', (error: any) => {
+        resolve({
+          success: false,
+          currentVersion,
+          error: error.message
+        });
+      });
+
+      req.setTimeout(5000, () => {
+        req.destroy();
+        resolve({
+          success: false,
+          currentVersion,
+          error: 'Request timeout'
+        });
+      });
+
+      req.end();
+    });
+  } catch (error) {
+    const currentVersion = require('../../package.json').version;
+    return {
+      success: false,
+      currentVersion,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+});
+
+// Helper function to compare semantic versions
+function compareVersions(v1: string, v2: string): number {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const part1 = parts1[i] || 0;
+    const part2 = parts2[i] || 0;
+
+    if (part1 > part2) return 1;
+    if (part1 < part2) return -1;
+  }
+
+  return 0;
+}
 

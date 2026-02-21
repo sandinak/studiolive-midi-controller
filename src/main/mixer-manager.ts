@@ -10,6 +10,11 @@ export class MixerManager extends EventEmitter {
   private mixerIp: string | null = null;
   private mixerModel: string | null = null;
   private mixerDeviceName: string | null = null;
+  private stateReadyEmitted: boolean = false;
+  private muteGroupPollInterval: NodeJS.Timeout | null = null;
+  private lastMuteGroupStates: boolean[] = [false, false, false, false, false, false, false, false];
+  private dcaLevelPollInterval: NodeJS.Timeout | null = null;
+  private lastDcaLevels: (number | null)[] = [null, null, null, null, null, null, null, null];
 
   constructor() {
     super();
@@ -64,8 +69,35 @@ export class MixerManager extends EventEmitter {
             const testName = (this.client as any).state.get('line.ch1.username');
             const testVolume = (this.client as any).state.get('line.ch1.volume');
 
-            // If state has data, emit state-ready event
+            // If state has data, update mixer info from state and emit state-ready event
             if (testName || testVolume !== null) {
+              // Try to get device name and model from mixer state
+              try {
+                // Try multiple possible paths for device name
+                let deviceName = (this.client as any).state.get('device.name');
+                if (!deviceName) {
+                  deviceName = (this.client as any).state.get('global.name');
+                }
+                if (!deviceName) {
+                  deviceName = (this.client as any).state.get('global.devicename');
+                }
+
+                const model = (this.client as any).state.get('device.model');
+
+                console.log(`[MixerManager] State check - deviceName: ${deviceName}, model: ${model}, current mixerDeviceName: ${this.mixerDeviceName}`);
+
+                if (deviceName && !this.mixerDeviceName) {
+                  console.log(`[MixerManager] Got device name from state: ${deviceName}`);
+                  this.mixerDeviceName = deviceName;
+                }
+                if (model && !this.mixerModel) {
+                  console.log(`[MixerManager] Got model from state: ${model}`);
+                  this.mixerModel = model;
+                }
+              } catch (error) {
+                console.error('[MixerManager] Error reading device info from state:', error);
+              }
+
               this.emit('state-ready');
             }
           }
@@ -81,6 +113,12 @@ export class MixerManager extends EventEmitter {
       const testName = (this.client as any).state?.get('line.ch1.username');
       const testVolume = (this.client as any).state?.get('line.ch1.volume');
 
+      // Start polling mute group states to detect changes from the mixer
+      this.startMuteGroupPolling();
+
+      // Start polling DCA fader levels (not included in MS/FaderPosition packets)
+      this.startDCALevelPolling();
+
       this.emit('connected', ipAddress);
     } catch (error) {
       this.emit('error', error);
@@ -93,6 +131,10 @@ export class MixerManager extends EventEmitter {
    */
   async disconnect(): Promise<void> {
     if (this.client) {
+      // Stop polling
+      this.stopMuteGroupPolling();
+      this.stopDCALevelPolling();
+
       // Method is 'close' not 'disconnect'
       await this.client.close();
       this.client = null;
@@ -222,12 +264,15 @@ export class MixerManager extends EventEmitter {
 
   /**
    * Discover mixers on the network
-   * @param timeout Discovery timeout in milliseconds (default: 5000ms)
+   * @param timeout Discovery timeout in milliseconds (default: 10000ms)
    * @returns Array of discovered devices
    */
-  static async discover(timeout = 5000): Promise<DiscoveryType[]> {
+  static async discover(timeout = 10000): Promise<DiscoveryType[]> {
+    console.log(`🔍 Scanning for mixers (${timeout}ms timeout)...`);
     const devices = await Client.discover(timeout);
+    console.log(`✓ Found ${devices.length} mixer(s):`);
     devices.forEach((device, index) => {
+      console.log(`  ${index + 1}. ${device.model || device.name}${device.deviceName ? ` ("${device.deviceName}")` : ''} - Serial: ${device.serial} - IP: ${device.ip}`);
     });
     return devices;
   }
@@ -243,8 +288,23 @@ export class MixerManager extends EventEmitter {
       return null;
     }
     try {
-      // Access state: line.ch1.username, aux.ch1.username, etc.
-      const path = `${type.toLowerCase()}.ch${channel}.username`;
+      // Map DCA to filtergroup (where manual DCA group names are stored)
+      // Note: autofiltergroup contains auto-generated groups based on icons (~Drums, ~Guitars, etc.)
+      let statePath = type.toLowerCase();
+      let propertyName = 'username';
+
+      if (statePath === 'dca') {
+        statePath = 'filtergroup';
+        // filtergroup uses 'name' property (not 'username')
+        propertyName = 'name';
+      } else if (statePath === 'autofilter') {
+        statePath = 'autofiltergroup';
+        // autofiltergroup uses 'name' property (not 'username')
+        propertyName = 'name';
+      }
+
+      // Access state: line.ch1.username, aux.ch1.username, filtergroup.ch1.name, etc.
+      const path = `${statePath}.ch${channel}.${propertyName}`;
 
       let name = (this.client as any).state?.get(path);
 
@@ -254,9 +314,14 @@ export class MixerManager extends EventEmitter {
         if (match) {
           name = match[1];
         }
+        // Remove the ~ prefix from DCA group names
+        if (type.toLowerCase() === 'dca' && name.startsWith('~')) {
+          name = name.substring(1);
+        }
       }
 
       const result = name || `Ch ${channel}`;
+
       return result;
     } catch (error) {
       return `Ch ${channel}`;
@@ -338,9 +403,26 @@ export class MixerManager extends EventEmitter {
     }
     try {
       const path = `${type.toLowerCase()}.ch${channel}.mute`;
-      const mute = (this.client as any).state?.get(path);
-      return mute !== null ? Boolean(mute) : null;
+      let mute = (this.client as any).state?.get(path);
+
+      console.log(`[getChannelMute] ${type}${channel} path="${path}" raw value:`, mute, 'type:', typeof mute);
+
+      if (mute === null || mute === undefined) {
+        console.log(`[getChannelMute] ${type}${channel} returned NULL/UNDEFINED`);
+        return null;
+      }
+
+      // Handle Buffer values (convert to float first)
+      if (mute instanceof Buffer) {
+        mute = mute.readFloatLE(0);
+        console.log(`[getChannelMute] ${type}${channel} converted Buffer to float:`, mute);
+      }
+
+      const result = mute > 0;
+      console.log(`[getChannelMute] ${type}${channel} final result:`, result);
+      return result;
     } catch (error) {
+      console.error(`[getChannelMute] ${type}${channel} ERROR:`, error);
       return null;
     }
   }
@@ -357,8 +439,18 @@ export class MixerManager extends EventEmitter {
     }
     try {
       const path = `${type.toLowerCase()}.ch${channel}.solo`;
-      const solo = (this.client as any).state?.get(path);
-      return solo !== null ? Boolean(solo) : null;
+      let solo = (this.client as any).state?.get(path);
+
+      if (solo === null || solo === undefined) {
+        return null;
+      }
+
+      // Handle Buffer values (convert to float first)
+      if (solo instanceof Buffer) {
+        solo = solo.readFloatLE(0);
+      }
+
+      return solo > 0;
     } catch (error) {
       return null;
     }
@@ -497,6 +589,366 @@ export class MixerManager extends EventEmitter {
       });
     }
     return sources;
+  }
+
+  /**
+   * Get LINE channels assigned to a DCA group (manual filter group)
+   * @param dcaChannel DCA group number (1-8)
+   * @returns Array of LINE channel numbers assigned to this DCA group
+   */
+  getDCAGroupAssignments(dcaChannel: number): number[] {
+    if (!this.client) {
+      return [];
+    }
+
+    try {
+      const assignments: number[] = [];
+
+      // Check each LINE channel (1-64) to see if it's assigned to this DCA
+      // The filtergroup.ch{N}.line{M} property indicates if LINE channel M is assigned to DCA N
+      for (let lineChannel = 1; lineChannel <= 64; lineChannel++) {
+        const path = `filtergroup.ch${dcaChannel}.line${lineChannel}`;
+        const assigned = (this.client as any).state?.get(path);
+
+        // If the value is truthy (1, true, etc.), the channel is assigned
+        if (assigned) {
+          assignments.push(lineChannel);
+        }
+      }
+
+      return assignments;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Get LINE channels assigned to an auto-filter group (icon-based group)
+   * @param autoGroupChannel Auto-filter group number (1-8)
+   * @returns Array of LINE channel numbers assigned to this auto-filter group
+   */
+  getAutoFilterGroupAssignments(autoGroupChannel: number): number[] {
+    if (!this.client) {
+      return [];
+    }
+
+    try {
+      const assignments: number[] = [];
+
+      // Check each LINE channel (1-64) to see if it's assigned to this auto-filter group
+      // The autofiltergroup.ch{N}.line{M} property indicates if LINE channel M is assigned to auto-group N
+      for (let lineChannel = 1; lineChannel <= 64; lineChannel++) {
+        const path = `autofiltergroup.ch${autoGroupChannel}.line${lineChannel}`;
+        const assigned = (this.client as any).state?.get(path);
+
+        // If the value is truthy (1, true, etc.), the channel is assigned
+        if (assigned) {
+          assignments.push(lineChannel);
+        }
+      }
+
+      return assignments;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Get all auto-filter group names
+   * @param count Number of auto-filter groups to fetch (default: 8)
+   * @returns Array of auto-filter group info with channel number and name
+   */
+  getAllAutoFilterGroupNames(count: number = 8): { channel: number; name: string }[] {
+    const names = [];
+    for (let i = 1; i <= count; i++) {
+      // Auto-filter groups use 'name' property in autofiltergroup
+      let name = this.getChannelName('autofilter', i);
+
+      // Remove the ~ prefix from auto-filter group names
+      if (name && name.startsWith('~')) {
+        name = name.substring(1);
+      }
+
+      names.push({
+        channel: i,
+        name: name || `Auto ${i}`
+      });
+    }
+    return names;
+  }
+
+  /**
+   * Get mute group state
+   * @param groupNum Mute group number (1-8)
+   * @returns Mute group state (true if active, false if inactive)
+   */
+  getMuteGroupState(groupNum: number): boolean {
+    if (!this.client || groupNum < 1 || groupNum > 8) {
+      return false;
+    }
+    try {
+      // Use the same path format as when setting (with slash)
+      const path = `mutegroup/mutegroup${groupNum}`;
+      let state = (this.client as any).state?.get(path);
+
+      // State can be either a number or a Buffer
+      // If it's a Buffer, read it as a float
+      if (state instanceof Buffer) {
+        state = state.readFloatLE(0);
+      }
+
+      // State is a float: 1.0 = active, 0.0 = inactive
+      return state > 0;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Set mute group state
+   * @param groupNum Mute group number (1-8)
+   * @param active True to activate mute group, false to deactivate
+   */
+  setMuteGroupState(groupNum: number, active: boolean): void {
+    if (!this.client || groupNum < 1 || groupNum > 8) {
+      throw new Error('Invalid mute group number or not connected');
+    }
+    try {
+      const path = `mutegroup/mutegroup${groupNum}`;
+      const value = active ? 1.0 : 0.0;
+
+      // Use the same pattern as setMute() - send packet directly to mixer
+      const MessageCode = { ParamValue: 'PV' };
+      const toFloat = (value: number) => {
+        const buffer = Buffer.allocUnsafe(4);
+        buffer.writeFloatLE(value, 0);
+        return buffer;
+      };
+
+      (this.client as any)._sendPacket(
+        MessageCode.ParamValue,
+        Buffer.concat([Buffer.from(`${path}\x00\x00\x00`), toFloat(value)])
+      );
+
+      // Also update local state so getMuteGroupState() returns the correct value immediately
+      (this.client as any).state?.set(path, value);
+
+      console.log(`[MixerManager] Sent mute group ${groupNum} command: ${active ? 'active' : 'inactive'}`);
+    } catch (error) {
+      throw new Error(`Failed to set mute group ${groupNum} state: ${error}`);
+    }
+  }
+
+  /**
+   * Toggle mute group state
+   * @param groupNum Mute group number (1-8)
+   */
+  toggleMuteGroup(groupNum: number): void {
+    const currentState = this.getMuteGroupState(groupNum);
+    this.setMuteGroupState(groupNum, !currentState);
+  }
+
+  /**
+   * Get mute group custom name
+   * @param groupNum Mute group number (1-8)
+   * @returns Custom name or default name
+   */
+  getMuteGroupName(groupNum: number): string {
+    if (!this.client || groupNum < 1 || groupNum > 8) {
+      return `M${groupNum}`;
+    }
+    try {
+      const path = `mutegroup.mutegroup${groupNum}username`;
+      const name = (this.client as any).state?.get(path);
+      return name && name.trim() !== '' ? name : `M${groupNum}`;
+    } catch (error) {
+      return `M${groupNum}`;
+    }
+  }
+
+  /**
+   * Get all mute group names
+   * @returns Array of mute group info with group number and name
+   */
+  getAllMuteGroupNames(): { group: number; name: string; active: boolean }[] {
+    const groups = [];
+    for (let i = 1; i <= 8; i++) {
+      groups.push({
+        group: i,
+        name: this.getMuteGroupName(i),
+        active: this.getMuteGroupState(i)
+      });
+    }
+    return groups;
+  }
+
+  /**
+   * Get which channels are assigned to a mute group
+   * @param groupNum Mute group number (1-8)
+   * @returns Array of channel assignments { type: string, channel: number }
+   */
+  getMuteGroupAssignments(groupNum: number): Array<{ type: string; channel: number }> {
+    if (!this.client || groupNum < 1 || groupNum > 8) {
+      return [];
+    }
+
+    try {
+      const state = (this.client as any).state;
+
+      // Get the mutes property - it's a bit string where each '1' indicates a channel is assigned
+      const path = `mutegroup.mutegroup${groupNum}mutes`;
+      const mutesValue = state?.get(path);
+
+      if (!mutesValue || typeof mutesValue !== 'string') {
+        return [];
+      }
+
+      // Parse the bit string to extract channel assignments
+      // The string is a series of 0s and 1s, where each position represents a LINE channel
+      // Position 0 = LINE 1, Position 1 = LINE 2, etc.
+      const assignments: Array<{ type: string; channel: number }> = [];
+
+      for (let i = 0; i < mutesValue.length; i++) {
+        if (mutesValue[i] === '1') {
+          // Channel numbers are 1-based, so add 1 to the index
+          assignments.push({ type: 'LINE', channel: i + 1 });
+        }
+      }
+
+      console.log(`[getMuteGroupAssignments] Group ${groupNum} has ${assignments.length} channels assigned:`,
+        assignments.map(a => `${a.type}${a.channel}`).join(', '));
+
+      return assignments;
+    } catch (error) {
+      console.error(`[getMuteGroupAssignments] Error:`, error);
+      return [];
+    }
+  }
+
+  /**
+   * Start polling mute group states to detect changes from the mixer
+   * Since the Client library doesn't emit events for mute group changes,
+   * we need to poll the state periodically
+   */
+  private startMuteGroupPolling(): void {
+    // Stop any existing polling
+    this.stopMuteGroupPolling();
+
+    console.log('[MixerManager] Starting mute group polling...');
+
+    // Initialize last states
+    for (let groupNum = 1; groupNum <= 8; groupNum++) {
+      this.lastMuteGroupStates[groupNum - 1] = this.getMuteGroupState(groupNum);
+    }
+    console.log('[MixerManager] Initial mute group states:', this.lastMuteGroupStates);
+
+    // Poll every 200ms (5 times per second)
+    this.muteGroupPollInterval = setInterval(() => {
+      if (!this.client) {
+        this.stopMuteGroupPolling();
+        return;
+      }
+
+      // Check all 8 mute groups
+      for (let groupNum = 1; groupNum <= 8; groupNum++) {
+        const currentState = this.getMuteGroupState(groupNum);
+        const lastState = this.lastMuteGroupStates[groupNum - 1];
+
+        // If state changed, emit a property change event
+        if (currentState !== lastState) {
+          console.log(`[MixerManager] Mute group ${groupNum} state changed: ${lastState} -> ${currentState}`);
+          this.lastMuteGroupStates[groupNum - 1] = currentState;
+
+          // Emit as a property change event
+          this.emit('propertyChange', {
+            path: `mutegroup/mutegroup${groupNum}`,
+            value: currentState ? 1.0 : 0.0
+          });
+        }
+      }
+    }, 200);
+  }
+
+  /**
+   * Stop polling mute group states
+   */
+  private stopMuteGroupPolling(): void {
+    if (this.muteGroupPollInterval) {
+      clearInterval(this.muteGroupPollInterval);
+      this.muteGroupPollInterval = null;
+    }
+  }
+
+  /**
+   * Start polling DCA fader levels to detect changes from the physical mixer.
+   * The PreSonus API's MS (FaderPosition) packet does NOT include DCA/filtergroup data,
+   * so we poll the state (updated by PV messages) and emit level events when changes are detected.
+   */
+  private startDCALevelPolling(): void {
+    this.stopDCALevelPolling();
+
+    console.log('[MixerManager] Starting DCA level polling...');
+
+    // Initialize last known levels
+    for (let i = 1; i <= 8; i++) {
+      const level = this.getLevel({ type: 'DCA' as any, channel: i });
+      this.lastDcaLevels[i - 1] = level !== null && level !== undefined ? this.normalizeDcaLevel(level) : null;
+    }
+    console.log('[MixerManager] Initial DCA levels:', this.lastDcaLevels);
+
+    // Poll every 100ms (10 times per second) for responsive fader tracking
+    this.dcaLevelPollInterval = setInterval(() => {
+      if (!this.client) {
+        this.stopDCALevelPolling();
+        return;
+      }
+
+      for (let i = 1; i <= 8; i++) {
+        const rawLevel = this.getLevel({ type: 'DCA' as any, channel: i });
+        if (rawLevel === null || rawLevel === undefined) continue;
+
+        const normalizedLevel = this.normalizeDcaLevel(rawLevel);
+        const lastLevel = this.lastDcaLevels[i - 1];
+
+        // Emit level event if the value changed (with small tolerance for float precision)
+        if (lastLevel === null || Math.abs(normalizedLevel - lastLevel) > 0.1) {
+          this.lastDcaLevels[i - 1] = normalizedLevel;
+
+          this.emit('level', {
+            channel: {
+              type: 'DCA',
+              channel: i,
+            },
+            level: normalizedLevel,
+            type: 'level',
+          });
+        }
+      }
+    }, 100);
+  }
+
+  /**
+   * Stop polling DCA fader levels
+   */
+  private stopDCALevelPolling(): void {
+    if (this.dcaLevelPollInterval) {
+      clearInterval(this.dcaLevelPollInterval);
+      this.dcaLevelPollInterval = null;
+    }
+  }
+
+  /**
+   * Normalize DCA level to 0-100 range.
+   * PV messages from the mixer store values as 0-1 floats,
+   * while _setLevel (from our app) stores 0-100.
+   */
+  private normalizeDcaLevel(value: number): number {
+    if (value >= 0 && value <= 1.0) {
+      // PV float value (0-1) → scale to 0-100
+      return value * 100;
+    }
+    // Already in 0-100 range (from our app's _setLevel)
+    return value;
   }
 }
 

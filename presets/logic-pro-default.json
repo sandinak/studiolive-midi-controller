@@ -2,13 +2,14 @@
   "name": "logic-pro-default",
   "version": "1.0",
   "mixerIp": "192.168.21.41",
+  "midiDevice": "Logic Pro Virtual Out",
   "faderFilter": "all",
+  "midiFeedbackEnabled": false,
   "mappings": [
     {
       "midi": {
-        "type": "cc",
-        "channel": 1,
-        "controller": 7
+        "type": "none",
+        "channel": 1
       },
       "mixer": {
         "action": "volume",
@@ -33,9 +34,8 @@
     },
     {
       "midi": {
-        "type": "cc",
-        "channel": 16,
-        "controller": 7
+        "type": "none",
+        "channel": 1
       },
       "mixer": {
         "action": "volume",
@@ -48,28 +48,28 @@
     {
       "midi": {
         "type": "cc",
-        "channel": 4,
+        "channel": 13,
         "controller": 7
       },
       "mixer": {
         "action": "volume",
         "channel": {
-          "type": "SUB",
-          "channel": 1
+          "type": "DCA",
+          "channel": 2
         }
       }
     },
     {
       "midi": {
         "type": "cc",
-        "channel": 5,
+        "channel": 4,
         "controller": 7
       },
       "mixer": {
         "action": "volume",
         "channel": {
-          "type": "FXRETURN",
-          "channel": 1
+          "type": "LINE",
+          "channel": 4
         }
       }
     }

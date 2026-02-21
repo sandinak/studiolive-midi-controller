@@ -12,6 +12,7 @@ export class MappingEngine extends EventEmitter {
   private preferredMixerIp: string | null = null;
   private preferredMidiDevice: string | null = null;
   private faderFilter: 'all' | 'mapped' = 'all';
+  private midiFeedbackEnabled: boolean = true;
 
   constructor() {
     super();
@@ -30,6 +31,7 @@ export class MappingEngine extends EventEmitter {
       this.preferredMixerIp = preset.mixerIp || null;
       this.preferredMidiDevice = preset.midiDevice || null;
       this.faderFilter = preset.faderFilter || 'all';
+      this.midiFeedbackEnabled = preset.midiFeedbackEnabled !== undefined ? preset.midiFeedbackEnabled : true;
       if (this.preferredMixerIp) {
       }
       if (this.preferredMidiDevice) {
@@ -52,6 +54,7 @@ export class MappingEngine extends EventEmitter {
       mixerIp: this.preferredMixerIp || undefined,
       midiDevice: this.preferredMidiDevice || undefined,
       faderFilter: this.faderFilter,
+      midiFeedbackEnabled: this.midiFeedbackEnabled,
       mappings: this.mappings
     };
 
@@ -154,6 +157,8 @@ export class MappingEngine extends EventEmitter {
     });
 
     if (!mapping) {
+      console.log(`[MappingEngine] No mapping found for MIDI: type=${midiMessage.type} ch=${midiMessage.channel} cc=${midiMessage.controller ?? 'n/a'} note=${midiMessage.note ?? 'n/a'} val=${midiMessage.value}`);
+      console.log(`[MappingEngine] Available mappings: ${this.mappings.filter(m => (m.midi as any).type !== 'none').map(m => `${m.midi.type} ch=${m.midi.channel} cc=${(m.midi as any).controller ?? 'n/a'} → ${m.mixer.action} ${'type' in m.mixer.channel ? m.mixer.channel.type : ''}/${m.mixer.channel.channel ?? ''}`).join(', ')}`);
       return null;
     }
 
@@ -193,8 +198,23 @@ export class MappingEngine extends EventEmitter {
       }
       case 'mute':
       case 'solo': {
-        // Toggle on note_on or CC value > 0
-        command.toggle = midiMessage.type === 'note_on' || midiMessage.value > 0;
+        let shouldActivate = false;
+
+        if (mapping.midi.type === 'cc') {
+          // Use threshold (default 64 = middle of 0-127 range)
+          const threshold = (mapping.midi as any).threshold !== undefined ? (mapping.midi as any).threshold : 64;
+          shouldActivate = midiMessage.value >= threshold;
+        } else {
+          // Note-based: activate on note_on, deactivate on note_off
+          shouldActivate = midiMessage.type === 'note_on';
+        }
+
+        // Apply invert if specified
+        if ((mapping.midi as any).invert) {
+          shouldActivate = !shouldActivate;
+        }
+
+        command.toggle = shouldActivate;
         break;
       }
     }
@@ -255,6 +275,23 @@ export class MappingEngine extends EventEmitter {
    */
   setFaderFilter(filter: 'all' | 'mapped'): void {
     this.faderFilter = filter;
+  }
+
+  /**
+   * Get MIDI feedback enabled state
+   */
+  getMidiFeedbackEnabled(): boolean {
+    return this.midiFeedbackEnabled;
+  }
+
+  /**
+   * Set MIDI feedback enabled state (will be saved with preset)
+   */
+  setMidiFeedbackEnabled(enabled: boolean): void {
+    this.midiFeedbackEnabled = enabled;
+    console.log(`✓ Set MIDI feedback: ${enabled ? 'enabled' : 'disabled'}`);
+    // Auto-save if a preset is loaded
+    this.autoSavePreset();
   }
 }
 

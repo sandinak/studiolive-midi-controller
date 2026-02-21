@@ -11,24 +11,26 @@ export interface MidiMessage {
 }
 
 export interface MixerCommand {
-  action: 'volume' | 'mute' | 'solo' | 'pan';
-  channel: ChannelSelector;
+  action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup';
+  channel: ChannelSelector | { channel: number };  // mutegroup uses { channel: number }
   value?: number;       // For volume/pan
-  toggle?: boolean;     // For mute/solo
+  toggle?: boolean;     // For mute/solo/mutegroup
 }
 
 export interface MidiMapping {
   midi: {
-    type: 'cc' | 'note' | 'note-value';
+    type: 'cc' | 'note' | 'note-on' | 'note-off' | 'note-toggle' | 'note-value';
     channel: number;
     controller?: number;  // For CC messages
     note?: number;        // For note trigger messages
     noteMin?: number;     // For note-value mode: minimum note number
     noteMax?: number;     // For note-value mode: maximum note number
+    threshold?: number;   // For CC boolean controls: threshold value (0-127, default 64)
+    invert?: boolean;     // For boolean controls: invert the logic
   };
   mixer: {
-    action: 'volume' | 'mute' | 'solo' | 'pan';
-    channel: ChannelSelector;
+    action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup';
+    channel: ChannelSelector | { channel: number };  // mutegroup uses { channel: number }
     range?: [number, number];  // Min/max for scaling
   };
 }
@@ -40,6 +42,7 @@ export interface MappingPreset {
   mixerIp?: string;  // Preferred mixer IP address
   midiDevice?: string;  // Preferred MIDI device name
   faderFilter?: 'all' | 'mapped';  // Fader filter state
+  midiFeedbackEnabled?: boolean;  // MIDI feedback enabled state
   mappings: MidiMapping[];
 }
 

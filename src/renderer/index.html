@@ -308,20 +308,82 @@
 
     .faders-toolbar {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       margin-bottom: 12px;
-      padding: 8px;
+      padding: 6px 8px;
       background: rgba(30, 30, 30, 0.5);
       border-radius: 6px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
+      overflow-x: auto;
     }
 
     .faders-toolbar .btn {
       margin: 0;
-      padding: 6px 12px;
-      font-size: 0.8rem;
+      padding: 5px 10px;
+      font-size: 0.75rem;
       width: auto;
+      white-space: nowrap;
+    }
+
+    .toolbar-spacer {
+      flex: 1;
+      min-width: 10px;
+    }
+
+    .mute-groups {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-left: auto;
+    }
+
+    .mute-group-btn {
+      min-width: 38px;
+      padding: 5px 8px;
+      font-size: 0.7rem;
+      font-weight: bold;
+      background: rgba(60, 60, 60, 0.8);
+      border: 2px solid #555;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .mute-group-btn:hover {
+      background: rgba(80, 80, 80, 0.9);
+      border-color: #777;
+    }
+
+    .mute-group-btn.active {
+      background: #d32f2f;
+      border-color: #f44336;
+      color: #fff;
+      box-shadow: 0 0 8px rgba(211, 47, 47, 0.6);
+    }
+
+    .mute-group-btn.active:hover {
+      background: #f44336;
+      border-color: #ff5252;
+    }
+
+    .mute-group-btn.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
+    }
+
+    .mute-group-btn.active.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 8px rgba(211, 47, 47, 0.6), 0 0 4px rgba(76, 175, 80, 0.4);
+    }
+
+    .mute-group-btn .midi-indicator {
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 6px;
+      height: 6px;
+      background: #4CAF50;
+      border-radius: 50%;
     }
 
     .faders-grid {
@@ -343,6 +405,7 @@
       overflow-x: auto;
       overflow-y: hidden;
       min-width: 0;
+      flex-wrap: nowrap;
     }
 
     .faders-main {
@@ -513,12 +576,19 @@
       background: rgba(0, 0, 0, 0.3);
       border-radius: 3px;
       opacity: 0.95;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .fader-mapping-info.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
     }
 
     .mute-btn {
       width: 28px;
       height: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.2);
       background: rgba(30, 30, 30, 0.6);
       color: rgba(255, 255, 255, 0.5);
       border-radius: 3px;
@@ -542,10 +612,20 @@
       box-shadow: 0 0 8px rgba(199, 74, 58, 0.5);
     }
 
+    .mute-btn.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
+    }
+
+    .mute-btn.active.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 8px rgba(199, 74, 58, 0.5), 0 0 4px rgba(76, 175, 80, 0.4);
+    }
+
     .solo-btn {
       width: 28px;
       height: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.2);
       background: rgba(30, 30, 30, 0.6);
       color: rgba(255, 255, 255, 0.5);
       border-radius: 3px;
@@ -569,6 +649,16 @@
       box-shadow: 0 0 8px rgba(244, 196, 48, 0.5);
     }
 
+    .solo-btn.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
+    }
+
+    .solo-btn.active.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 8px rgba(244, 196, 48, 0.5), 0 0 4px rgba(76, 175, 80, 0.4);
+    }
+
     .fader-controls {
       display: flex;
       gap: 4px;
@@ -583,11 +673,12 @@
       background: rgba(50, 50, 50, 0.95);
       border-radius: 12px;
       position: relative;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.15);
       box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
       overflow: hidden;
       cursor: pointer;
       user-select: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
 
     /* Stereo fader - half width for dual L/R display */
@@ -601,6 +692,11 @@
 
     .fader-container.dragging {
       border-color: #4a9b7f;
+    }
+
+    .fader-container.mapped {
+      border-color: #4CAF50;
+      box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
     }
 
     .fader-fill {
@@ -740,6 +836,21 @@
       border-color: rgba(255, 68, 68, 0.5);
     }
 
+    .icon-btn {
+      background: transparent;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 1.1rem;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
     /* Context Menu */
     .context-menu {
       position: fixed;
@@ -755,6 +866,15 @@
 
     .context-menu.show {
       display: block;
+    }
+
+    .context-menu-header {
+      padding: 6px 16px;
+      color: #4CAF50;
+      font-weight: bold;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 4px;
     }
 
     .context-menu-item {
@@ -1047,12 +1167,13 @@
   <div class="container">
     <div class="header">
       <div class="header-left">
-        <h1>🎛️ StudioLive MIDI Controller</h1>
+        <h1><img src="../assets/icon.png" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;" /> StudioLive MIDI Controller</h1>
       </div>
       <div class="header-right">
         <button class="btn-small" onclick="showPreferences()" title="Preferences">⚙️</button>
         <button class="btn-small" onclick="showSavePreset()" title="Save Profile">💾 Save</button>
         <button class="btn-small" onclick="showLoadPreset()" title="Load Profile">📂 Load</button>
+        <button class="btn-small" onclick="showMappingsList()" title="View All Mappings">📋 Mappings</button>
         <button class="btn-small" onclick="toggleMidiLog()" title="Show MIDI Log">📊 MIDI Log</button>
         <div class="connection-status" onclick="openConnectionPanel('midi')" id="midi-connection-status" title="">
           <div class="status-dot" id="midi-status-dot"></div>
@@ -1072,10 +1193,17 @@
       <div class="content-area">
         <div id="faders-view" class="tab-content active">
           <div class="faders-toolbar">
-            <button class="btn" onclick="showAddMapping()">➕ Add Channel</button>
-            <button class="btn" onclick="removeSelectedChannels()">➖ Remove Selected</button>
-            <button class="btn" onclick="clearAllChannels()">🗑️ Clear All</button>
-            <button class="btn" id="filter-btn" onclick="toggleFaderFilter()">🔍 Show: All</button>
+            <button class="btn" onclick="showAddMapping()" title="Add Channel">➕</button>
+            <select class="btn" id="filter-select" onchange="onFilterChange()" style="min-width: 150px;">
+              <option value="all">🔍 View: All</option>
+              <option value="mapped">🔍 View: Mapped</option>
+            </select>
+            <!-- Spacer to push mute groups to the right -->
+            <div class="toolbar-spacer"></div>
+            <!-- Mute groups (right-aligned) -->
+            <div class="mute-groups" id="mute-groups-container">
+              <!-- Mute group buttons will be dynamically added here -->
+            </div>
           </div>
           <div class="faders-grid">
             <div id="faders-container" class="faders-scrollable"></div>
@@ -1090,7 +1218,7 @@
   <div class="status-bar">
     <div class="status-bar-left">
       <div class="status-item">
-        <span id="status-init">Initializing...</span>
+        <span id="status-init" style="cursor: pointer; text-decoration: underline dotted;" onclick="showStatusLog()" title="Click to view initialization log">Initializing...</span>
       </div>
     </div>
     <div class="status-bar-center">
@@ -1157,7 +1285,7 @@
       </div>
       <div class="form-group">
         <label>Mixer Action</label>
-        <select id="mixer-action">
+        <select id="mixer-action" onchange="updateMidiTypeFields()">
           <option value="volume">Volume</option>
           <option value="mute">Mute</option>
           <option value="solo">Solo</option>
@@ -1174,22 +1302,142 @@
           <option value="note-value">Note (Value Mode)</option>
         </select>
       </div>
+      <div class="form-group" id="cc-threshold-group" style="display:none;">
+        <label>CC Threshold (for Mute/Solo)</label>
+        <input type="number" id="midi-cc-threshold" value="64" min="0" max="127" />
+        <small style="color: #888; display: block; margin-top: 5px;">Values >= threshold activate, values < threshold deactivate (default: 64 = middle)</small>
+      </div>
       <div class="form-group" id="cc-group">
         <label>CC Type</label>
         <select id="midi-cc">
+          <option value="0">CC0 - Bank MSB</option>
           <option value="1">CC1 - Modulation</option>
-          <option value="2">CC2 - Breath Controller</option>
-          <option value="7" selected>CC7 - Volume</option>
-          <option value="10">CC10 - Pan</option>
+          <option value="2">CC2 - Breath</option>
+          <option value="3">CC3 - Ctrl 3</option>
+          <option value="4">CC4 - Foot Control</option>
+          <option value="5">CC5 - Portamento Time</option>
+          <option value="6">CC6 - Data MSB</option>
+          <option value="7" selected>CC7 - MIDI Volume</option>
+          <option value="8">CC8 - Balance</option>
+          <option value="9">CC9 - Ctrl 9</option>
+          <option value="10">CC10 - MIDI Pan</option>
           <option value="11">CC11 - Expression</option>
-          <option value="64">CC64 - Sustain Pedal</option>
-          <option value="71">CC71 - Resonance</option>
+          <option value="12">CC12 - Effect #1 MSB</option>
+          <option value="13">CC13 - Effect #2 MSB</option>
+          <option value="14">CC14 - Ctrl 14</option>
+          <option value="15">CC15 - Ctrl 15</option>
+          <option value="16">CC16 - General #1</option>
+          <option value="17">CC17 - General #2</option>
+          <option value="18">CC18 - General #3</option>
+          <option value="19">CC19 - General #4</option>
+          <option value="20">CC20 - Ctrl 20</option>
+          <option value="21">CC21 - Ctrl 21</option>
+          <option value="22">CC22 - Ctrl 22</option>
+          <option value="23">CC23 - Ctrl 23</option>
+          <option value="24">CC24 - Ctrl 24</option>
+          <option value="25">CC25 - Ctrl 25</option>
+          <option value="26">CC26 - Ctrl 26</option>
+          <option value="27">CC27 - Ctrl 27</option>
+          <option value="28">CC28 - Ctrl 28</option>
+          <option value="29">CC29 - Ctrl 29</option>
+          <option value="30">CC30 - Ctrl 30</option>
+          <option value="31">CC31 - Ctrl 31</option>
+          <option value="32">CC32 - Bank LSB</option>
+          <option value="33">CC33 - (#01 LSB)</option>
+          <option value="34">CC34 - (#02 LSB)</option>
+          <option value="35">CC35 - (#03 LSB)</option>
+          <option value="36">CC36 - (#04 LSB)</option>
+          <option value="37">CC37 - (#05 LSB)</option>
+          <option value="38">CC38 - (#06 LSB)</option>
+          <option value="39">CC39 - (#07 LSB)</option>
+          <option value="40">CC40 - (#08 LSB)</option>
+          <option value="41">CC41 - (#09 LSB)</option>
+          <option value="42">CC42 - (#10 LSB)</option>
+          <option value="43">CC43 - (#11 LSB)</option>
+          <option value="44">CC44 - Effect #1 LSB</option>
+          <option value="45">CC45 - Effect #2 LSB</option>
+          <option value="46">CC46 - (#14 LSB)</option>
+          <option value="47">CC47 - (#15 LSB)</option>
+          <option value="48">CC48 - (#16 LSB)</option>
+          <option value="49">CC49 - (#17 LSB)</option>
+          <option value="50">CC50 - (#18 LSB)</option>
+          <option value="51">CC51 - (#19 LSB)</option>
+          <option value="52">CC52 - (#20 LSB)</option>
+          <option value="53">CC53 - (#21 LSB)</option>
+          <option value="54">CC54 - (#22 LSB)</option>
+          <option value="55">CC55 - (#23 LSB)</option>
+          <option value="56">CC56 - (#24 LSB)</option>
+          <option value="57">CC57 - (#25 LSB)</option>
+          <option value="58">CC58 - (#26 LSB)</option>
+          <option value="59">CC59 - (#27 LSB)</option>
+          <option value="60">CC60 - (#28 LSB)</option>
+          <option value="61">CC61 - (#29 LSB)</option>
+          <option value="62">CC62 - (#30 LSB)</option>
+          <option value="63">CC63 - (#31 LSB)</option>
+          <option value="64">CC64 - Sustain</option>
+          <option value="65">CC65 - Portamento</option>
+          <option value="66">CC66 - Sostenuto</option>
+          <option value="67">CC67 - Soft Pedal</option>
+          <option value="68">CC68 - Legato</option>
+          <option value="69">CC69 - Hold 2</option>
+          <option value="70">CC70 - Sound Variation</option>
+          <option value="71">CC71 - Timbre</option>
+          <option value="72">CC72 - Release Time</option>
+          <option value="73">CC73 - Attack Time</option>
           <option value="74">CC74 - Brightness</option>
+          <option value="75">CC75 - Decay Time</option>
+          <option value="76">CC76 - Vibrato Rate</option>
+          <option value="77">CC77 - Vibrato Depth</option>
+          <option value="78">CC78 - Vibrato Delay</option>
+          <option value="79">CC79 - Ctrl 79</option>
+          <option value="80">CC80 - Decay</option>
+          <option value="81">CC81 - HPF Frequency</option>
+          <option value="82">CC82 - General #5</option>
+          <option value="83">CC83 - General #6</option>
+          <option value="84">CC84 - Portamento Control</option>
+          <option value="85">CC85 - Ctrl 85</option>
+          <option value="86">CC86 - Ctrl 86</option>
+          <option value="87">CC87 - Ctrl 87</option>
+          <option value="88">CC88 - High Resolution Velocity Prefix</option>
+          <option value="89">CC89 - Ctrl 89</option>
+          <option value="90">CC90 - Ctrl 90</option>
           <option value="91">CC91 - Reverb</option>
-          <option value="93">CC93 - Chorus</option>
-          <option value="102">CC102 - Volume (Alt)</option>
-          <option value="103">CC103 - Pan (Alt)</option>
-          <option value="104">CC104 - Expression (Alt)</option>
+          <option value="92">CC92 - Tremolo Depth</option>
+          <option value="93">CC93 - Chorus Send Level</option>
+          <option value="94">CC94 - Celeste (Detune) Depth</option>
+          <option value="95">CC95 - Phaser Depth</option>
+          <option value="96">CC96 - Data Increment</option>
+          <option value="97">CC97 - Data Decrement</option>
+          <option value="98">CC98 - Non-Reg. LSB</option>
+          <option value="99">CC99 - Non-Reg. MSB</option>
+          <option value="100">CC100 - Reg.Par. LSB</option>
+          <option value="101">CC101 - Reg.Par. MSB</option>
+          <option value="102">CC102 - Ctrl 102</option>
+          <option value="103">CC103 - Ctrl 103</option>
+          <option value="104">CC104 - Ctrl 104</option>
+          <option value="105">CC105 - Ctrl 105</option>
+          <option value="106">CC106 - Ctrl 106</option>
+          <option value="107">CC107 - Ctrl 107</option>
+          <option value="108">CC108 - Ctrl 108</option>
+          <option value="109">CC109 - Ctrl 109</option>
+          <option value="110">CC110 - Ctrl 110</option>
+          <option value="111">CC111 - Ctrl 111</option>
+          <option value="112">CC112 - Ctrl 112</option>
+          <option value="113">CC113 - Ctrl 113</option>
+          <option value="114">CC114 - Ctrl 114</option>
+          <option value="115">CC115 - Ctrl 115</option>
+          <option value="116">CC116 - Ctrl 116</option>
+          <option value="117">CC117 - Ctrl 117</option>
+          <option value="118">CC118 - Ctrl 118</option>
+          <option value="119">CC119 - Ctrl 119</option>
+          <option value="120">CC120 - All Sound Off</option>
+          <option value="121">CC121 - Reset All Controllers</option>
+          <option value="122">CC122 - Local Control</option>
+          <option value="123">CC123 - All Notes Off</option>
+          <option value="124">CC124 - Omni Mode Off</option>
+          <option value="125">CC125 - Omni Mode On</option>
+          <option value="126">CC126 - Mono Mode On</option>
+          <option value="127">CC127 - Poly Mode On</option>
         </select>
         <small style="color: #888; display: block; margin-top: 5px;">Logic Pro default: CC7 (Volume) with channel = mixer channel number</small>
       </div>
@@ -1202,6 +1450,13 @@
         <label>Note Number (Trigger)</label>
         <input type="number" id="midi-note" value="60" min="0" max="127" oninput="updateNoteDisplay()" />
         <small style="color: #888;" id="note-display">C4 (60)</small>
+      </div>
+      <div class="form-group" id="note-invert-group" style="display:none;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="midi-note-invert" style="width: auto; margin: 0;" />
+          <span>Invert Note Logic (for Mute/Solo)</span>
+        </label>
+        <small style="color: #888; display: block; margin-top: 5px;">When checked: Note ON = deactivate, Note OFF = activate</small>
       </div>
       <div class="form-group" id="note-value-group" style="display:none;">
         <label>Note Range (C1-C4 = 24-60)</label>
@@ -1270,6 +1525,18 @@
           Lower = faster response, Higher = smoother transitions
         </small>
       </div>
+      <div class="form-group" style="margin-top: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="midi-feedback-enabled" style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;" />
+          <span>Enable MIDI Feedback</span>
+        </label>
+        <small style="color: #888; display: block; margin-top: 5px;">
+          Send fader positions back to MIDI controller (e.g., Logic Pro)
+        </small>
+        <small style="color: #ff9800; display: block; margin-top: 5px;">
+          ⚠️ Disable if experiencing MIDI feedback loops
+        </small>
+      </div>
       <div class="modal-buttons">
         <button class="btn" onclick="savePreferences()">Save</button>
         <button class="btn" onclick="hidePreferences()">Cancel</button>
@@ -1277,12 +1544,59 @@
     </div>
   </div>
 
-  <!-- Context Menu -->
-  <div id="context-menu" class="context-menu">
-    <div class="context-menu-item" onclick="contextMenuEdit()">✏️ Edit Mapping</div>
+  <!-- Mappings List Modal -->
+  <div id="mappings-list-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px; max-height: 80vh; overflow-y: auto;">
+      <h2>📋 All MIDI Mappings</h2>
+      <div id="mappings-list-view" style="margin: 20px 0;">
+        <!-- Will be populated by JavaScript -->
+      </div>
+      <div class="modal-buttons">
+        <button class="btn danger" onclick="clearAllMappingsFromList()" style="margin-right: auto;">🧹 Clear All Mappings</button>
+        <button class="btn" onclick="hideMappingsList()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context Menus -->
+  <!-- Fader Volume Context Menu -->
+  <div id="fader-context-menu" class="context-menu">
+    <div class="context-menu-header">🎚️ Volume Fader</div>
+    <div class="context-menu-item" onclick="contextMenuEditFader()">✏️ Edit Volume Mapping</div>
     <div class="context-menu-separator"></div>
-    <div class="context-menu-item" onclick="contextMenuClearChannel()">🧹 Clear Channel</div>
-    <div class="context-menu-item danger" onclick="contextMenuDelete()">🗑️ Delete</div>
+    <div class="context-menu-item" onclick="contextMenuClearFader()">🧹 Clear Volume Mapping</div>
+  </div>
+
+  <!-- Mute Button Context Menu -->
+  <div id="mute-context-menu" class="context-menu">
+    <div class="context-menu-header">🔇 Mute Button</div>
+    <div class="context-menu-item" onclick="contextMenuEditMute()">✏️ Edit Mute Mapping</div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" onclick="contextMenuClearMute()">🧹 Clear Mute Mapping</div>
+  </div>
+
+  <!-- Solo Button Context Menu -->
+  <div id="solo-context-menu" class="context-menu">
+    <div class="context-menu-header">🔊 Solo Button</div>
+    <div class="context-menu-item" onclick="contextMenuEditSolo()">✏️ Edit Solo Mapping</div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" onclick="contextMenuClearSolo()">🧹 Clear Solo Mapping</div>
+  </div>
+
+  <!-- Channel Context Menu -->
+  <div id="channel-context-menu" class="context-menu">
+    <div class="context-menu-header">📻 Channel</div>
+    <div class="context-menu-item" onclick="contextMenuRemoveChannel()">🗑️ Remove Channel</div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item danger" onclick="contextMenuClearAllMappings()">🧹 Clear All MIDI Mappings</div>
+  </div>
+
+  <!-- Mute Group Context Menu -->
+  <div id="mutegroup-context-menu" class="context-menu">
+    <div class="context-menu-header">🎚️ Mute Group</div>
+    <div class="context-menu-item" onclick="contextMenuEditMuteGroup()">✏️ Edit Mute Group Mapping</div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" onclick="contextMenuClearMuteGroup()">🧹 Clear Mute Group Mapping</div>
   </div>
 
   <!-- MIDI Log Window -->
@@ -1299,8 +1613,57 @@
     </div>
   </div>
 
+  <!-- Status Log Modal -->
+  <div id="status-log-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+      <h2>📋 Initialization Log</h2>
+      <div style="max-height: 400px; overflow-y: auto; background: #1a1a1a; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px;">
+        <div id="status-log-content"></div>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="clearStatusLog()">Clear Log</button>
+        <button class="btn" onclick="hideStatusLog()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Update Available Modal -->
+  <div id="update-modal" class="modal">
+    <div class="modal-content" style="max-width: 600px;">
+      <h2>🎉 Update Available</h2>
+      <div style="padding: 20px 0;">
+        <p style="font-size: 1.1rem; margin-bottom: 15px;">
+          A new version of StudioLive MIDI Controller is available!
+        </p>
+        <div style="background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <span style="color: #888;">Current Version:</span>
+            <span id="update-current-version" style="font-weight: bold;">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: #888;">Latest Version:</span>
+            <span id="update-latest-version" style="font-weight: bold; color: #4CAF50;">-</span>
+          </div>
+        </div>
+        <div id="update-release-notes" style="background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 15px; max-height: 200px; overflow-y: auto; display: none;">
+          <h3 style="margin: 0 0 10px 0; font-size: 0.9rem; color: #4CAF50;">📝 Release Notes</h3>
+          <div id="update-release-notes-content" style="color: #ccc; font-size: 0.85rem; line-height: 1.5; white-space: pre-wrap;"></div>
+        </div>
+        <p style="color: #888; font-size: 0.9rem;">
+          Click "Download Update" to visit the release page and download the latest version.
+        </p>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="hideUpdateModal()">Later</button>
+        <button class="btn" onclick="downloadUpdate()" style="background: #4CAF50;">Download Update</button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    console.log('[Renderer] Script starting...');
     const { ipcRenderer } = require('electron');
+    console.log('[Renderer] ipcRenderer loaded');
 
     // Track mapping activity
     const mappingActivity = new Map();
@@ -1317,11 +1680,162 @@
     // Flag to prevent auto-updating MIDI settings when editing
     let isEditingMapping = false;
 
+    // Channel data cache (shared across loadFaders and updateFilterDropdown)
+    let channelDataCache = {};
+
+    // Current mappings (shared across components)
+    let currentMappings = [];
+
+    // Flag to prevent multiple simultaneous loadFaders calls
+    let isLoadingFaders = false;
+
+    // Status log for tracking initialization and errors
+    let statusLog = [];
+    const MAX_LOG_ENTRIES = 100;
+
+    // Add entry to status log
+    function addStatusLog(message, type = 'info') {
+      const timestamp = new Date().toLocaleTimeString();
+      const entry = { timestamp, message, type };
+      statusLog.push(entry);
+
+      // Keep only last MAX_LOG_ENTRIES
+      if (statusLog.length > MAX_LOG_ENTRIES) {
+        statusLog.shift();
+      }
+
+      console.log(`[Status ${type.toUpperCase()}] ${message}`);
+    }
+
+    // Show status log modal
+    function showStatusLog() {
+      const modal = document.getElementById('status-log-modal');
+      const content = document.getElementById('status-log-content');
+
+      if (statusLog.length === 0) {
+        content.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No log entries yet...</div>';
+      } else {
+        content.innerHTML = statusLog.map(entry => {
+          let color = '#4CAF50'; // green for info
+          let icon = 'ℹ️';
+
+          if (entry.type === 'error') {
+            color = '#f44336'; // red
+            icon = '❌';
+          } else if (entry.type === 'warning') {
+            color = '#ff9800'; // orange
+            icon = '⚠️';
+          } else if (entry.type === 'success') {
+            color = '#4CAF50'; // green
+            icon = '✅';
+          }
+
+          return `<div style="margin-bottom: 8px; color: ${color};">
+            <span style="color: #888;">[${entry.timestamp}]</span> ${icon} ${entry.message}
+          </div>`;
+        }).reverse().join(''); // Reverse to show newest first
+      }
+
+      modal.classList.add('show');
+    }
+
+    // Hide status log modal
+    function hideStatusLog() {
+      const modal = document.getElementById('status-log-modal');
+      modal.classList.remove('show');
+    }
+
+    // Clear status log
+    function clearStatusLog() {
+      statusLog = [];
+      const content = document.getElementById('status-log-content');
+      content.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">No log entries yet...</div>';
+    }
+
+    // Update modal functions
+    let updateDownloadUrl = '';
+
+    function showUpdateModal(currentVersion, latestVersion, downloadUrl, releaseNotes) {
+      updateDownloadUrl = downloadUrl;
+      document.getElementById('update-current-version').textContent = currentVersion;
+      document.getElementById('update-latest-version').textContent = latestVersion;
+
+      // Show release notes if available
+      if (releaseNotes) {
+        const notesContainer = document.getElementById('update-release-notes');
+        const notesContent = document.getElementById('update-release-notes-content');
+        notesContent.textContent = releaseNotes;
+        notesContainer.style.display = 'block';
+      } else {
+        document.getElementById('update-release-notes').style.display = 'none';
+      }
+
+      const modal = document.getElementById('update-modal');
+      modal.classList.add('show');
+    }
+
+    function hideUpdateModal() {
+      const modal = document.getElementById('update-modal');
+      modal.classList.remove('show');
+    }
+
+    function downloadUpdate() {
+      if (updateDownloadUrl) {
+        require('electron').shell.openExternal(updateDownloadUrl);
+      }
+      hideUpdateModal();
+    }
+
+    // Check for updates
+    async function checkForUpdates() {
+      try {
+        console.log('[Renderer] Checking for updates...');
+        const result = await ipcRenderer.invoke('check-for-updates');
+
+        if (result.success) {
+          console.log(`[Renderer] Update check: current=${result.currentVersion}, latest=${result.latestVersion}, available=${result.updateAvailable}`);
+          addStatusLog(`Version check: ${result.currentVersion} (latest: ${result.latestVersion})`, 'info');
+
+          if (result.updateAvailable) {
+            console.log('[Renderer] Update available, showing modal');
+            addStatusLog(`Update available: ${result.latestVersion}`, 'warning');
+            // Show update modal after a short delay to not interrupt initialization
+            setTimeout(() => {
+              showUpdateModal(result.currentVersion, result.latestVersion, result.downloadUrl, result.releaseNotes);
+            }, 2000);
+          }
+        } else {
+          console.log(`[Renderer] Update check failed: ${result.error}`);
+          addStatusLog(`Update check failed: ${result.error}`, 'warning');
+        }
+      } catch (error) {
+        console.error('[Renderer] Error checking for updates:', error);
+        addStatusLog(`Update check error: ${error.message || error}`, 'warning');
+      }
+    }
+
     // Update status bar initialization message
     function updateStatusInit(message) {
       const statusInit = document.getElementById('status-init');
       if (statusInit) {
         statusInit.textContent = message;
+      }
+
+      // Add to log (but not "Ready" messages to avoid spam)
+      if (message !== 'Ready') {
+        addStatusLog(message, 'info');
+      } else {
+        addStatusLog(message, 'success');
+      }
+    }
+
+    // Update status with a minimum display time (so users can read it)
+    // For now, just update immediately without delay to avoid blocking
+    async function updateStatusInitWithDelay(message, minDisplayMs = 0) {
+      updateStatusInit(message);
+      // Small delay to allow UI to update
+      if (minDisplayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, minDisplayMs));
       }
     }
 
@@ -1408,10 +1922,16 @@
       'electricguitar': '🎸',
       'electric2': '🎸',
       'electric': '🎸',
-      'acousticguitar': '🪕',
-      'acoustic2': '🪕',
-      'acoustic': '🪕',
-      'bass': '🎸',
+      'acousticguitar': '<img src="icons/acoustic-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'acoustic2': '<img src="icons/acoustic-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'acoustic': '<img src="icons/acoustic-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'bass': '<img src="icons/bass-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'bassguitar': '<img src="icons/bass-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'electricbass': '<img src="icons/bass-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'acousticbass': '<img src="icons/bass-guitar.svg" style="width:1em;height:1em;display:inline-block;vertical-align:middle;" />',
+      'upright': '🎻',         // Upright/double bass uses violin emoji
+      'uprightbass': '🎻',
+      'doublebass': '🎻',
       'dobro': '🪕',
       'banjo': '🪕',
       'guitar': '🎸',
@@ -1670,7 +2190,7 @@
 
     // MIDI Log functionality
     const midiLogEntries = [];
-    const MAX_LOG_ENTRIES = 100;
+    const MAX_MIDI_LOG_ENTRIES = 100;
 
     function toggleMidiLog() {
       const logWindow = document.getElementById('midi-log-window');
@@ -1705,8 +2225,8 @@
       const entry = { timestamp, type, details };
       midiLogEntries.push(entry);
 
-      // Keep only last MAX_LOG_ENTRIES
-      if (midiLogEntries.length > MAX_LOG_ENTRIES) {
+      // Keep only last MAX_MIDI_LOG_ENTRIES
+      if (midiLogEntries.length > MAX_MIDI_LOG_ENTRIES) {
         midiLogEntries.shift();
       }
 
@@ -1727,8 +2247,8 @@
       // Auto-scroll to bottom
       logContent.scrollTop = logContent.scrollHeight;
 
-      // Keep only last MAX_LOG_ENTRIES in DOM
-      while (logContent.children.length > MAX_LOG_ENTRIES) {
+      // Keep only last MAX_MIDI_LOG_ENTRIES in DOM
+      while (logContent.children.length > MAX_MIDI_LOG_ENTRIES) {
         logContent.removeChild(logContent.firstChild);
       }
     }
@@ -1770,9 +2290,9 @@
         const filter = await ipcRenderer.invoke('get-fader-filter');
         if (filter) {
           faderFilter = filter;
-          const filterBtn = document.getElementById('filter-btn');
-          if (filterBtn) {
-            filterBtn.textContent = faderFilter === 'all' ? '🔍 View: All' : '🔍 View: Mapped';
+          const filterSelect = document.getElementById('filter-select');
+          if (filterSelect) {
+            filterSelect.value = faderFilter;
           }
         }
       }
@@ -1806,8 +2326,11 @@
       flashActivity('mixer-activity');
 
       // Update fader if it's a volume command
-      if (mixerCommand.action === 'volume' && mixerCommand.value !== undefined) {
-        updateFader(mixerCommand.channel.channel, mixerCommand.value);
+      if (mixerCommand.action === 'volume' && mixerCommand.value !== undefined && mixerCommand.channel) {
+        const channelType = mixerCommand.channel.type || 'LINE';
+        const channelNum = mixerCommand.channel.channel;
+        updateFaderByValue(channelType, channelNum, mixerCommand.value);
+        indicateFaderChange(channelType, channelNum, 'midi');
       }
     });
 
@@ -1826,14 +2349,61 @@
     });
 
     // Listen for mixer state ready event (when channel names are available)
-    ipcRenderer.on('mixer-state-ready', () => {
-      updateStatusInit('Mixer connected - loading channels...');
+    let mixerStateReadyHandled = false;
+    let mixerStateReadyTimestamp = 0;
+    ipcRenderer.on('mixer-state-ready', async () => {
+      const now = Date.now();
+      console.log('[Renderer] mixer-state-ready event received, mixerStateReadyHandled:', mixerStateReadyHandled, 'isLoadingFaders:', isLoadingFaders, 'time since last:', now - mixerStateReadyTimestamp);
+
+      // Prevent duplicate handling if event fires multiple times within 15 seconds
+      if (mixerStateReadyHandled && (now - mixerStateReadyTimestamp) < 15000) {
+        console.log('[Renderer] mixer-state-ready: Already handled recently, skipping duplicate');
+        return;
+      }
+      mixerStateReadyHandled = true;
+      mixerStateReadyTimestamp = now;
+
+      console.log('[Renderer] mixer-state-ready: Processing event...');
+
+      // Get mixer info now that state is ready
+      const mixerStatus = await ipcRenderer.invoke('get-mixer-status');
+      console.log('[Renderer] Mixer status:', mixerStatus);
+
+      // Prefer deviceName, then model, then name
+      // Don't show both if they're the same
+      const deviceName = mixerStatus.deviceName || '';
+      const model = mixerStatus.model || '';
+      const name = mixerStatus.name || '';
+
+      let displayText = 'Unknown';
+      if (deviceName && model && deviceName !== model) {
+        displayText = `${deviceName} (${model})`;
+      } else if (deviceName) {
+        displayText = deviceName;
+      } else if (model) {
+        displayText = model;
+      } else if (name) {
+        displayText = name;
+      }
+
+      await updateStatusInitWithDelay(`Connected to ${displayText}`);
+      await updateStatusInitWithDelay('Mixer connected - loading channels...');
+
+      // Load mappings first (populates currentMappings global variable)
+      await loadMappings();
+
+      // Then load faders (which will call loadMuteGroups at the end)
       loadFaders().then(() => {
+        // loadFaders will set status to 'Ready' when complete
+        // Don't reset mixerStateReadyHandled here - keep it true to prevent duplicates
+        console.log('[Renderer] loadFaders completed successfully');
       }).catch(err => {
-        // Silent error handling
+        console.error('[Renderer] Error in mixer-state-ready handler:', err);
+        const errorMsg = `Error: ${err.message || 'Failed to load channels'}`;
+        updateStatusInit(errorMsg);
+        addStatusLog(errorMsg, 'error');
+        // Don't reset on error either - the duplicate is not helpful
       });
-      loadMappings();
-      updateStatusInit('Ready');
     });
 
     // Listen for mixer mute changes (from physical mixer or Universal Control)
@@ -1853,7 +2423,10 @@
     });
 
     // Listen for mixer property changes (main assignment, input source, etc.)
-    ipcRenderer.on('mixer-property-change', (event, data) => {
+    ipcRenderer.on('mixer-property-change', async (event, data) => {
+      // Log all property changes to see what we're getting
+      console.log('[Renderer] mixer-property-change:', data);
+
       // data.channel.type, data.channel.channel, data.value, data.type
       if (data.channel && data.type) {
         const channelType = data.channel.type;
@@ -1874,6 +2447,53 @@
         } else if (data.type === 'link') {
           // Channel link status changed - need to reload faders
           loadFaders();
+        } else if (data.type === 'mute') {
+          // Channel mute state changed
+          updateMuteButton(channelType, channelNum, data.value);
+        }
+      }
+
+      // Check if this is a mute group state change
+      // The path might be something like "mutegroup/mutegroup1"
+      if (data.path && data.path.includes('mutegroup/mutegroup')) {
+        const match = data.path.match(/mutegroup\/mutegroup(\d+)$/);
+        if (match) {
+          const groupNum = parseInt(match[1], 10);
+          const muteGroupActive = data.value > 0;
+          console.log(`[Renderer] Mute group ${groupNum} state changed to: ${muteGroupActive ? 'ACTIVE' : 'INACTIVE'}`);
+
+          // Update the mute group button state
+          const button = document.getElementById(`mute-group-${groupNum}`);
+          if (button) {
+            if (muteGroupActive) {
+              button.classList.add('active');
+            } else {
+              button.classList.remove('active');
+            }
+          }
+
+          // Update the mute button states for all channels in this mute group
+          // NOTE: The mixer doesn't change individual channel mute states when a mute group is activated.
+          // The mute group acts as a "master mute" that overrides individual states.
+          // So we set the visual state based on the mute group state, not the individual channel states.
+          const assignments = await ipcRenderer.invoke('get-mute-group-assignments', groupNum);
+          console.log(`[Renderer] Mute group ${groupNum} has ${assignments.length} assigned channels`);
+
+          for (const assignment of assignments) {
+            // If mute group is active, show channels as muted
+            // If mute group is inactive, query the actual channel mute state
+            if (muteGroupActive) {
+              console.log(`[Renderer] Setting ${assignment.type}${assignment.channel} to MUTED (mute group active)`);
+              updateMuteButton(assignment.type, assignment.channel, true);
+            } else {
+              // Query the actual channel mute state
+              const muted = await ipcRenderer.invoke('get-channel-mute', assignment.type, assignment.channel);
+              console.log(`[Renderer] Setting ${assignment.type}${assignment.channel} to ${muted} (mute group inactive, actual state)`);
+              if (muted !== null) {
+                updateMuteButton(assignment.type, assignment.channel, muted);
+              }
+            }
+          }
         }
       }
     });
@@ -1996,26 +2616,40 @@
 
     function updateMidiTypeFields() {
       const midiType = document.getElementById('midi-type').value;
+      const mixerAction = document.getElementById('mixer-action').value;
       const ccGroup = document.getElementById('cc-group');
+      const ccThresholdGroup = document.getElementById('cc-threshold-group');
       const noteGroup = document.getElementById('note-group');
+      const noteInvertGroup = document.getElementById('note-invert-group');
       const noteValueGroup = document.getElementById('note-value-group');
+
+      // Determine if this is a boolean control (mute/solo/mutegroup)
+      const isBooleanControl = mixerAction === 'mute' || mixerAction === 'solo' || mixerAction === 'mutegroup';
 
       if (midiType === 'none') {
         ccGroup.style.display = 'none';
+        ccThresholdGroup.style.display = 'none';
         noteGroup.style.display = 'none';
+        noteInvertGroup.style.display = 'none';
         noteValueGroup.style.display = 'none';
       } else if (midiType === 'cc') {
         ccGroup.style.display = 'block';
+        ccThresholdGroup.style.display = isBooleanControl ? 'block' : 'none';
         noteGroup.style.display = 'none';
+        noteInvertGroup.style.display = 'none';
         noteValueGroup.style.display = 'none';
       } else if (midiType === 'note') {
         ccGroup.style.display = 'none';
+        ccThresholdGroup.style.display = 'none';
         noteGroup.style.display = 'block';
+        noteInvertGroup.style.display = isBooleanControl ? 'block' : 'none';
         noteValueGroup.style.display = 'none';
         updateNoteDisplay();
       } else if (midiType === 'note-value') {
         ccGroup.style.display = 'none';
+        ccThresholdGroup.style.display = 'none';
         noteGroup.style.display = 'none';
+        noteInvertGroup.style.display = 'none';
         noteValueGroup.style.display = 'block';
         updateNoteMinDisplay();
         updateNoteMaxDisplay();
@@ -2052,7 +2686,9 @@
       document.getElementById('midi-type').value = 'cc';
       // Don't set midi-channel here - let updateMidiSettingsForChannel() set it based on mixer channel
       document.getElementById('midi-cc').value = '7'; // Default to CC7 (Volume)
+      document.getElementById('midi-cc-threshold').value = '64'; // Default threshold
       document.getElementById('midi-note').value = '60';
+      document.getElementById('midi-note-invert').checked = false; // Default not inverted
       document.getElementById('midi-note-min').value = '24';
       document.getElementById('midi-note-max').value = '60';
       document.getElementById('mixer-action').value = 'volume';
@@ -2071,6 +2707,12 @@
       const modalTitle = modal.querySelector('h2');
       modalTitle.textContent = '➕ Create Mapping';
       delete modal.dataset.editingIndex;
+
+      // If we came from the mappings list and user cancelled, return to it
+      if (returnToMappingsList) {
+        returnToMappingsList = false;
+        setTimeout(() => showMappingsList(), 100);
+      }
     }
 
     // Update channel number dropdown based on selected channel type
@@ -2186,9 +2828,9 @@
           const filter = await ipcRenderer.invoke('get-fader-filter');
           if (filter) {
             faderFilter = filter;
-            const filterBtn = document.getElementById('filter-btn');
-            if (filterBtn) {
-              filterBtn.textContent = faderFilter === 'all' ? '🔍 View: All' : '🔍 View: Mapped';
+            const filterSelect = document.getElementById('filter-select');
+            if (filterSelect) {
+              filterSelect.value = faderFilter;
             }
           }
 
@@ -2220,22 +2862,380 @@
 
     // Preferences functions
     let faderSmoothingSpeed = 300; // Default smoothing speed in ms
+    let midiFeedbackEnabled = true; // Default: enabled
 
     function showPreferences() {
       const modal = document.getElementById('preferences-modal');
       const smoothingInput = document.getElementById('fader-smoothing');
-      // Load current preference
+      const midiFeedbackCheckbox = document.getElementById('midi-feedback-enabled');
+
+      // Load current preferences
       const savedSmoothing = localStorage.getItem('faderSmoothingSpeed');
       if (savedSmoothing) {
         faderSmoothingSpeed = parseInt(savedSmoothing);
         smoothingInput.value = faderSmoothingSpeed;
         updateSmoothingDisplay();
       }
+
+      const savedMidiFeedback = localStorage.getItem('midiFeedbackEnabled');
+      if (savedMidiFeedback !== null) {
+        midiFeedbackEnabled = savedMidiFeedback === 'true';
+      }
+      midiFeedbackCheckbox.checked = midiFeedbackEnabled;
+
       modal.classList.add('show');
     }
 
     function hidePreferences() {
       document.getElementById('preferences-modal').classList.remove('show');
+    }
+
+    async function showMappingsList() {
+      const modal = document.getElementById('mappings-list-modal');
+      const listView = document.getElementById('mappings-list-view');
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+
+        if (mappings.length === 0) {
+          listView.innerHTML = '<div class="empty-state">No mappings configured yet.</div>';
+          currentMappingsList = [];
+        } else {
+          // Group mappings by trigger type first, then MIDI channel
+          const sortedMappings = [...mappings].sort((a, b) => {
+            // Sort by type first (cc before note types)
+            const aIsCC = a.midi.type === 'cc';
+            const bIsCC = b.midi.type === 'cc';
+            if (aIsCC !== bIsCC) {
+              return aIsCC ? -1 : 1;
+            }
+            // Then by MIDI channel
+            if (a.midi.channel !== b.midi.channel) {
+              return a.midi.channel - b.midi.channel;
+            }
+            // Then by controller/note number
+            const aNum = a.midi.controller || a.midi.note || a.midi.noteMin || 0;
+            const bNum = b.midi.controller || b.midi.note || b.midi.noteMin || 0;
+            return aNum - bNum;
+          });
+
+          listView.innerHTML = `
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="border-bottom: 2px solid rgba(255,255,255,0.2); text-align: left;">
+                  <th style="padding: 8px;">MIDI Input</th>
+                  <th style="padding: 8px;">MIDI Trigger</th>
+                  <th style="padding: 8px;">Mixer Function</th>
+                  <th style="padding: 8px;">Mixer Channel</th>
+                  <th style="padding: 8px; text-align: center;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${sortedMappings.map((m, index) => {
+                  // MIDI Input - Channel and type
+                  const midiInput = `Ch ${m.midi.channel}`;
+
+                  // MIDI Trigger - What triggers it and value ranges
+                  let midiTrigger = '';
+                  const isBooleanControl = m.mixer.action === 'mute' || m.mixer.action === 'solo' || m.mixer.action === 'mutegroup';
+
+                  if (m.midi.type === 'cc') {
+                    if (isBooleanControl && m.midi.threshold !== undefined) {
+                      midiTrigger = `CC${m.midi.controller} (≥${m.midi.threshold} = ON)`;
+                    } else {
+                      midiTrigger = `CC${m.midi.controller} (0-127)`;
+                    }
+                  } else if (m.midi.type === 'note-value') {
+                    midiTrigger = `Note ${m.midi.noteMin}-${m.midi.noteMax}`;
+                  } else if (m.midi.type === 'note-on') {
+                    const invertText = m.midi.invert ? ' (inverted)' : '';
+                    midiTrigger = `Note ${m.midi.note} ON → Activate${invertText}`;
+                  } else if (m.midi.type === 'note-off') {
+                    const invertText = m.midi.invert ? ' (inverted)' : '';
+                    midiTrigger = `Note ${m.midi.note} OFF → Deactivate${invertText}`;
+                  } else if (m.midi.type === 'note-toggle') {
+                    const invertText = m.midi.invert ? ' (inverted)' : '';
+                    midiTrigger = `Note ${m.midi.note} → Toggle${invertText}`;
+                  } else if (m.midi.type === 'note') {
+                    const invertText = m.midi.invert ? ' (inverted)' : '';
+                    midiTrigger = `Note ${m.midi.note}${invertText}`;
+                  }
+
+                  // Mixer Function - More descriptive
+                  let mixerFunction = '';
+                  if (m.mixer.action === 'volume') {
+                    mixerFunction = '🎚️ Volume Control';
+                  } else if (m.mixer.action === 'mute') {
+                    mixerFunction = '🔇 Mute Control';
+                  } else if (m.mixer.action === 'solo') {
+                    mixerFunction = '🔊 Solo Control';
+                  } else if (m.mixer.action === 'pan') {
+                    mixerFunction = '↔️ Pan Control';
+                  } else if (m.mixer.action === 'mutegroup') {
+                    mixerFunction = '🎚️ Mute Group';
+                  } else {
+                    mixerFunction = m.mixer.action.charAt(0).toUpperCase() + m.mixer.action.slice(1);
+                  }
+
+                  // Mixer Channel - More descriptive
+                  let mixerChannel = '';
+                  if (m.mixer.action === 'mutegroup') {
+                    mixerChannel = `Mute Group ${m.mixer.channel.channel}`;
+                  } else {
+                    const channelType = m.mixer.channel.type || 'LINE';
+                    const channelNum = m.mixer.channel.channel || m.mixer.channel;
+                    const typeLabel = {
+                      'LINE': 'Input',
+                      'AUX': 'Aux',
+                      'FX': 'FX',
+                      'FXRETURN': 'FX Return',
+                      'SUB': 'Sub',
+                      'MAIN': 'Main',
+                      'DCA': 'DCA'
+                    }[channelType] || channelType;
+                    mixerChannel = `${typeLabel} ${channelNum}`;
+                  }
+
+                  return `
+                    <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                      <td style="padding: 8px; font-family: monospace;">${midiInput}</td>
+                      <td style="padding: 8px; font-family: monospace;">${midiTrigger}</td>
+                      <td style="padding: 8px;">${mixerFunction}</td>
+                      <td style="padding: 8px;">${mixerChannel}</td>
+                      <td style="padding: 8px; text-align: center;">
+                        <button class="icon-btn" onclick="editMappingFromList(${index})" title="Edit Mapping" style="margin-right: 4px;">✏️</button>
+                        <button class="icon-btn" onclick="deleteMappingFromList(${index})" title="Delete Mapping">🗑️</button>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+              </tbody>
+            </table>
+          `;
+
+          // Store the sorted mappings for edit/delete operations
+          currentMappingsList = sortedMappings;
+        }
+
+        modal.classList.add('show');
+      } catch (error) {
+        listView.innerHTML = `<div class="empty-state">Error loading mappings: ${error.message}</div>`;
+        modal.classList.add('show');
+      }
+    }
+
+    function hideMappingsList() {
+      document.getElementById('mappings-list-modal').classList.remove('show');
+    }
+
+    // Store mappings for edit/delete operations
+    let currentMappingsList = [];
+    let returnToMappingsList = false;
+
+    async function editMappingFromList(index) {
+      const mapping = currentMappingsList[index];
+      if (!mapping) return;
+
+      // Set flag to return to mappings list after saving
+      returnToMappingsList = true;
+
+      // Close the mappings list modal
+      hideMappingsList();
+
+      // Set flag to prevent auto-updating MIDI settings
+      isEditingMapping = true;
+
+      // Get all mappings to find the actual index
+      const allMappings = await ipcRenderer.invoke('get-mappings');
+      const actualIndex = allMappings.findIndex(m => {
+        if (m.mixer.action === 'mutegroup' && mapping.mixer.action === 'mutegroup') {
+          return m.mixer.channel.channel === mapping.mixer.channel.channel;
+        } else if (m.mixer.action !== 'mutegroup' && mapping.mixer.action !== 'mutegroup') {
+          return m.mixer.action === mapping.mixer.action &&
+                 (m.mixer.channel.type || 'LINE') === (mapping.mixer.channel.type || 'LINE') &&
+                 (m.mixer.channel.channel || m.mixer.channel) == (mapping.mixer.channel.channel || mapping.mixer.channel);
+        }
+        return false;
+      });
+
+      if (actualIndex === -1) {
+        alert('Mapping not found');
+        return;
+      }
+
+      // Populate the add-mapping modal with existing data
+      const modal = document.getElementById('add-mapping-modal');
+
+      // Set MIDI type
+      document.getElementById('midi-type').value = mapping.midi.type === 'cc' ? 'cc' : 'note';
+      updateMidiTypeFields();
+
+      // Set MIDI channel
+      document.getElementById('midi-channel').value = mapping.midi.channel;
+
+      // Set MIDI controller/note values
+      if (mapping.midi.type === 'cc') {
+        document.getElementById('midi-cc').value = mapping.midi.controller;
+        // Set threshold for boolean controls
+        if (mapping.midi.threshold !== undefined) {
+          document.getElementById('midi-cc-threshold').value = mapping.midi.threshold;
+        } else {
+          document.getElementById('midi-cc-threshold').value = 64; // Default
+        }
+      } else if (mapping.midi.type === 'note-value') {
+        const noteTypeSelect = document.getElementById('note-type');
+        if (noteTypeSelect) {
+          noteTypeSelect.value = 'note-value';
+          // Trigger change event to update fields
+          noteTypeSelect.dispatchEvent(new Event('change'));
+        }
+        setTimeout(() => {
+          document.getElementById('midi-note-min').value = mapping.midi.noteMin || 24;
+          document.getElementById('midi-note-max').value = mapping.midi.noteMax || 60;
+        }, 50);
+      } else {
+        // note, note-on, note-off, note-toggle
+        const noteTypeSelect = document.getElementById('note-type');
+        if (noteTypeSelect) {
+          noteTypeSelect.value = mapping.midi.type;
+          // Trigger change event to update fields
+          noteTypeSelect.dispatchEvent(new Event('change'));
+        }
+        setTimeout(() => {
+          const noteInput = document.getElementById('midi-note');
+          if (noteInput) {
+            noteInput.value = mapping.midi.note;
+          }
+          // Set invert for boolean controls
+          const noteInvertCheckbox = document.getElementById('midi-note-invert');
+          if (noteInvertCheckbox) {
+            noteInvertCheckbox.checked = mapping.midi.invert || false;
+          }
+        }, 50);
+      }
+
+      // Set mixer action and channel
+      document.getElementById('mixer-action').value = mapping.mixer.action;
+      document.getElementById('mixer-channel-type').value = mapping.mixer.channel.type || 'LINE';
+
+      // Update channel number options and then set the value
+      await updateChannelNumberOptions();
+      document.getElementById('mixer-channel-num').value = mapping.mixer.channel.channel || mapping.mixer.channel;
+
+      // Clear the flag
+      isEditingMapping = false;
+
+      // Change modal title to indicate editing
+      const modalTitle = modal.querySelector('h2');
+      modalTitle.textContent = '✏️ Edit Mapping';
+
+      // Store the editing index
+      modal.dataset.editingIndex = actualIndex;
+
+      // Show the modal
+      modal.classList.add('show');
+    }
+
+    async function deleteMappingFromList(index) {
+      const mapping = currentMappingsList[index];
+      if (!mapping) return;
+
+      // Determine the description for confirmation
+      let desc = '';
+      if (mapping.mixer.action === 'mutegroup') {
+        desc = `Mute Group ${mapping.mixer.channel.channel}`;
+      } else {
+        const channelType = mapping.mixer.channel.type || 'LINE';
+        const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+        const actionName = {
+          'volume': 'Volume',
+          'mute': 'Mute',
+          'solo': 'Solo',
+          'pan': 'Pan'
+        }[mapping.mixer.action] || mapping.mixer.action;
+        desc = `${channelType} ${channelNum} - ${actionName}`;
+      }
+
+      if (!confirm(`Delete mapping for ${desc}?`)) {
+        return;
+      }
+
+      try {
+        // Get all mappings to find the actual index
+        const allMappings = await ipcRenderer.invoke('get-mappings');
+        const actualIndex = allMappings.findIndex(m => {
+          if (m.mixer.action === 'mutegroup' && mapping.mixer.action === 'mutegroup') {
+            return m.mixer.channel.channel === mapping.mixer.channel.channel;
+          } else if (m.mixer.action !== 'mutegroup' && mapping.mixer.action !== 'mutegroup') {
+            return m.mixer.action === mapping.mixer.action &&
+                   (m.mixer.channel.type || 'LINE') === (mapping.mixer.channel.type || 'LINE') &&
+                   (m.mixer.channel.channel || m.mixer.channel) == (mapping.mixer.channel.channel || mapping.mixer.channel);
+          }
+          return false;
+        });
+
+        if (actualIndex === -1) {
+          alert('Mapping not found');
+          return;
+        }
+
+        // Remove the mapping by setting it to 'none'
+        const clearedMapping = { ...allMappings[actualIndex] };
+        clearedMapping.midi = { type: 'none', channel: 1 };
+        await ipcRenderer.invoke('update-mapping', actualIndex, clearedMapping);
+
+        // Reload the mappings list
+        await showMappingsList();
+
+        // Reload the UI to update visual indicators
+        await loadFaders();
+        await loadMappings();
+        markConfigChanged();
+      } catch (error) {
+        alert(`Error deleting mapping: ${error.message}`);
+      }
+    }
+
+    async function clearAllMappingsFromList() {
+      // Get all mappings
+      const allMappings = await ipcRenderer.invoke('get-mappings');
+      const mappingCount = allMappings.filter(m => m.midi.type !== 'none').length;
+
+      if (mappingCount === 0) {
+        alert('No mappings to clear.');
+        return;
+      }
+
+      // Double confirmation
+      if (!confirm(`⚠️ Clear ALL ${mappingCount} MIDI mappings?\n\nThis will remove all MIDI mappings from all channels and mute groups.\n\nThis action cannot be undone!`)) {
+        return;
+      }
+
+      // Second confirmation
+      if (!confirm(`Are you absolutely sure?\n\nThis will clear ${mappingCount} mappings.`)) {
+        return;
+      }
+
+      try {
+        // Clear all mappings by setting them to 'none'
+        for (let i = 0; i < allMappings.length; i++) {
+          const clearedMapping = { ...allMappings[i] };
+          clearedMapping.midi = { type: 'none', channel: 1 };
+          await ipcRenderer.invoke('update-mapping', i, clearedMapping);
+        }
+
+        // Close the mappings list
+        hideMappingsList();
+
+        // Reload the UI to update visual indicators
+        await loadFaders();
+        await loadMappings();
+        markConfigChanged();
+
+        alert(`✓ Successfully cleared all ${mappingCount} mappings.`);
+      } catch (error) {
+        alert(`Error clearing mappings: ${error.message}`);
+      }
     }
 
     function updateSmoothingDisplay() {
@@ -2246,8 +3246,17 @@
 
     function savePreferences() {
       const smoothingInput = document.getElementById('fader-smoothing');
+      const midiFeedbackCheckbox = document.getElementById('midi-feedback-enabled');
+
       faderSmoothingSpeed = parseInt(smoothingInput.value);
+      midiFeedbackEnabled = midiFeedbackCheckbox.checked;
+
       localStorage.setItem('faderSmoothingSpeed', faderSmoothingSpeed);
+      localStorage.setItem('midiFeedbackEnabled', midiFeedbackEnabled.toString());
+
+      // Send preference to main process
+      ipcRenderer.invoke('set-midi-feedback-enabled', midiFeedbackEnabled);
+
       hidePreferences();
     }
 
@@ -2264,6 +3273,14 @@
       if (savedSmoothing) {
         faderSmoothingSpeed = parseInt(savedSmoothing);
       }
+
+      const savedMidiFeedback = localStorage.getItem('midiFeedbackEnabled');
+      if (savedMidiFeedback !== null) {
+        midiFeedbackEnabled = savedMidiFeedback === 'true';
+      }
+
+      // Send preference to main process
+      ipcRenderer.invoke('set-midi-feedback-enabled', midiFeedbackEnabled);
     });
 
     // MIDI type change handler
@@ -2326,14 +3343,22 @@
     // Connect to mixer
     async function connectToMixer(ip, model, deviceName) {
       try {
+        await updateStatusInitWithDelay(`Connecting to ${model || 'mixer'} at ${ip}...`);
         const result = await ipcRenderer.invoke('connect-mixer', ip, model, deviceName);
         if (result.success) {
+          await updateStatusInitWithDelay('Connected - waiting for mixer state...');
           hideDiscovery();
           updateStatus();
         } else {
+          const errorMsg = `Connection failed: ${result.error}`;
+          updateStatusInit(errorMsg);
+          addStatusLog(errorMsg, 'error');
           alert(`✗ Failed to connect: ${result.error}`);
         }
       } catch (error) {
+        const errorMsg = `Error: ${error.message}`;
+        updateStatusInit(errorMsg);
+        addStatusLog(errorMsg, 'error');
         alert(`✗ Error: ${error.message}`);
       }
     }
@@ -2450,17 +3475,347 @@
       }
     }
 
-    // Toggle fader filter between 'all' and 'mapped'
-    async function toggleFaderFilter() {
-      faderFilter = faderFilter === 'all' ? 'mapped' : 'all';
-      const filterBtn = document.getElementById('filter-btn');
-      filterBtn.textContent = faderFilter === 'all' ? '🔍 View: All' : '🔍 View: Mapped';
+    // Handle filter dropdown change
+    async function onFilterChange() {
+      const filterSelect = document.getElementById('filter-select');
+      faderFilter = filterSelect.value;
 
       // Save filter state to mapping engine
       await ipcRenderer.invoke('set-fader-filter', faderFilter);
       markConfigChanged();
 
       loadFaders();
+    }
+
+    // Update filter dropdown with DCA groups and auto-filter groups
+    async function updateFilterDropdown() {
+      const filterSelect = document.getElementById('filter-select');
+      if (!filterSelect) {
+        console.log('[updateFilterDropdown] Filter select not found');
+        return;
+      }
+
+      // Save current selection
+      const currentValue = filterSelect.value;
+
+      // Remove old group options
+      const options = Array.from(filterSelect.options);
+      options.forEach(opt => {
+        if (opt.value.startsWith('dca-') || opt.value.startsWith('auto-')) {
+          filterSelect.removeChild(opt);
+        }
+      });
+
+      let addedCount = 0;
+
+      // Add DCA group options (only for named DCA groups, not default names)
+      const dcaData = channelDataCache['dca'];
+      if (dcaData && dcaData.names) {
+        dcaData.names.forEach(dca => {
+          // Skip default names like "Ch 1", "DCA 1", etc.
+          const isDefaultName = !dca.name ||
+                               dca.name === `Ch ${dca.channel}` ||
+                               dca.name === `DCA ${dca.channel}`;
+
+          if (!isDefaultName) {
+            const option = document.createElement('option');
+            option.value = `dca-${dca.channel}`;
+            option.textContent = `🔍 DCA: ${dca.name}`;
+            filterSelect.appendChild(option);
+            addedCount++;
+          }
+        });
+      }
+
+      // Fetch and add auto-filter group options
+      try {
+        const autoFilterGroups = await ipcRenderer.invoke('get-autofilter-group-names', 8);
+        console.log('[updateFilterDropdown] Auto-filter groups:', autoFilterGroups);
+
+        autoFilterGroups.forEach(group => {
+          // Skip default names like "Auto 1", empty names, or names without the ~ prefix
+          const isDefaultName = !group.name ||
+                               group.name === `Auto ${group.channel}` ||
+                               group.name === `Ch ${group.channel}`;
+
+          if (!isDefaultName) {
+            const option = document.createElement('option');
+            option.value = `auto-${group.channel}`;
+            option.textContent = `🔍 ${group.name}`;
+            filterSelect.appendChild(option);
+            addedCount++;
+          }
+        });
+      } catch (error) {
+        console.log('[updateFilterDropdown] Error fetching auto-filter groups:', error);
+      }
+
+      // Restore previous selection (or use faderFilter global)
+      const valueToRestore = currentValue || faderFilter;
+      if (valueToRestore && filterSelect.querySelector(`option[value="${valueToRestore}"]`)) {
+        filterSelect.value = valueToRestore;
+      }
+
+      console.log(`[updateFilterDropdown] Added ${addedCount} group options to dropdown`);
+    }
+
+    // Mute group functions
+    let muteGroupsData = [];
+
+    async function loadMuteGroups() {
+      try {
+        console.log('[loadMuteGroups] Loading mute groups...');
+        const groups = await ipcRenderer.invoke('get-mute-group-names');
+        console.log('[loadMuteGroups] Received groups:', groups);
+        muteGroupsData = groups;
+        renderMuteGroups();
+      } catch (error) {
+        console.error('[loadMuteGroups] Error loading mute groups:', error);
+      }
+    }
+
+    function renderMuteGroups() {
+      const container = document.getElementById('mute-groups-container');
+      console.log('[renderMuteGroups] Container:', container);
+      console.log('[renderMuteGroups] Mute groups data:', muteGroupsData);
+      if (!container) {
+        console.error('[renderMuteGroups] Container not found!');
+        return;
+      }
+
+      container.innerHTML = '';
+
+      if (!muteGroupsData || muteGroupsData.length === 0) {
+        console.warn('[renderMuteGroups] No mute groups data to render');
+        return;
+      }
+
+      console.log('[renderMuteGroups] Rendering', muteGroupsData.length, 'mute groups');
+      muteGroupsData.forEach(group => {
+        const button = document.createElement('button');
+
+        // Check if this mute group has a MIDI mapping
+        const isMapped = currentMappings.some(m =>
+          m.mixer.action === 'mutegroup' && m.mixer.channel.channel === group.group
+        );
+
+        button.className = `btn mute-group-btn${group.active ? ' active' : ''}${isMapped ? ' mapped' : ''}`;
+        button.id = `mute-group-${group.group}`;
+        button.setAttribute('data-group-num', group.group);
+        button.textContent = group.name;
+
+        // Update tooltip to show MIDI mapping info if mapped
+        if (isMapped) {
+          const mapping = currentMappings.find(m =>
+            m.mixer.action === 'mutegroup' && m.mixer.channel.channel === group.group
+          );
+          const midiInfo = mapping.midi.type === 'cc'
+            ? `CC${mapping.midi.controller} Ch${mapping.midi.channel}`
+            : `Note ${mapping.midi.note} Ch${mapping.midi.channel}`;
+          button.title = `Mute Group ${group.group}: ${group.name}\n${midiInfo}`;
+        } else {
+          button.title = `Mute Group ${group.group}: ${group.name}`;
+        }
+
+        button.onclick = () => toggleMuteGroup(group.group);
+
+        // Add right-click context menu for editing
+        button.oncontextmenu = (e) => {
+          e.preventDefault();
+          showMuteGroupContextMenu(group.group, e.clientX, e.clientY);
+        };
+
+        // Add MIDI indicator dot if mapped
+        if (isMapped) {
+          const indicator = document.createElement('div');
+          indicator.className = 'midi-indicator';
+          button.appendChild(indicator);
+        }
+
+        container.appendChild(button);
+      });
+    }
+
+    // Helper function to position context menu within viewport bounds
+    function positionContextMenu(contextMenu, x, y) {
+      // First, show the menu to get its dimensions
+      contextMenu.classList.add('show');
+
+      const menuRect = contextMenu.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Adjust x position if menu would overflow right edge
+      if (x + menuRect.width > viewportWidth) {
+        x = viewportWidth - menuRect.width - 10; // 10px padding from edge
+      }
+
+      // Adjust y position if menu would overflow bottom edge
+      if (y + menuRect.height > viewportHeight) {
+        y = viewportHeight - menuRect.height - 10; // 10px padding from edge
+      }
+
+      // Ensure menu doesn't go off left or top edge
+      x = Math.max(10, x);
+      y = Math.max(10, y);
+
+      contextMenu.style.left = `${x}px`;
+      contextMenu.style.top = `${y}px`;
+    }
+
+    // Mute group context menu
+    let currentContextMenuMuteGroup = null;
+
+    function showMuteGroupContextMenu(groupNum, x, y) {
+      hideAllContextMenus();
+      const contextMenu = document.getElementById('mutegroup-context-menu');
+      currentContextMenuMuteGroup = groupNum;
+      positionContextMenu(contextMenu, x, y);
+    }
+
+    async function contextMenuEditMuteGroup() {
+      if (currentContextMenuMuteGroup === null) {
+        hideAllContextMenus();
+        return;
+      }
+
+      const groupNum = currentContextMenuMuteGroup;
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'mutegroup' &&
+          m.mixer.channel.channel === groupNum
+        );
+
+        // Set flag to prevent auto-update during editing
+        isEditingMapping = true;
+
+        // Populate the modal
+        const modal = document.getElementById('add-mapping-modal');
+
+        if (mappingIndex !== -1) {
+          // Editing existing mute group mapping
+          const mapping = mappings[mappingIndex];
+
+          document.getElementById('midi-type').value = mapping.midi.type;
+          if (mapping.midi.type === 'cc') {
+            document.getElementById('midi-cc').value = mapping.midi.controller;
+          } else if (mapping.midi.type === 'note') {
+            document.getElementById('midi-note').value = mapping.midi.note;
+          }
+          document.getElementById('midi-channel').value = mapping.midi.channel;
+
+          modal.dataset.editingIndex = mappingIndex;
+          modal.querySelector('h2').textContent = '✏️ Edit Mute Group Mapping';
+        } else {
+          // Creating new mute group mapping
+          document.getElementById('midi-type').value = 'note';
+          document.getElementById('midi-note').value = String(70 + groupNum); // Default to note 71-78
+          document.getElementById('midi-channel').value = '1';
+
+          delete modal.dataset.editingIndex;
+          modal.querySelector('h2').textContent = '➕ Create Mute Group Mapping';
+        }
+
+        // Set channel info - mute groups don't have a channel type, just use the group number
+        // We'll need to handle this specially in the addMapping function
+        document.getElementById('mixer-channel-type').value = 'LINE'; // Placeholder
+        await updateChannelNumberOptions();
+        document.getElementById('mixer-channel-num').value = groupNum;
+
+        // Set action to mutegroup (note: this may not be in the dropdown yet)
+        const actionSelect = document.getElementById('mixer-action');
+        // Check if mutegroup option exists, if not add it temporarily
+        if (![...actionSelect.options].some(opt => opt.value === 'mutegroup')) {
+          const option = document.createElement('option');
+          option.value = 'mutegroup';
+          option.textContent = 'Mute Group';
+          actionSelect.appendChild(option);
+        }
+        actionSelect.value = 'mutegroup';
+
+        // Store the group number for later use
+        modal.dataset.muteGroupNum = groupNum;
+
+        // Update MIDI type fields
+        updateMidiTypeFields();
+
+        isEditingMapping = false;
+
+        // Show modal
+        modal.classList.add('show');
+      } catch (error) {
+        isEditingMapping = false;
+        alert(`✗ Error: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    async function contextMenuClearMuteGroup() {
+      if (currentContextMenuMuteGroup === null) {
+        hideAllContextMenus();
+        return;
+      }
+
+      const groupNum = currentContextMenuMuteGroup;
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'mutegroup' &&
+          m.mixer.channel.channel === groupNum
+        );
+
+        if (mappingIndex !== -1) {
+          await ipcRenderer.invoke('remove-mapping', mappingIndex);
+          await loadMappings();
+          renderMuteGroups(); // Re-render mute groups to update mapped state
+          markConfigChanged();
+        }
+      } catch (error) {
+        alert(`✗ Error clearing mute group mapping: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    async function toggleMuteGroup(groupNum) {
+      try {
+        const result = await ipcRenderer.invoke('toggle-mute-group', groupNum);
+        if (result.success) {
+          // Update the mute group button state
+          const button = document.getElementById(`mute-group-${groupNum}`);
+          const newState = await ipcRenderer.invoke('get-mute-group-state', groupNum);
+
+          if (button) {
+            if (newState) {
+              button.classList.add('active');
+            } else {
+              button.classList.remove('active');
+            }
+          }
+
+          // Update the mute button states for all channels in this mute group
+          const assignments = await ipcRenderer.invoke('get-mute-group-assignments', groupNum);
+          console.log(`[toggleMuteGroup] Group ${groupNum} assignments:`, assignments);
+
+          for (const assignment of assignments) {
+            // Get the current mute state for this channel
+            const muted = await ipcRenderer.invoke('get-channel-mute', assignment.type, assignment.channel);
+            console.log(`[toggleMuteGroup] Channel ${assignment.type}${assignment.channel} muted:`, muted);
+            if (muted !== null) {
+              console.log(`[toggleMuteGroup] Updating mute button for ${assignment.type}${assignment.channel} to ${muted}`);
+              updateMuteButton(assignment.type, assignment.channel, muted);
+            }
+          }
+        } else {
+          console.error(`[toggleMuteGroup] Failed to toggle mute group ${groupNum}:`, result.error);
+        }
+      } catch (error) {
+        console.error(`[toggleMuteGroup] Error toggling mute group ${groupNum}:`, error);
+      }
     }
 
     // Edit fader mapping (double-click handler)
@@ -2538,44 +3893,40 @@
       }
     }
 
-    // Show context menu for fader (right-click handler)
+    // Context menu management
     let currentContextMenuFaderId = null;
 
-    function showFaderContextMenu(faderId, x, y) {
-      const contextMenu = document.getElementById('context-menu');
-      currentContextMenuFaderId = faderId;
-
-      // Position the menu
-      contextMenu.style.left = `${x}px`;
-      contextMenu.style.top = `${y}px`;
-      contextMenu.classList.add('show');
-    }
-
-    function hideContextMenu() {
-      const contextMenu = document.getElementById('context-menu');
-      contextMenu.classList.remove('show');
+    function hideAllContextMenus() {
+      document.getElementById('fader-context-menu')?.classList.remove('show');
+      document.getElementById('mute-context-menu')?.classList.remove('show');
+      document.getElementById('solo-context-menu')?.classList.remove('show');
+      document.getElementById('channel-context-menu')?.classList.remove('show');
+      document.getElementById('mutegroup-context-menu')?.classList.remove('show');
       currentContextMenuFaderId = null;
     }
 
-    async function contextMenuEdit() {
+    // Fader volume context menu
+    function showFaderVolumeContextMenu(faderId, x, y) {
+      hideAllContextMenus();
+      const contextMenu = document.getElementById('fader-context-menu');
+      currentContextMenuFaderId = faderId;
+      positionContextMenu(contextMenu, x, y);
+    }
+
+    async function contextMenuEditFader() {
       if (currentContextMenuFaderId) {
         await editFaderMapping(currentContextMenuFaderId);
       }
-      hideContextMenu();
+      hideAllContextMenus();
     }
 
-    async function contextMenuClearChannel() {
+    async function contextMenuClearFader() {
       if (!currentContextMenuFaderId) {
-        hideContextMenu();
+        hideAllContextMenus();
         return;
       }
 
       const [channelType, channelNum] = currentContextMenuFaderId.split('-');
-
-      if (!confirm(`Clear MIDI mapping for ${channelType} ${channelNum}? (Channel will remain visible)`)) {
-        hideContextMenu();
-        return;
-      }
 
       try {
         const mappings = await ipcRenderer.invoke('get-mappings');
@@ -2586,7 +3937,6 @@
         );
 
         if (mappingIndex !== -1) {
-          // Update the mapping to have no MIDI type instead of removing it
           const mapping = mappings[mappingIndex];
           mapping.midi = { type: 'none', channel: 1 };
           await ipcRenderer.invoke('update-mapping', mappingIndex, mapping);
@@ -2595,29 +3945,100 @@
           markConfigChanged();
         }
       } catch (error) {
-        alert(`✗ Error clearing mapping: ${error.message}`);
+        alert(`✗ Error clearing volume mapping: ${error.message}`);
       }
 
-      hideContextMenu();
+      hideAllContextMenus();
     }
 
-    async function contextMenuDelete() {
+    // Mute button context menu
+    function showMuteContextMenu(faderId, x, y) {
+      hideAllContextMenus();
+      const contextMenu = document.getElementById('mute-context-menu');
+      currentContextMenuFaderId = faderId;
+      positionContextMenu(contextMenu, x, y);
+    }
+
+    async function contextMenuEditMute() {
       if (!currentContextMenuFaderId) {
-        hideContextMenu();
+        hideAllContextMenus();
+        return;
+      }
+
+      try {
+        const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'mute' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        // Set flag to prevent auto-update during editing
+        isEditingMapping = true;
+
+        // Populate the modal
+        const modal = document.getElementById('add-mapping-modal');
+
+        if (mappingIndex !== -1) {
+          // Editing existing mute mapping
+          const mapping = mappings[mappingIndex];
+
+          document.getElementById('midi-type').value = mapping.midi.type;
+          if (mapping.midi.type === 'cc') {
+            document.getElementById('midi-cc').value = mapping.midi.controller;
+          } else if (mapping.midi.type === 'note') {
+            document.getElementById('midi-note').value = mapping.midi.note;
+          }
+          document.getElementById('midi-channel').value = mapping.midi.channel;
+
+          modal.dataset.editingIndex = mappingIndex;
+          modal.querySelector('h2').textContent = '✏️ Edit Mute Mapping';
+        } else {
+          // Creating new mute mapping
+          document.getElementById('midi-type').value = 'note';
+          document.getElementById('midi-note').value = '60';
+          document.getElementById('midi-channel').value = channelNum;
+
+          delete modal.dataset.editingIndex;
+          modal.querySelector('h2').textContent = '➕ Create Mute Mapping';
+        }
+
+        // Set channel info
+        document.getElementById('mixer-channel-type').value = channelType;
+        await updateChannelNumberOptions();
+        document.getElementById('mixer-channel-num').value = channelNum;
+
+        // Set action to mute
+        document.getElementById('mixer-action').value = 'mute';
+
+        // Update MIDI type fields
+        updateMidiTypeFields();
+
+        isEditingMapping = false;
+
+        // Show modal
+        modal.classList.add('show');
+      } catch (error) {
+        isEditingMapping = false;
+        alert(`✗ Error: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    async function contextMenuClearMute() {
+      if (!currentContextMenuFaderId) {
+        hideAllContextMenus();
         return;
       }
 
       const [channelType, channelNum] = currentContextMenuFaderId.split('-');
 
-      if (!confirm(`Delete mapping for ${channelType} ${channelNum}?`)) {
-        hideContextMenu();
-        return;
-      }
-
       try {
         const mappings = await ipcRenderer.invoke('get-mappings');
         const mappingIndex = mappings.findIndex(m =>
-          m.mixer.action === 'volume' &&
+          m.mixer.action === 'mute' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
           (m.mixer.channel.channel || m.mixer.channel) == channelNum
         );
@@ -2629,10 +4050,222 @@
           markConfigChanged();
         }
       } catch (error) {
-        alert(`✗ Error deleting mapping: ${error.message}`);
+        alert(`✗ Error clearing mute mapping: ${error.message}`);
       }
 
-      hideContextMenu();
+      hideAllContextMenus();
+    }
+
+    // Solo button context menu
+    function showSoloContextMenu(faderId, x, y) {
+      hideAllContextMenus();
+      const contextMenu = document.getElementById('solo-context-menu');
+      currentContextMenuFaderId = faderId;
+      positionContextMenu(contextMenu, x, y);
+    }
+
+    async function contextMenuEditSolo() {
+      if (!currentContextMenuFaderId) {
+        hideAllContextMenus();
+        return;
+      }
+
+      try {
+        const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'solo' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        // Set flag to prevent auto-update during editing
+        isEditingMapping = true;
+
+        // Populate the modal
+        const modal = document.getElementById('add-mapping-modal');
+
+        if (mappingIndex !== -1) {
+          // Editing existing solo mapping
+          const mapping = mappings[mappingIndex];
+
+          document.getElementById('midi-type').value = mapping.midi.type;
+          if (mapping.midi.type === 'cc') {
+            document.getElementById('midi-cc').value = mapping.midi.controller;
+          } else if (mapping.midi.type === 'note') {
+            document.getElementById('midi-note').value = mapping.midi.note;
+          }
+          document.getElementById('midi-channel').value = mapping.midi.channel;
+
+          modal.dataset.editingIndex = mappingIndex;
+          modal.querySelector('h2').textContent = '✏️ Edit Solo Mapping';
+        } else {
+          // Creating new solo mapping
+          document.getElementById('midi-type').value = 'note';
+          document.getElementById('midi-note').value = '61';
+          document.getElementById('midi-channel').value = channelNum;
+
+          delete modal.dataset.editingIndex;
+          modal.querySelector('h2').textContent = '➕ Create Solo Mapping';
+        }
+
+        // Set channel info
+        document.getElementById('mixer-channel-type').value = channelType;
+        await updateChannelNumberOptions();
+        document.getElementById('mixer-channel-num').value = channelNum;
+
+        // Set action to solo
+        document.getElementById('mixer-action').value = 'solo';
+
+        // Update MIDI type fields
+        updateMidiTypeFields();
+
+        isEditingMapping = false;
+
+        // Show modal
+        modal.classList.add('show');
+      } catch (error) {
+        isEditingMapping = false;
+        alert(`✗ Error: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    async function contextMenuClearSolo() {
+      if (!currentContextMenuFaderId) {
+        hideAllContextMenus();
+        return;
+      }
+
+      const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+        const mappingIndex = mappings.findIndex(m =>
+          m.mixer.action === 'solo' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        if (mappingIndex !== -1) {
+          await ipcRenderer.invoke('remove-mapping', mappingIndex);
+          await loadFaders();
+          await loadMappings();
+          markConfigChanged();
+        }
+      } catch (error) {
+        alert(`✗ Error clearing solo mapping: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    // Channel context menu
+    function showChannelContextMenu(faderId, x, y) {
+      hideAllContextMenus();
+      const contextMenu = document.getElementById('channel-context-menu');
+      currentContextMenuFaderId = faderId;
+      positionContextMenu(contextMenu, x, y);
+    }
+
+    async function contextMenuToggleMain() {
+      if (!currentContextMenuFaderId) {
+        hideAllContextMenus();
+        return;
+      }
+
+      const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+
+      try {
+        const currentState = await ipcRenderer.invoke('get-channel-main-assign', channelType, channelNum);
+        await ipcRenderer.invoke('set-channel-main-assign', channelType, channelNum, !currentState);
+        await loadFaders(); // Reload to update visual state
+      } catch (error) {
+        alert(`✗ Error toggling main assign: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    async function contextMenuRemoveChannel() {
+      if (!currentContextMenuFaderId) {
+        hideAllContextMenus();
+        return;
+      }
+
+      const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+
+      if (!confirm(`Remove ${channelType} ${channelNum} from the fader view?\n\nThis will also clear all MIDI mappings for this channel.`)) {
+        hideAllContextMenus();
+        return;
+      }
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+
+        // Find all mappings for this channel (volume, mute, solo, etc.)
+        const indicesToRemove = [];
+        mappings.forEach((m, index) => {
+          if ((m.mixer.channel.type || 'LINE') === channelType &&
+              (m.mixer.channel.channel || m.mixer.channel) == channelNum) {
+            indicesToRemove.push(index);
+          }
+        });
+
+        // Remove in reverse order to maintain indices
+        for (let i = indicesToRemove.length - 1; i >= 0; i--) {
+          await ipcRenderer.invoke('remove-mapping', indicesToRemove[i]);
+        }
+
+        await loadFaders();
+        await loadMappings();
+        markConfigChanged();
+      } catch (error) {
+        alert(`✗ Error removing channel: ${error.message}`);
+      }
+
+      hideAllContextMenus();
+    }
+
+    async function contextMenuClearAllMappings() {
+      if (!currentContextMenuFaderId) {
+        hideAllContextMenus();
+        return;
+      }
+
+      const [channelType, channelNum] = currentContextMenuFaderId.split('-');
+
+      if (!confirm(`Clear ALL MIDI mappings (volume, mute, solo) for ${channelType} ${channelNum}?`)) {
+        hideAllContextMenus();
+        return;
+      }
+
+      try {
+        const mappings = await ipcRenderer.invoke('get-mappings');
+
+        // Find all mappings for this channel (volume, mute, solo, etc.)
+        const indicesToRemove = [];
+        mappings.forEach((m, index) => {
+          if ((m.mixer.channel.type || 'LINE') === channelType &&
+              (m.mixer.channel.channel || m.mixer.channel) == channelNum) {
+            indicesToRemove.push(index);
+          }
+        });
+
+        // Remove in reverse order to maintain indices
+        for (let i = indicesToRemove.length - 1; i >= 0; i--) {
+          await ipcRenderer.invoke('remove-mapping', indicesToRemove[i]);
+        }
+
+        await loadFaders();
+        await loadMappings();
+        markConfigChanged();
+      } catch (error) {
+        alert(`✗ Error clearing all mappings: ${error.message}`);
+      }
+
+      hideAllContextMenus();
     }
 
     // Connect to MIDI device
@@ -2679,8 +4312,16 @@
 
       if (midiType === 'cc') {
         mapping.midi.controller = parseInt(document.getElementById('midi-cc').value);
+        // Add threshold for boolean controls (mute/solo/mutegroup)
+        if (mixerAction === 'mute' || mixerAction === 'solo' || mixerAction === 'mutegroup') {
+          mapping.midi.threshold = parseInt(document.getElementById('midi-cc-threshold').value) || 64;
+        }
       } else if (midiType === 'note') {
         mapping.midi.note = parseInt(document.getElementById('midi-note').value);
+        // Add invert for boolean controls (mute/solo/mutegroup)
+        if (mixerAction === 'mute' || mixerAction === 'solo' || mixerAction === 'mutegroup') {
+          mapping.midi.invert = document.getElementById('midi-note-invert').checked;
+        }
       } else if (midiType === 'note-value') {
         mapping.midi.noteMin = parseInt(document.getElementById('midi-note-min').value);
         mapping.midi.noteMax = parseInt(document.getElementById('midi-note-max').value);
@@ -2783,6 +4424,12 @@
         hideAddMapping();
         loadMappings();
         loadFaders(); // Reload faders to show new mapping
+
+        // If we came from the mappings list, return to it
+        if (returnToMappingsList) {
+          returnToMappingsList = false;
+          setTimeout(() => showMappingsList(), 100);
+        }
       } catch (error) {
         alert(`✗ Error: ${error.message}`);
       }
@@ -2831,6 +4478,10 @@
     async function loadMappings() {
       try {
         const mappings = await ipcRenderer.invoke('get-mappings');
+
+        // Store in global variable for use by other components (e.g., mute groups)
+        currentMappings = mappings;
+
         const channelNames = await ipcRenderer.invoke('get-channel-names', 'line', 16);
         const listEl = document.getElementById('mappings-list');
 
@@ -2868,15 +4519,26 @@
 
     // Load faders
     async function loadFaders() {
+      // Prevent multiple simultaneous calls
+      if (isLoadingFaders) {
+        console.log('[Renderer] loadFaders already in progress, skipping duplicate call');
+        addStatusLog('Skipped duplicate loadFaders call', 'warning');
+        return;
+      }
+
+      isLoadingFaders = true;
+
       try {
+        await updateStatusInitWithDelay('Loading channel mappings...');
         const mappings = await ipcRenderer.invoke('get-mappings');
 
         const volumeMappings = mappings.filter(m => m.mixer.action === 'volume');
 
-        // Always fetch LINE channel data (for 'all' filter mode)
-        const channelDataCache = {};
+        // Reset channel data cache
+        channelDataCache = {};
 
         // Always fetch LINE channel data
+        await updateStatusInitWithDelay('Fetching LINE channel data...');
         try {
           const names = await ipcRenderer.invoke('get-channel-names', 'line', 16);
           const colors = await ipcRenderer.invoke('get-channel-colors', 'line', 16);
@@ -2897,8 +4559,66 @@
 
           channelDataCache['line'] = { names, colors, icons, links, inputSources };
         } catch (error) {
-          // Silent error handling
+          console.error('[Renderer] Error fetching LINE channel data:', error);
+          const errorMsg = `Error fetching LINE channels: ${error.message || error}`;
+          updateStatusInit(errorMsg);
+          addStatusLog(errorMsg, 'error');
           channelDataCache['line'] = { names: [], colors: [], icons: [], links: [], inputSources: [] };
+        }
+
+        // Always fetch SUB channel data (for subgroups)
+        await updateStatusInitWithDelay('Fetching SUB channel data...');
+        try {
+          const names = await ipcRenderer.invoke('get-channel-names', 'sub', 8);
+          const colors = await ipcRenderer.invoke('get-channel-colors', 'sub', 8);
+          const icons = await ipcRenderer.invoke('get-channel-icons', 'sub', 8);
+          const inputSources = await ipcRenderer.invoke('get-channel-input-sources', 'sub', 8);
+
+          console.log('Fetched SUB channel names:', names);
+
+          // Fetch stereo link status for each channel
+          const links = [];
+          for (let i = 1; i <= 8; i++) {
+            const link = await ipcRenderer.invoke('get-channel-link', 'sub', i);
+            links.push({ channel: i, link });
+          }
+
+          channelDataCache['sub'] = { names, colors, icons, links, inputSources };
+        } catch (error) {
+          console.error('[Renderer] Error fetching SUB channel data:', error);
+          const errorMsg = `Error fetching SUB channels: ${error.message || error}`;
+          updateStatusInit(errorMsg);
+          addStatusLog(errorMsg, 'error');
+          channelDataCache['sub'] = { names: [], colors: [], icons: [], links: [], inputSources: [] };
+        }
+
+        // Always fetch DCA channel data (for DCA groups)
+        await updateStatusInitWithDelay('Fetching DCA group data...');
+        try {
+          const names = await ipcRenderer.invoke('get-channel-names', 'dca', 8);
+          const colors = await ipcRenderer.invoke('get-channel-colors', 'dca', 8);
+          const icons = await ipcRenderer.invoke('get-channel-icons', 'dca', 8);
+          const inputSources = await ipcRenderer.invoke('get-channel-input-sources', 'dca', 8);
+
+          console.log('Fetched DCA channel names:', names);
+
+          // Fetch stereo link status for each channel
+          const links = [];
+          for (let i = 1; i <= 8; i++) {
+            const link = await ipcRenderer.invoke('get-channel-link', 'dca', i);
+            links.push({ channel: i, link });
+          }
+
+          channelDataCache['dca'] = { names, colors, icons, links, inputSources };
+
+          // Update filter dropdown with DCA groups
+          updateFilterDropdown();
+        } catch (error) {
+          console.error('[Renderer] Error fetching DCA channel data:', error);
+          const errorMsg = `Error fetching DCA groups: ${error.message || error}`;
+          updateStatusInit(errorMsg);
+          addStatusLog(errorMsg, 'error');
+          channelDataCache['dca'] = { names: [], colors: [], icons: [], links: [], inputSources: [] };
         }
 
         // Fetch channel data for other channel types that have mappings
@@ -2965,9 +4685,140 @@
           console.log('[Renderer] Filter mode: all');
           console.log('[Renderer] Non-LINE channels found:', nonLineChannels.length, nonLineChannels.map(m => `${m.mixer.channel.type}-${m.mixer.channel.channel}`));
           fadersToRender.push(...nonLineChannels);
-        } else {
-          // Show only mapped channels
+
+          // Add DCA faders for DCA groups that are "in use"
+          // A DCA is "in use" if it has EITHER:
+          // 1. A custom name (not default like "Ch 1" or "DCA 1"), OR
+          // 2. Channels assigned to it
+          const dcaData = channelDataCache['dca'] || { names: [] };
+          for (let i = 1; i <= 8; i++) {
+            const dcaName = dcaData.names.find(n => n.channel === i);
+
+            // Check if this DCA has a custom name (not default)
+            const hasCustomName = dcaName &&
+                                  dcaName.name &&
+                                  dcaName.name.trim() !== '' &&
+                                  dcaName.name !== `Ch ${i}` &&
+                                  dcaName.name !== `DCA ${i}`;
+
+            // Check if this DCA has any channels assigned to it
+            const assignedChannels = await ipcRenderer.invoke('get-dca-group-assignments', i);
+            const hasChannelsAssigned = assignedChannels && assignedChannels.length > 0;
+
+            // Only add if it has a custom name OR channels assigned
+            if (hasCustomName || hasChannelsAssigned) {
+              // Check if we already have this DCA in the list
+              const existingDca = fadersToRender.find(m =>
+                (m.mixer.channel.type || 'LINE') === 'DCA' &&
+                m.mixer.channel.channel === i
+              );
+
+              if (!existingDca) {
+                // Add virtual DCA fader
+                fadersToRender.push({
+                  midi: { type: 'none', channel: 1 },
+                  mixer: { action: 'volume', channel: { type: 'DCA', channel: i } }
+                });
+                const reason = hasCustomName && hasChannelsAssigned ? 'custom name + channels' :
+                               hasCustomName ? 'custom name' : 'channels assigned';
+                console.log(`[Renderer] Added virtual DCA ${i} fader (${dcaName?.name || 'DCA ' + i}) - ${reason} (${assignedChannels?.length || 0} channels)`);
+              }
+            }
+          }
+        } else if (faderFilter === 'mapped') {
+          // Show only mapped channels (exclude channels with type 'none')
           console.log('[Renderer] Filter mode: mapped');
+          fadersToRender = volumeMappings.filter(m => m.midi.type !== 'none');
+        } else if (faderFilter.startsWith('dca-')) {
+          // Show only channels assigned to this DCA group
+          const dcaChannel = parseInt(faderFilter.replace('dca-', ''));
+          console.log(`[Renderer] Filter mode: DCA group ${dcaChannel}`);
+
+          // Get LINE channels assigned to this DCA group
+          const assignedChannels = await ipcRenderer.invoke('get-dca-group-assignments', dcaChannel);
+          console.log(`[Renderer] DCA ${dcaChannel} assigned channels:`, assignedChannels);
+
+          // Add assigned LINE channels
+          const lineData = channelDataCache['line'] || { names: [], colors: [], icons: [], links: [], inputSources: [] };
+
+          for (const lineChannel of assignedChannels) {
+            // Skip if this is the RIGHT side of a stereo pair
+            if (lineChannel % 2 === 0) {
+              const prevChannelLink = lineData.links.find(c => c.channel === (lineChannel - 1));
+              if (prevChannelLink?.link) {
+                continue;
+              }
+            }
+
+            const existingMapping = volumeMappings.find(m =>
+              (m.mixer.channel.type || 'LINE') === 'LINE' &&
+              (m.mixer.channel.channel || m.mixer.channel) === lineChannel
+            );
+
+            if (existingMapping) {
+              fadersToRender.push(existingMapping);
+            } else {
+              // Create a virtual mapping with no MIDI type
+              fadersToRender.push({
+                midi: { type: 'none', channel: 1 },
+                mixer: { action: 'volume', channel: { type: 'LINE', channel: lineChannel } }
+              });
+            }
+          }
+
+          // Add the DCA fader itself
+          const dcaMapping = volumeMappings.find(m =>
+            (m.mixer.channel.type || 'LINE') === 'DCA' &&
+            m.mixer.channel.channel === dcaChannel
+          );
+
+          if (dcaMapping) {
+            fadersToRender.push(dcaMapping);
+          } else {
+            // Create virtual DCA fader
+            fadersToRender.push({
+              midi: { type: 'none', channel: 1 },
+              mixer: { action: 'volume', channel: { type: 'DCA', channel: dcaChannel } }
+            });
+          }
+        } else if (faderFilter.startsWith('auto-')) {
+          // Show only channels assigned to this auto-filter group
+          const autoGroupChannel = parseInt(faderFilter.replace('auto-', ''));
+          console.log(`[Renderer] Filter mode: Auto-filter group ${autoGroupChannel}`);
+
+          // Get LINE channels assigned to this auto-filter group
+          const assignedChannels = await ipcRenderer.invoke('get-autofilter-group-assignments', autoGroupChannel);
+          console.log(`[Renderer] Auto-filter ${autoGroupChannel} assigned channels:`, assignedChannels);
+
+          // Add assigned LINE channels
+          const lineData = channelDataCache['line'] || { names: [], colors: [], icons: [], links: [], inputSources: [] };
+
+          for (const lineChannel of assignedChannels) {
+            // Skip if this is the RIGHT side of a stereo pair
+            if (lineChannel % 2 === 0) {
+              const prevChannelLink = lineData.links.find(c => c.channel === (lineChannel - 1));
+              if (prevChannelLink?.link) {
+                continue;
+              }
+            }
+
+            const existingMapping = volumeMappings.find(m =>
+              (m.mixer.channel.type || 'LINE') === 'LINE' &&
+              (m.mixer.channel.channel || m.mixer.channel) === lineChannel
+            );
+
+            if (existingMapping) {
+              fadersToRender.push(existingMapping);
+            } else {
+              // Create a virtual mapping with no MIDI type
+              fadersToRender.push({
+                midi: { type: 'none', channel: 1 },
+                mixer: { action: 'volume', channel: { type: 'LINE', channel: lineChannel } }
+              });
+            }
+          }
+        } else {
+          // Unknown filter mode, show mapped
           fadersToRender = volumeMappings;
         }
 
@@ -2976,8 +4827,9 @@
 
         // Separate channels by type for proper layout
         // Layout: LINE inputs in regular container (left side)
-        // Right side (main container): SUB, AUX, FX, FXRETURN, then MAIN (from left to right)
+        // Right side (main container): DCA, SUB, AUX, FX, FXRETURN, then MAIN (from left to right)
         const lineInputs = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'LINE');
+        const dcaChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'DCA');
         const subChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'SUB');
         const fxChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'FX');
         const fxReturnChannels = fadersToRender.filter(m => (m.mixer.channel.type || 'LINE') === 'FXRETURN');
@@ -2992,6 +4844,7 @@
         };
 
         lineInputs.sort(sortByChannelNum);
+        dcaChannels.sort(sortByChannelNum);
         subChannels.sort(sortByChannelNum);
         fxChannels.sort(sortByChannelNum);
         fxReturnChannels.sort(sortByChannelNum);
@@ -3001,8 +4854,8 @@
         // Regular container: LINE only (left to right)
         const sortedRegularMappings = [...lineInputs];
 
-        // Main container: SUB, AUX, FX, FXRETURN, then MAIN (left to right)
-        const sortedMainMappings = [...subChannels, ...auxChannels, ...fxChannels, ...fxReturnChannels, ...mainMappings];
+        // Main container: DCA, SUB, AUX, FX, FXRETURN, then MAIN (left to right)
+        const sortedMainMappings = [...dcaChannels, ...subChannels, ...auxChannels, ...fxChannels, ...fxReturnChannels, ...mainMappings];
 
         const container = document.getElementById('faders-container');
         const mainContainer = document.getElementById('faders-main-container');
@@ -3044,6 +4897,16 @@
             const channelInfo = channelData.names.find(c => c.channel === channelNum);
             const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
 
+            // Debug logging for SUB and DCA channels
+            if (channelType === 'SUB' || channelType === 'DCA') {
+              console.log(`[${channelType} Debug] Channel ${channelNum}:`, {
+                channelInfo,
+                channelName,
+                allNames: channelData.names,
+                channelDataKeys: Object.keys(channelData)
+              });
+            }
+
             const channelColorInfo = channelData.colors.find(c => c.channel === channelNum);
             // Use default grey color if mixer doesn't provide color
             let channelColor = channelColorInfo?.color || DEFAULT_COLOR;
@@ -3055,8 +4918,8 @@
 
             const channelIconInfo = channelData.icons.find(c => c.channel === channelNum);
 
-            // Temporary debugging for channels 10-14 to see what icon IDs the mixer reports
-            if (channelType === 'LINE' && channelNum >= 10 && channelNum <= 14) {
+            // Temporary debugging for channels 3, 9, and 10-14 to see what icon IDs the mixer reports
+            if (channelType === 'LINE' && (channelNum === 3 || channelNum === 9 || (channelNum >= 10 && channelNum <= 14))) {
               console.log(`[Icon Debug] Channel ${channelNum} (${channelName}): iconId="${channelIconInfo?.icon}"`);
             }
 
@@ -3089,6 +4952,11 @@
             // Convert hex format if needed (e.g., "b2fdfcff" -> "#b2fdfc")
             if (channelColor && !channelColor.startsWith('#') && channelColor.length >= 6) {
               channelColor = '#' + channelColor.substring(0, 6);
+            }
+
+            // Override color for FX channels to match Universal Control (light purple/pink)
+            if (channelType === 'FX' || channelType === 'FXRETURN') {
+              channelColor = '#d4a5d4'; // Light purple/pink color
             }
 
             // Create unique ID that includes type and channel
@@ -3145,6 +5013,9 @@
               ? `Note ${mapping.midi.note} Ch${mapping.midi.channel}`
               : '';
 
+            // Check if this channel has MIDI mapping
+            const isMapped = mapping.midi.type !== 'none';
+
             // Determine if this channel type can be assigned to main
             // AUX, TALKBACK, and MAIN channels cannot be assigned to main
             const canAssignToMain = !['AUX', 'TALKBACK', 'MAIN'].includes(channelType);
@@ -3169,8 +5040,8 @@
                     ${hasInputSource ? `<span class="fader-indicator input-source ${inputSourceClass}" id="input-indicator-${faderId}">${inputSourceLabel}</span>` : '<span class="fader-indicator input-source" style="visibility: hidden;">LINE</span>'}
                   </div>
                   <div class="fader-controls">
-                    <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
-                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})">S</button>
+                    <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})" title="">M</button>
+                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})" title="">S</button>
                   </div>
                   <div class="fader-value" id="fader-value-${faderId}">0%</div>
                   <div class="fader-wrapper">
@@ -3186,11 +5057,11 @@
                     </div>
                     <div class="fader-container-wrapper">
                       <div style="display: flex; gap: 2px;">
-                        <div class="fader-container stereo" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}">
+                        <div class="fader-container stereo${isMapped ? ' mapped' : ''}" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}" title="${isMapped ? 'Volume: ' + midiInfo : ''}">
                           <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
                           <div class="fader-midi-indicator" id="fader-midi-${faderId}" style="bottom: 0%; display: none;"></div>
                         </div>
-                        <div class="fader-container stereo" data-channel="${channelNum + 1}" data-type="${channelType}" data-fader-id="${faderIdR}">
+                        <div class="fader-container stereo${isMapped ? ' mapped' : ''}" data-channel="${channelNum + 1}" data-type="${channelType}" data-fader-id="${faderIdR}" title="${isMapped ? 'Volume: ' + midiInfo : ''}">
                           <div class="fader-fill" id="fader-fill-${faderIdR}" style="height: 0%"></div>
                           <div class="fader-midi-indicator" id="fader-midi-${faderIdR}" style="bottom: 0%; display: none;"></div>
                         </div>
@@ -3200,7 +5071,7 @@
                   <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number">${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
-                  <div class="fader-mapping-info">${midiInfo}</div>
+                  <div class="fader-mapping-info${isMapped ? ' mapped' : ''}" title="${isMapped ? 'Volume: ' + midiInfo : ''}">${midiInfo}</div>
                 </div>
               `;
             } else {
@@ -3212,8 +5083,8 @@
                     ${hasInputSource ? `<span class="fader-indicator input-source ${inputSourceClass}" id="input-indicator-${faderId}">${inputSourceLabel}</span>` : '<span class="fader-indicator input-source" style="visibility: hidden;">LINE</span>'}
                   </div>
                   <div class="fader-controls">
-                    <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})">M</button>
-                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})">S</button>
+                    <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})" title="">M</button>
+                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})" title="">S</button>
                   </div>
                   <div class="fader-value" id="fader-value-${faderId}">0%</div>
                   <div class="fader-wrapper">
@@ -3228,7 +5099,7 @@
                       <div>∞</div>
                     </div>
                     <div class="fader-container-wrapper">
-                      <div class="fader-container" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}">
+                      <div class="fader-container${isMapped ? ' mapped' : ''}" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}" title="${isMapped ? 'Volume: ' + midiInfo : ''}">
                         <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
                         <div class="fader-midi-indicator" id="fader-midi-${faderId}" style="bottom: 0%; display: none;"></div>
                       </div>
@@ -3237,7 +5108,7 @@
                   <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number">${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
-                  <div class="fader-mapping-info">${midiInfo}</div>
+                  <div class="fader-mapping-info${isMapped ? ' mapped' : ''}" title="${isMapped ? 'Volume: ' + midiInfo : ''}">${midiInfo}</div>
                 </div>
               `;
             }
@@ -3246,13 +5117,14 @@
         // Debug logging
         console.log('[Renderer] Rendering faders:');
         console.log('  - lineInputs:', lineInputs.length);
+        console.log('  - dcaChannels:', dcaChannels.length);
         console.log('  - subChannels:', subChannels.length);
         console.log('  - fxChannels:', fxChannels.length);
         console.log('  - fxReturnChannels:', fxReturnChannels.length);
         console.log('  - auxChannels:', auxChannels.length);
         console.log('  - mainMappings:', mainMappings.length);
         console.log('  - Regular (LINE only):', sortedRegularMappings.length, sortedRegularMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
-        console.log('  - Main (SUB, AUX, FX, FXRETURN, MAIN):', sortedMainMappings.length, sortedMainMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
+        console.log('  - Main (DCA, SUB, AUX, FX, FXRETURN, MAIN):', sortedMainMappings.length, sortedMainMappings.map(m => `${m.mixer.channel.type || 'LINE'}-${m.mixer.channel.channel || m.mixer.channel}`));
 
         // Render regular faders
         if (sortedRegularMappings.length === 0 && sortedMainMappings.length === 0) {
@@ -3271,9 +5143,22 @@
           loadInitialMuteStates(allMappings);
           loadInitialSoloStates(allMappings);
           loadInitialMainAssignStates(allMappings);
+
+          // Update mute/solo button tooltips and mapped indicators
+          updateMuteSoloMappingIndicators(allMappings);
         }
+
+        // Load mute groups (after mappings are loaded)
+        loadMuteGroups();
+
+        updateStatusInit('Ready');
       } catch (error) {
-        // Silent error handling
+        console.error('[Renderer] Error in loadFaders:', error);
+        const errorMsg = `Error: ${error.message || 'Failed to load faders'}`;
+        updateStatusInit(errorMsg);
+        addStatusLog(errorMsg, 'error');
+      } finally {
+        isLoadingFaders = false;
       }
     }
 
@@ -3348,6 +5233,59 @@
           }
         } catch (error) {
           // Silent error handling
+        }
+      }
+    }
+
+    // Update mute and solo button tooltips and mapped classes based on MIDI mappings
+    function updateMuteSoloMappingIndicators(volumeMappings) {
+      for (const mapping of volumeMappings) {
+        const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+        const channelType = mapping.mixer.channel.type || 'LINE';
+        const faderId = `${channelType}-${channelNum}`;
+
+        // Check for mute mapping
+        const muteMapping = currentMappings.find(m =>
+          m.mixer.action === 'mute' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        // Check for solo mapping
+        const soloMapping = currentMappings.find(m =>
+          m.mixer.action === 'solo' &&
+          (m.mixer.channel.type || 'LINE') === channelType &&
+          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+        );
+
+        // Update mute button
+        const muteBtn = document.getElementById(`mute-btn-${faderId}`);
+        if (muteBtn) {
+          if (muteMapping) {
+            muteBtn.classList.add('mapped');
+            const midiInfo = muteMapping.midi.type === 'cc'
+              ? `CC${muteMapping.midi.controller} Ch${muteMapping.midi.channel}`
+              : `Note ${muteMapping.midi.note} Ch${muteMapping.midi.channel}`;
+            muteBtn.title = `Mute: ${midiInfo}`;
+          } else {
+            muteBtn.classList.remove('mapped');
+            muteBtn.title = '';
+          }
+        }
+
+        // Update solo button
+        const soloBtn = document.getElementById(`solo-btn-${faderId}`);
+        if (soloBtn) {
+          if (soloMapping) {
+            soloBtn.classList.add('mapped');
+            const midiInfo = soloMapping.midi.type === 'cc'
+              ? `CC${soloMapping.midi.controller} Ch${soloMapping.midi.channel}`
+              : `Note ${soloMapping.midi.note} Ch${soloMapping.midi.channel}`;
+            soloBtn.title = `Solo: ${midiInfo}`;
+          } else {
+            soloBtn.classList.remove('mapped');
+            soloBtn.title = '';
+          }
         }
       }
     }
@@ -3485,12 +5423,14 @@
     function updateMuteButton(channelType, channelNum, muted) {
       const faderId = `${channelType}-${channelNum}`;
       const muteBtn = document.getElementById(`mute-btn-${faderId}`);
+      console.log(`[updateMuteButton] ${channelType}${channelNum}: faderId=${faderId}, button=${!!muteBtn}, muted=${muted}`);
       if (muteBtn) {
         if (muted) {
           muteBtn.classList.add('active');
         } else {
           muteBtn.classList.remove('active');
         }
+        console.log(`[updateMuteButton] Updated button classes:`, muteBtn.classList.toString());
       }
     }
 
@@ -3637,11 +5577,37 @@
           e.stopPropagation();
         });
 
-        // Right click for context menu
+        // Right click for context menu on channel background
         channel.addEventListener('contextmenu', (e) => {
+          // Check if clicking on specific elements
+          if (e.target.closest('.fader-container')) {
+            // Right-click on fader slider - show fader volume menu
+            e.preventDefault();
+            const faderId = channel.getAttribute('data-fader-id');
+            showFaderVolumeContextMenu(faderId, e.clientX, e.clientY);
+            return;
+          }
+
+          if (e.target.closest('.mute-btn')) {
+            // Right-click on mute button - show mute menu
+            e.preventDefault();
+            const faderId = channel.getAttribute('data-fader-id');
+            showMuteContextMenu(faderId, e.clientX, e.clientY);
+            return;
+          }
+
+          if (e.target.closest('.solo-btn')) {
+            // Right-click on solo button - show solo menu
+            e.preventDefault();
+            const faderId = channel.getAttribute('data-fader-id');
+            showSoloContextMenu(faderId, e.clientX, e.clientY);
+            return;
+          }
+
+          // Right-click on channel background - show channel menu
           e.preventDefault();
           const faderId = channel.getAttribute('data-fader-id');
-          showFaderContextMenu(faderId, e.clientX, e.clientY);
+          showChannelContextMenu(faderId, e.clientX, e.clientY);
         });
       });
     }
@@ -3720,8 +5686,11 @@
         }
 
         // If mixer just connected, reload faders and mappings to get channel names
+        // Note: mixer-state-ready event will also trigger loadFaders, but our duplicate
+        // prevention flag will ensure it only runs once
         if (!wasConnected && isNowConnected) {
-          loadFaders();
+          console.log('[Renderer] Mixer just connected, loadFaders will be called by mixer-state-ready event');
+          // Don't call loadFaders here - let mixer-state-ready handle it
           loadMappings();
         }
 
@@ -3795,8 +5764,40 @@
 
     // Load initial state
     async function loadInitialState() {
+      console.log('[Renderer] loadInitialState() called');
       try {
-        updateStatusInit('Discovering mixers...');
+        // Check if there's a preferred mixer IP
+        const preferredIp = await ipcRenderer.invoke('get-preferred-mixer-ip');
+
+        if (preferredIp) {
+          // Try to connect to preferred mixer first
+          console.log(`[Renderer] Found preferred mixer IP: ${preferredIp}`);
+          await updateStatusInitWithDelay(`Connecting to preferred mixer ${preferredIp}...`);
+
+          const result = await ipcRenderer.invoke('connect-mixer', preferredIp);
+          if (result.success) {
+            console.log(`[Renderer] Successfully connected to preferred mixer`);
+
+            // Connection successful, skip discovery
+            // Don't show mixer name here - it's not ready yet
+            // The mixer-state-ready event will show the proper name
+            await updateStatusInitWithDelay('Loading preset...');
+            updateStatus();
+
+            // Don't call loadMappings or loadFaders here - the mixer-state-ready event will handle both
+            // This prevents duplicate loading
+            console.log('[Renderer] Waiting for mixer-state-ready event to trigger loadMappings and loadFaders...');
+            return;
+          } else {
+            console.log(`[Renderer] Failed to connect to preferred mixer: ${result.error}`);
+            addStatusLog(`Failed to connect to preferred mixer ${preferredIp}: ${result.error}`, 'warning');
+          }
+        }
+
+        // No preferred mixer or connection failed, do discovery
+        console.log('[Renderer] About to call updateStatusInitWithDelay...');
+        await updateStatusInitWithDelay('Discovering mixers...');
+        console.log('[Renderer] updateStatusInitWithDelay completed');
 
         const mixers = await ipcRenderer.invoke('get-discovered-mixers');
         const listEl = document.getElementById('mixer-list');
@@ -3819,32 +5820,53 @@
           `}).join('');
         }
 
-        updateStatusInit('Loading preset...');
+        await updateStatusInitWithDelay('Loading preset...');
       } catch (error) {
-        // Silent error handling
-        updateStatusInit('Initialization failed');
+        console.error('[Renderer] Error in loadInitialState:', error);
+        const errorMsg = `Initialization failed: ${error.message || error}`;
+        updateStatusInit(errorMsg);
+        addStatusLog(errorMsg, 'error');
       }
 
       updateStatus();
-      loadMappings();
-      loadFaders();
+
+      // Note: Don't call loadMappings() or loadFaders() here
+      // If we connected to a preferred mixer, we already returned early (line 4555)
+      // If we're here, it means no preferred mixer or discovery mode
+      // The mixer-state-ready event will handle loading when a mixer connects
 
       updateStatusInit('Ready');
+
+      // Check for updates (non-blocking)
+      checkForUpdates().catch(err => {
+        console.error('[Renderer] Update check failed:', err);
+      });
     }
 
     // Update status every 2 seconds
     setInterval(updateStatus, 2000);
 
-    // Hide context menu when clicking elsewhere
+    // Hide context menus when clicking elsewhere
     document.addEventListener('click', (e) => {
-      const contextMenu = document.getElementById('context-menu');
-      if (contextMenu && !contextMenu.contains(e.target)) {
-        hideContextMenu();
+      const faderMenu = document.getElementById('fader-context-menu');
+      const muteMenu = document.getElementById('mute-context-menu');
+      const soloMenu = document.getElementById('solo-context-menu');
+      const channelMenu = document.getElementById('channel-context-menu');
+      const muteGroupMenu = document.getElementById('mutegroup-context-menu');
+
+      if (faderMenu && !faderMenu.contains(e.target) &&
+          muteMenu && !muteMenu.contains(e.target) &&
+          soloMenu && !soloMenu.contains(e.target) &&
+          channelMenu && !channelMenu.contains(e.target) &&
+          muteGroupMenu && !muteGroupMenu.contains(e.target)) {
+        hideAllContextMenus();
       }
     });
 
     // Load initial state when page loads
+    console.log('[Renderer] About to call loadInitialState()...');
     loadInitialState();
+    console.log('[Renderer] Script loaded successfully');
   </script>
 </body>
 </html>
