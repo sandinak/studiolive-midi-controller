@@ -1,6 +1,6 @@
 // Main Electron process for StudioLive MIDI Controller
 
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import * as path from 'path';
 import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
@@ -12,6 +12,11 @@ const midiManager = new MidiManager();
 const mixerManager = new MixerManager();
 const mappingEngine = new MappingEngine();
 let discoveredMixers: DiscoveryType[] = [];
+let midiReconnectTimer: ReturnType<typeof setInterval> | null = null;
+let mixerReconnectTimer: ReturnType<typeof setInterval> | null = null;
+let mixerConnecting = false; // Guard against overlapping mixer connect attempts
+const MIDI_RECONNECT_MS = 3000;   // Check MIDI every 3 seconds
+const MIXER_RECONNECT_MS = 10000; // Check mixer every 10 seconds
 
 function createWindow() {
   // Use .icns for macOS, .png for other platforms
@@ -19,8 +24,7 @@ function createWindow() {
     ? path.join(__dirname, '../../assets/icon.icns')
     : path.join(__dirname, '../../assets/icon.png');
 
-  console.log(`Setting app icon to: ${iconPath}`);
-  console.log(`Icon file exists: ${require('fs').existsSync(iconPath)}`);
+
 
   // On macOS, set the dock icon
   if (process.platform === 'darwin') {
@@ -42,6 +46,28 @@ function createWindow() {
   // For now, just show a simple HTML page
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 
+  // Confirm before quitting
+  mainWindow.on('close', (event) => {
+    if (mainWindow) {
+      event.preventDefault();
+      dialog.showMessageBox(mainWindow, {
+        type: 'question',
+        buttons: ['Quit', 'Cancel'],
+        defaultId: 1,
+        cancelId: 1,
+        title: 'Confirm Quit',
+        message: 'Are you sure you want to quit StudioLive MIDI Controller?'
+      }).then(({ response }) => {
+        if (response === 0) {
+          // User chose Quit — tear down and exit
+          stopReconnectionLoop();
+          mainWindow?.removeAllListeners('close');
+          mainWindow?.close();
+        }
+      });
+    }
+  });
+
   mainWindow.on('closed', () => {
     mainWindow = null;
   });
@@ -61,7 +87,7 @@ async function initializeApp() {
     // Translate MIDI to mixer command
     const command = mappingEngine.translateMidiToMixer(midiMessage);
     if (command) {
-      console.log(`[MIDI→Mixer] Translated: ${command.action} ${'type' in command.channel ? command.channel.type : ''}/${command.channel.channel ?? ''} value=${command.value ?? 'n/a'}`);
+
 
       // Forward to renderer for UI updates
       if (mainWindow) {
@@ -72,8 +98,21 @@ async function initializeApp() {
       try {
         switch (command.action) {
           case 'volume':
-            if (command.value !== undefined && 'type' in command.channel) {
+            if (command.value !== undefined && 'type' in command.channel && command.channel.channel !== undefined) {
               mixerManager.setVolume(command.channel, command.value);
+
+              // Check if this channel is stereo-linked and update the paired channel
+              try {
+                const isLinked = mixerManager.getChannelLink(command.channel.type, command.channel.channel);
+                if (isLinked) {
+                  // This is the left channel of a stereo pair, also update the right channel
+                  const rightChannel = { type: command.channel.type, channel: command.channel.channel + 1 };
+                  mixerManager.setVolume(rightChannel, command.value);
+
+                }
+              } catch (err) {
+                // Silently ignore stereo link errors to avoid crashes
+              }
             }
             break;
           case 'mute':
@@ -100,7 +139,7 @@ async function initializeApp() {
             break;
         }
       } catch (error) {
-        console.error(`[MIDI→Mixer] Error executing command:`, error);
+        // Silently ignore command errors
       }
     }
   });
@@ -142,7 +181,7 @@ async function initializeApp() {
         }
       }
     } catch (error) {
-      console.error(`[Mixer→MIDI] Error sending MIDI feedback:`, error);
+      // Silently ignore feedback errors
     }
   });
 
@@ -185,7 +224,6 @@ async function initializeApp() {
   const presetPath = path.join(__dirname, '../../presets/logic-pro-default.json');
   try {
     mappingEngine.loadPreset(presetPath);
-    console.log(`[Main] MIDI feedback ${mappingEngine.getMidiFeedbackEnabled() ? 'enabled' : 'disabled'}`);
     // Store the current preset path and notify renderer
     (global as any).currentPresetPath = presetPath;
     if (mainWindow) {
@@ -198,36 +236,31 @@ async function initializeApp() {
   }
 
   // Auto-connect to MIDI device BEFORE mixer (mixer connect can block)
-  console.log('[Main] Starting MIDI auto-connect...');
   const devices = midiManager.getAvailableDevices();
-  console.log(`[Main] Found ${devices.length} MIDI devices:`, devices);
-
-  // Try preferred MIDI device first (from preset)
   const preferredMidiDevice = mappingEngine.getPreferredMidiDevice();
   let targetDevice: string | null = null;
 
   if (preferredMidiDevice && devices.includes(preferredMidiDevice)) {
-    console.log(`[Main] Using preferred MIDI device: ${preferredMidiDevice}`);
     targetDevice = preferredMidiDevice;
   } else {
-    // Fall back to Logic Pro if found, or first available device
     const logicDevice = devices.find(d => d.toLowerCase().includes('logic'));
     targetDevice = logicDevice || devices[0];
-    if (targetDevice) {
-      console.log(`[Main] Auto-connecting to MIDI device: ${targetDevice}`);
-    }
   }
 
   if (targetDevice) {
     try {
       midiManager.connect(targetDevice);
-      console.log(`[Main] Successfully connected to MIDI device: ${targetDevice}`);
+      if (mainWindow) {
+        mainWindow.webContents.send('connection-restored', { type: 'midi', device: targetDevice });
+      }
     } catch (error) {
-      console.error(`[Main] Failed to connect to MIDI device:`, error);
+      // Will retry via reconnection loop
     }
-  } else {
-    console.log('[Main] No MIDI devices available');
   }
+
+  // Start reconnection loop NOW — before the potentially slow mixer connect
+  // so MIDI can auto-reconnect while we wait for the mixer
+  startReconnectionLoop();
 
   // Try autodiscovery first, but prefer saved IP from preset
   try {
@@ -235,14 +268,12 @@ async function initializeApp() {
 
     if (preferredIp) {
       try {
-        // Connect directly to preferred mixer without discovery
-        // The mixer will provide its name and model via the state once connected
-        console.log(`[Main] Connecting to preferred mixer at ${preferredIp}...`);
         await mixerManager.connect(preferredIp);
-        console.log(`[Main] Successfully connected to preferred mixer`);
+        if (mainWindow) {
+          mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: preferredIp });
+        }
       } catch (error) {
-        console.error(`[Main] Failed to connect to preferred mixer:`, error);
-        // Silent fail - will try discovery below
+        // Will retry via reconnection loop or discovery below
       }
     }
 
@@ -256,15 +287,19 @@ async function initializeApp() {
         // Auto-connect to first discovered mixer
         const mixer = discoveredMixers[0];
         await mixerManager.connect(mixer.ip, mixer.name);
+        if (mainWindow) {
+          mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: mixer.ip });
+        }
       } else {
-
         // Fall back to environment variable or default IP
         const mixerIp = process.env.MIXER_IP;
         if (mixerIp) {
           await mixerManager.connect(mixerIp).catch(err => {
             // Silent fail
           });
-        } else {
+          if (mixerManager.isConnected() && mainWindow) {
+            mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: mixerIp });
+          }
         }
       }
     }
@@ -274,20 +309,88 @@ async function initializeApp() {
 
 }
 
+/**
+ * Persistent reconnection — separate timers for MIDI and mixer so a
+ * slow mixer TCP timeout never blocks MIDI reconnection.
+ */
+function startReconnectionLoop() {
+  // --- MIDI reconnect (fast, synchronous) ---
+  if (!midiReconnectTimer) {
+    midiReconnectTimer = setInterval(() => {
+      if (!midiManager.isConnected()) {
+        const preferredMidi = mappingEngine.getPreferredMidiDevice();
+        if (preferredMidi) {
+          const devices = midiManager.getAvailableDevices();
+          if (devices.includes(preferredMidi)) {
+            try {
+              midiManager.connect(preferredMidi);
+              if (mainWindow) {
+                mainWindow.webContents.send('connection-restored', { type: 'midi', device: preferredMidi });
+              }
+            } catch (err) {
+              // Will retry next interval
+            }
+          }
+        }
+      }
+    }, MIDI_RECONNECT_MS);
+  }
+
+  // --- Mixer reconnect (async, can be slow) ---
+  if (!mixerReconnectTimer) {
+    mixerReconnectTimer = setInterval(async () => {
+      if (mixerConnecting) return; // Previous attempt still in progress
+      if (!mixerManager.isConnected()) {
+        const preferredIp = mappingEngine.getPreferredMixerIp();
+        if (preferredIp) {
+          mixerConnecting = true;
+          try {
+            await mixerManager.connect(preferredIp);
+            if (mainWindow) {
+              mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: preferredIp });
+            }
+          } catch (err) {
+            // Will retry next interval
+          } finally {
+            mixerConnecting = false;
+          }
+        }
+      }
+    }, MIXER_RECONNECT_MS);
+  }
+}
+
+function stopReconnectionLoop() {
+  if (midiReconnectTimer) {
+    clearInterval(midiReconnectTimer);
+    midiReconnectTimer = null;
+  }
+  if (mixerReconnectTimer) {
+    clearInterval(mixerReconnectTimer);
+    mixerReconnectTimer = null;
+  }
+}
+
 app.whenReady().then(() => {
   createWindow();
   initializeApp();
 });
 
 app.on('window-all-closed', () => {
+  stopReconnectionLoop();
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
+app.on('before-quit', () => {
+  stopReconnectionLoop();
+});
+
 app.on('activate', () => {
   if (mainWindow === null) {
     createWindow();
+    startReconnectionLoop();
   }
 });
 
@@ -301,9 +404,7 @@ ipcMain.handle('get-preferred-mixer-ip', async () => {
 });
 
 ipcMain.handle('discover-mixers', async () => {
-  console.log('📞 IPC: discover-mixers called');
   discoveredMixers = await MixerManager.discover(10000);
-  console.log(`📤 IPC: Returning ${discoveredMixers.length} discovered mixer(s)`);
   return discoveredMixers;
 });
 

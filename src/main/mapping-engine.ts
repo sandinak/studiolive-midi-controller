@@ -157,8 +157,6 @@ export class MappingEngine extends EventEmitter {
     });
 
     if (!mapping) {
-      console.log(`[MappingEngine] No mapping found for MIDI: type=${midiMessage.type} ch=${midiMessage.channel} cc=${midiMessage.controller ?? 'n/a'} note=${midiMessage.note ?? 'n/a'} val=${midiMessage.value}`);
-      console.log(`[MappingEngine] Available mappings: ${this.mappings.filter(m => (m.midi as any).type !== 'none').map(m => `${m.midi.type} ch=${m.midi.channel} cc=${(m.midi as any).controller ?? 'n/a'} → ${m.mixer.action} ${'type' in m.mixer.channel ? m.mixer.channel.type : ''}/${m.mixer.channel.channel ?? ''}`).join(', ')}`);
       return null;
     }
 

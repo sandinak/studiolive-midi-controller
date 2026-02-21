@@ -1,6 +1,6 @@
 {
   "name": "studiolive-midi-controller",
-  "version": "0.9.1",
+  "version": "1.0.0",
   "description": "MIDI controller for PreSonus StudioLive mixers using Logic Pro",
   "main": "dist/main/index.js",
   "scripts": {

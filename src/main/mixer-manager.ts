@@ -50,8 +50,6 @@ export class MixerManager extends EventEmitter {
 
       // Listen for property changes (main assignment, input source, etc.)
       this.client.on('propertyChange', (data: any) => {
-        // Temporary debugging
-        console.log('[MixerManager] propertyChange event:', JSON.stringify(data, null, 2));
         // Forward property changes to the renderer
         this.emit('propertyChange', data);
       });
@@ -84,18 +82,14 @@ export class MixerManager extends EventEmitter {
 
                 const model = (this.client as any).state.get('device.model');
 
-                console.log(`[MixerManager] State check - deviceName: ${deviceName}, model: ${model}, current mixerDeviceName: ${this.mixerDeviceName}`);
-
                 if (deviceName && !this.mixerDeviceName) {
-                  console.log(`[MixerManager] Got device name from state: ${deviceName}`);
                   this.mixerDeviceName = deviceName;
                 }
                 if (model && !this.mixerModel) {
-                  console.log(`[MixerManager] Got model from state: ${model}`);
                   this.mixerModel = model;
                 }
               } catch (error) {
-                console.error('[MixerManager] Error reading device info from state:', error);
+                // Ignore errors reading device info
               }
 
               this.emit('state-ready');
@@ -112,6 +106,9 @@ export class MixerManager extends EventEmitter {
       // Test if we can read state
       const testName = (this.client as any).state?.get('line.ch1.username');
       const testVolume = (this.client as any).state?.get('line.ch1.volume');
+
+      // Log channel counts from the API for diagnostics
+      const counts = (this.client as any).channelCounts;
 
       // Start polling mute group states to detect changes from the mixer
       this.startMuteGroupPolling();
@@ -153,7 +150,13 @@ export class MixerManager extends EventEmitter {
     if (!this.client) {
       throw new Error('Not connected to mixer');
     }
-    this.client.setChannelVolumeLinear(channel, value);
+
+    // setChannelVolumeLinear is async - must catch the promise rejection
+    this.client.setChannelVolumeLinear(channel, value).catch((error: Error) => {
+      const channelStr = 'type' in channel ? `${channel.type}/${channel.channel}` : JSON.stringify(channel);
+      const counts = (this.client as any)?.channelCounts;
+      // Silently ignore volume errors — will retry on next MIDI message
+    });
   }
 
   /**
@@ -268,12 +271,7 @@ export class MixerManager extends EventEmitter {
    * @returns Array of discovered devices
    */
   static async discover(timeout = 10000): Promise<DiscoveryType[]> {
-    console.log(`🔍 Scanning for mixers (${timeout}ms timeout)...`);
     const devices = await Client.discover(timeout);
-    console.log(`✓ Found ${devices.length} mixer(s):`);
-    devices.forEach((device, index) => {
-      console.log(`  ${index + 1}. ${device.model || device.name}${device.deviceName ? ` ("${device.deviceName}")` : ''} - Serial: ${device.serial} - IP: ${device.ip}`);
-    });
     return devices;
   }
 
@@ -405,24 +403,18 @@ export class MixerManager extends EventEmitter {
       const path = `${type.toLowerCase()}.ch${channel}.mute`;
       let mute = (this.client as any).state?.get(path);
 
-      console.log(`[getChannelMute] ${type}${channel} path="${path}" raw value:`, mute, 'type:', typeof mute);
-
       if (mute === null || mute === undefined) {
-        console.log(`[getChannelMute] ${type}${channel} returned NULL/UNDEFINED`);
         return null;
       }
 
       // Handle Buffer values (convert to float first)
       if (mute instanceof Buffer) {
         mute = mute.readFloatLE(0);
-        console.log(`[getChannelMute] ${type}${channel} converted Buffer to float:`, mute);
       }
 
       const result = mute > 0;
-      console.log(`[getChannelMute] ${type}${channel} final result:`, result);
       return result;
     } catch (error) {
-      console.error(`[getChannelMute] ${type}${channel} ERROR:`, error);
       return null;
     }
   }
@@ -503,10 +495,27 @@ export class MixerManager extends EventEmitter {
     if (!this.client) {
       return null;
     }
+
+    // Only LINE channels support stereo linking
+    if (type.toUpperCase() !== 'LINE') {
+      return false;
+    }
+
     try {
       const path = `${type.toLowerCase()}.ch${channel}.link`;
-      const link = (this.client as any).state?.get(path);
-      return link !== null ? Boolean(link) : null;
+      let link = (this.client as any).state?.get(path);
+
+      if (link === null || link === undefined) {
+        return null;
+      }
+
+      // Handle Buffer values (convert to float first)
+      if (link instanceof Buffer) {
+        link = link.readFloatLE(0);
+      }
+
+      // Link is true if value > 0
+      return link > 0;
     } catch (error) {
       return null;
     }

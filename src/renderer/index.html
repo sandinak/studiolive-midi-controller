@@ -2406,6 +2406,16 @@
       });
     });
 
+    // Listen for connection events (initial connect or reconnect)
+    ipcRenderer.on('connection-restored', (event, data) => {
+      if (data.type === 'midi') {
+        addStatusLog(`MIDI connected: ${data.device}`, 'success');
+      } else if (data.type === 'mixer') {
+        addStatusLog(`Mixer connected: ${data.ip}`, 'success');
+      }
+      updateStatus();
+    });
+
     // Listen for mixer mute changes (from physical mixer or Universal Control)
     ipcRenderer.on('mixer-mute', (event, data) => {
       // data.channel.type, data.channel.channel, data.status
@@ -2516,12 +2526,7 @@
       const faderFill = document.getElementById(`fader-fill-${faderId}`);
       const faderValue = document.getElementById(`fader-value-${faderId}`);
 
-      // Debug logging for channels 11-14
-      if (channelNum >= 11 && channelNum <= 14) {
-        console.log(`updateFaderByValue(${channelType}, ${channelNum}, ${percentage}): faderFill=${!!faderFill}, faderValue=${!!faderValue}`);
-      }
-
-      if (faderFill && faderValue) {
+      if (faderFill) {
         const roundedPercentage = Math.round(percentage);
 
         // Calculate delta for smoothing
@@ -2538,7 +2543,10 @@
         // Apply smooth transition with ease-out for more natural motion
         faderFill.style.transition = `height ${transitionSpeed}ms ease-out`;
         faderFill.style.height = `${roundedPercentage}%`;
-        faderValue.textContent = `${roundedPercentage}%`;
+        // faderValue may not exist for the right side of stereo pairs
+        if (faderValue) {
+          faderValue.textContent = `${roundedPercentage}%`;
+        }
       }
     }
 
@@ -3179,10 +3187,8 @@
           return;
         }
 
-        // Remove the mapping by setting it to 'none'
-        const clearedMapping = { ...allMappings[actualIndex] };
-        clearedMapping.midi = { type: 'none', channel: 1 };
-        await ipcRenderer.invoke('update-mapping', actualIndex, clearedMapping);
+        // Actually remove the mapping entry
+        await ipcRenderer.invoke('remove-mapping', actualIndex);
 
         // Reload the mappings list
         await showMappingsList();
@@ -3937,9 +3943,7 @@
         );
 
         if (mappingIndex !== -1) {
-          const mapping = mappings[mappingIndex];
-          mapping.midi = { type: 'none', channel: 1 };
-          await ipcRenderer.invoke('update-mapping', mappingIndex, mapping);
+          await ipcRenderer.invoke('remove-mapping', mappingIndex);
           await loadFaders();
           await loadMappings();
           markConfigChanged();
