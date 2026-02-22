@@ -10,9 +10,15 @@ export class MappingEngine extends EventEmitter {
   private currentPreset: string | null = null;
   private currentPresetPath: string | null = null;
   private preferredMixerIp: string | null = null;
+  private preferredMixerModel: string | null = null;
+  private preferredMixerDeviceName: string | null = null;
+  private preferredMixerSerial: string | null = null;
   private preferredMidiDevices: string[] = [];
-  private faderFilter: 'all' | 'mapped' = 'all';
+  private midiDeviceColors: Record<string, string> = {};
+  private faderFilter: 'all' | 'added' | 'mapped' = 'all';
   private midiFeedbackEnabled: boolean = true;
+  private levelVisibility: 'none' | 'indicator' | 'meter' = 'none';
+  private peakHold: boolean = false;
 
   // O(1) lookup structures — rebuilt on every mappings mutation
   private midiLookup: Map<string, MidiMapping> = new Map();
@@ -102,6 +108,9 @@ export class MappingEngine extends EventEmitter {
       this.currentPreset = preset.name;
       this.currentPresetPath = presetPath;
       this.preferredMixerIp = preset.mixerIp || null;
+      this.preferredMixerModel = preset.mixerModel || null;
+      this.preferredMixerDeviceName = preset.mixerDeviceName || null;
+      this.preferredMixerSerial = preset.mixerSerial || null;
       // Support both new midiDevices array and legacy midiDevice string
       if (preset.midiDevices && preset.midiDevices.length > 0) {
         this.preferredMidiDevices = preset.midiDevices;
@@ -112,6 +121,9 @@ export class MappingEngine extends EventEmitter {
       }
       this.faderFilter = preset.faderFilter || 'all';
       this.midiFeedbackEnabled = preset.midiFeedbackEnabled !== undefined ? preset.midiFeedbackEnabled : true;
+      this.midiDeviceColors = preset.midiDeviceColors || {};
+      this.levelVisibility = preset.levelVisibility || 'none';
+      this.peakHold = preset.peakHold || false;
 
       this.rebuildLookup();
       this.emit('preset-loaded', preset);
@@ -130,9 +142,15 @@ export class MappingEngine extends EventEmitter {
       version: '1.0',
       description,
       mixerIp: this.preferredMixerIp || undefined,
+      mixerModel: this.preferredMixerModel || undefined,
+      mixerDeviceName: this.preferredMixerDeviceName || undefined,
+      mixerSerial: this.preferredMixerSerial || undefined,
       midiDevices: this.preferredMidiDevices.length > 0 ? this.preferredMidiDevices : undefined,
+      midiDeviceColors: Object.keys(this.midiDeviceColors).length > 0 ? this.midiDeviceColors : undefined,
       faderFilter: this.faderFilter,
       midiFeedbackEnabled: this.midiFeedbackEnabled,
+      levelVisibility: this.levelVisibility !== 'none' ? this.levelVisibility : undefined,
+      peakHold: this.peakHold || undefined,
       mappings: this.mappings
     };
 
@@ -160,7 +178,7 @@ export class MappingEngine extends EventEmitter {
     if (this.currentPresetPath && this.currentPreset) {
       try {
         this.savePreset(this.currentPresetPath, this.currentPreset);
-        console.log(`✓ Auto-saved preset: ${this.currentPreset}`);
+        // Auto-save successful
       } catch (error) {
         console.error('Failed to auto-save preset:', error);
       }
@@ -332,7 +350,19 @@ export class MappingEngine extends EventEmitter {
 
   setPreferredMixerIp(ip: string): void {
     this.preferredMixerIp = ip;
-    console.log(`✓ Set preferred mixer IP: ${ip}`);
+    this.autoSavePreset();
+  }
+
+  getPreferredMixerModel(): string | null { return this.preferredMixerModel; }
+  getPreferredMixerDeviceName(): string | null { return this.preferredMixerDeviceName; }
+  getPreferredMixerSerial(): string | null { return this.preferredMixerSerial; }
+
+  /** Save mixer metadata alongside the IP — single auto-save call for all fields. */
+  setPreferredMixerInfo(ip: string, model: string | null, deviceName: string | null, serial: string | null): void {
+    this.preferredMixerIp = ip;
+    this.preferredMixerModel = model;
+    this.preferredMixerDeviceName = deviceName;
+    this.preferredMixerSerial = serial;
     this.autoSavePreset();
   }
 
@@ -343,7 +373,6 @@ export class MappingEngine extends EventEmitter {
   addPreferredMidiDevice(device: string): void {
     if (!this.preferredMidiDevices.includes(device)) {
       this.preferredMidiDevices.push(device);
-      console.log(`✓ Added preferred MIDI device: ${device}`);
       this.autoSavePreset();
     }
   }
@@ -352,7 +381,6 @@ export class MappingEngine extends EventEmitter {
     const before = this.preferredMidiDevices.length;
     this.preferredMidiDevices = this.preferredMidiDevices.filter(d => d !== device);
     if (this.preferredMidiDevices.length < before) {
-      console.log(`✓ Removed preferred MIDI device: ${device}`);
       this.autoSavePreset();
     }
   }
@@ -367,11 +395,11 @@ export class MappingEngine extends EventEmitter {
     this.addPreferredMidiDevice(device);
   }
 
-  getFaderFilter(): 'all' | 'mapped' {
+  getFaderFilter(): 'all' | 'added' | 'mapped' {
     return this.faderFilter;
   }
 
-  setFaderFilter(filter: 'all' | 'mapped'): void {
+  setFaderFilter(filter: 'all' | 'added' | 'mapped'): void {
     this.faderFilter = filter;
   }
 
@@ -381,7 +409,37 @@ export class MappingEngine extends EventEmitter {
 
   setMidiFeedbackEnabled(enabled: boolean): void {
     this.midiFeedbackEnabled = enabled;
-    console.log(`✓ Set MIDI feedback: ${enabled ? 'enabled' : 'disabled'}`);
+    this.autoSavePreset();
+  }
+
+  getMidiDeviceColors(): Record<string, string> {
+    return { ...this.midiDeviceColors };
+  }
+
+  setMidiDeviceColor(device: string, color: string): void {
+    if (color) {
+      this.midiDeviceColors[device] = color;
+    } else {
+      delete this.midiDeviceColors[device];
+    }
+    this.autoSavePreset();
+  }
+
+  getLevelVisibility(): 'none' | 'indicator' | 'meter' {
+    return this.levelVisibility;
+  }
+
+  setLevelVisibility(v: 'none' | 'indicator' | 'meter'): void {
+    this.levelVisibility = v;
+    this.autoSavePreset();
+  }
+
+  getPeakHold(): boolean {
+    return this.peakHold;
+  }
+
+  setPeakHold(v: boolean): void {
+    this.peakHold = v;
     this.autoSavePreset();
   }
 }

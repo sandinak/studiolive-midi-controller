@@ -1,12 +1,31 @@
 // Main Electron process for StudioLive MIDI Controller
 
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
 import { clampCount } from './ipc-validators';
 import type { DiscoveryType } from 'presonus-studiolive-api';
+
+/** Returns the platform-appropriate directory for storing profiles/presets. */
+function getProfilesDir(): string {
+  if (process.platform === 'darwin') {
+    return path.join(app.getPath('home'), 'Library', 'Application Preferences', 'StudioLive Midi Controller', 'profiles');
+  }
+  // Windows / Linux: use app's user data directory
+  return path.join(app.getPath('userData'), 'profiles');
+}
+
+/** Ensures the profiles directory exists and returns its path. */
+function ensureProfilesDir(): string {
+  const dir = getProfilesDir();
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  return dir;
+}
 
 let mainWindow: BrowserWindow | null = null;
 const midiManager = new MidiManager();
@@ -23,26 +42,21 @@ mixerManager.setDcaMappingsChecker(() =>
 );
 let discoveredMixers: DiscoveryType[] = [];
 let midiReconnectTimer: ReturnType<typeof setInterval> | null = null;
+let midiStaleCheckTimer: ReturnType<typeof setInterval> | null = null;
 let mixerReconnectTimer: ReturnType<typeof setInterval> | null = null;
 let mixerConnecting = false; // Guard against overlapping mixer connect attempts
+let mixerConnectGen = 0;     // Incremented on every new connection request; lets user override in-progress attempts
 let midiScanCleanup: (() => void) | null = null; // Cleanup fn for multi-port MIDI scan
 const MIDI_RECONNECT_MS = 3000;   // Check MIDI every 3 seconds
-const MIXER_RECONNECT_MS = 10000; // Check mixer every 10 seconds
+const MIDI_STALE_CHECK_MS = 2000; // Check for stale/disconnected MIDI devices every 2 seconds
+const MIXER_RECONNECT_MS = 3000;  // Check mixer every 3 seconds
 
 function createWindow() {
-  // Use .icns for macOS, .png for other platforms
+  // Use app.getAppPath() for reliable icon resolution in both dev and packaged builds
+  const appRoot = app.getAppPath();
   const iconPath = process.platform === 'darwin'
-    ? path.join(__dirname, '../../assets/icon.icns')
-    : path.join(__dirname, '../../assets/icon.png');
-
-
-
-  // On macOS, set the dock icon
-  if (process.platform === 'darwin') {
-    const { nativeImage } = require('electron');
-    const image = nativeImage.createFromPath(iconPath);
-    app.dock.setIcon(image);
-  }
+    ? path.join(appRoot, 'assets', 'icon.icns')
+    : path.join(appRoot, 'assets', 'icon.png');
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -90,6 +104,12 @@ function createWindow() {
 async function initializeApp() {
 
   // Set up MIDI event handlers
+  midiManager.on('disconnected', (deviceName: string) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('midi-device-lost', deviceName);
+    }
+  });
+
   midiManager.on('message', (midiMessage) => {
 
     // Forward to renderer for UI updates
@@ -214,6 +234,26 @@ async function initializeApp() {
     }
   });
 
+  // Forward INPUT_SIGNAL meter levels to renderer (throttled to ~60fps)
+  // Send only the u16 array for input channels — smaller payload, less IPC overhead
+  const MG_INPUT_SIGNAL = 0; // MeterGroups.INPUT_SIGNAL
+  let lastMeterSend = 0;
+  mixerManager.on('meter', (data: any) => {
+    const inputLevels = data[MG_INPUT_SIGNAL];
+    if (!inputLevels || !mainWindow) return;
+    const now = Date.now();
+    if (now - lastMeterSend < 16) return;
+    lastMeterSend = now;
+    mainWindow.webContents.send('mixer-meter', inputLevels);
+  });
+
+  // Forward mixer disconnect to renderer so the UI can show the warning stripe immediately
+  mixerManager.on('disconnected', () => {
+    if (mainWindow) {
+      mainWindow.webContents.send('mixer-lost');
+    }
+  });
+
   // Listen for state-ready event and forward to renderer
   mixerManager.on('state-ready', () => {
     if (mainWindow && mainWindow.webContents) {
@@ -228,16 +268,20 @@ async function initializeApp() {
     }
   });
 
-  // Load default preset if it exists
-  const presetPath = path.join(__dirname, '../../presets/logic-pro-default.json');
+  // Load default preset: prefer user profiles dir, fall back to bundled preset
+  const userPresetPath = path.join(getProfilesDir(), 'logic-pro-default.json');
+  const bundledPresetPath = path.join(__dirname, '../../presets/logic-pro-default.json');
+  const presetPath = fs.existsSync(userPresetPath) ? userPresetPath : bundledPresetPath;
   try {
     mappingEngine.loadPreset(presetPath);
     // Store the current preset path and notify renderer
     currentPresetPath = presetPath;
     if (mainWindow) {
+      const mtime = fs.statSync(presetPath).mtime.toISOString();
       mainWindow.webContents.send('preset-loaded', {
         name: path.basename(presetPath, '.json'),
-        path: presetPath
+        path: presetPath,
+        mtime
       });
     }
   } catch (error) {
@@ -288,7 +332,12 @@ async function initializeApp() {
 
     if (preferredIp) {
       try {
-        await mixerManager.connect(preferredIp);
+        await mixerManager.connect(
+          preferredIp,
+          mappingEngine.getPreferredMixerModel() || undefined,
+          mappingEngine.getPreferredMixerDeviceName() || undefined,
+          mappingEngine.getPreferredMixerSerial() || undefined
+        );
         if (mainWindow) {
           mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: preferredIp });
         }
@@ -306,7 +355,7 @@ async function initializeApp() {
       if (discoveredMixers.length > 0) {
         // Auto-connect to first discovered mixer
         const mixer = discoveredMixers[0];
-        await mixerManager.connect(mixer.ip, mixer.name);
+        await mixerManager.connect(mixer.ip, mixer.model || mixer.name, mixer.deviceName, mixer.serial);
         if (mainWindow) {
           mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: mixer.ip });
         }
@@ -314,7 +363,7 @@ async function initializeApp() {
         // Fall back to environment variable or default IP
         const mixerIp = process.env.MIXER_IP;
         if (mixerIp) {
-          await mixerManager.connect(mixerIp).catch(err => {
+          await mixerManager.connect(mixerIp).catch(() => {
             // Silent fail
           });
           if (mixerManager.isConnected() && mainWindow) {
@@ -356,6 +405,15 @@ function startReconnectionLoop() {
     }, MIDI_RECONNECT_MS);
   }
 
+  // --- MIDI stale-device check (fast poll to detect physical disconnects) ---
+  // getAvailableDevices() reflects OS-level MIDI state; isConnected() evicts devices
+  // that have disappeared and emits 'disconnected' so the renderer updates immediately.
+  if (!midiStaleCheckTimer) {
+    midiStaleCheckTimer = setInterval(() => {
+      midiManager.isConnected(); // side effect: evicts stale + emits 'disconnected'
+    }, MIDI_STALE_CHECK_MS);
+  }
+
   // --- Mixer reconnect (async, can be slow) ---
   if (!mixerReconnectTimer) {
     mixerReconnectTimer = setInterval(async () => {
@@ -363,16 +421,23 @@ function startReconnectionLoop() {
       if (!mixerManager.isConnected()) {
         const preferredIp = mappingEngine.getPreferredMixerIp();
         if (preferredIp) {
+          const myGen = ++mixerConnectGen;
           mixerConnecting = true;
           try {
-            await mixerManager.connect(preferredIp);
-            if (mainWindow) {
+            await mixerManager.connect(
+              preferredIp,
+              mappingEngine.getPreferredMixerModel() || undefined,
+              mappingEngine.getPreferredMixerDeviceName() || undefined,
+              mappingEngine.getPreferredMixerSerial() || undefined
+            );
+            // Only emit restored event if we still own the connection slot
+            if (myGen === mixerConnectGen && mainWindow) {
               mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: preferredIp });
             }
           } catch (err) {
             // Will retry next interval
           } finally {
-            mixerConnecting = false;
+            if (myGen === mixerConnectGen) mixerConnecting = false;
           }
         }
       }
@@ -385,6 +450,10 @@ function stopReconnectionLoop() {
     clearInterval(midiReconnectTimer);
     midiReconnectTimer = null;
   }
+  if (midiStaleCheckTimer) {
+    clearInterval(midiStaleCheckTimer);
+    midiStaleCheckTimer = null;
+  }
   if (mixerReconnectTimer) {
     clearInterval(mixerReconnectTimer);
     mixerReconnectTimer = null;
@@ -392,6 +461,18 @@ function stopReconnectionLoop() {
 }
 
 app.whenReady().then(() => {
+  // Set dock icon as early as possible so it takes effect before any window appears
+  if (process.platform === 'darwin') {
+    const { nativeImage } = require('electron');
+    const icnsPath = path.join(app.getAppPath(), 'assets', 'icon.icns');
+    const dockImage = nativeImage.createFromPath(icnsPath);
+    if (!dockImage.isEmpty()) {
+      app.dock.setIcon(dockImage);
+    } else {
+      console.warn('[Main] Could not load dock icon from:', icnsPath);
+    }
+  }
+
   createWindow();
   initializeApp();
 });
@@ -427,20 +508,39 @@ ipcMain.handle('get-preferred-mixer-ip', async () => {
   return mappingEngine.getPreferredMixerIp();
 });
 
-ipcMain.handle('discover-mixers', async () => {
-  discoveredMixers = await MixerManager.discover(10000);
+ipcMain.handle('discover-mixers', async (event) => {
+  discoveredMixers = [];
+  const result = await MixerManager.discoverProgressive(10000, (device) => {
+    discoveredMixers.push(device);
+    // Stream each device to the renderer as it's found
+    event.sender.send('discovery-result', device);
+  });
+  discoveredMixers = result;
   return discoveredMixers;
 });
 
-ipcMain.handle('connect-mixer', async (_event, ip: string, model?: string, deviceName?: string) => {
+ipcMain.handle('connect-mixer', async (_event, ip: string, model?: string, deviceName?: string, serial?: string) => {
+  // User-initiated connections always proceed. Bump the generation so any
+  // in-progress auto-reconnect attempt knows it has been superseded.
+  const myGen = ++mixerConnectGen;
+  mixerConnecting = true;
   try {
-    await mixerManager.connect(ip, model, deviceName);
-    // Save this IP as preferred for future connections
-    mappingEngine.setPreferredMixerIp(ip);
-    return { success: true, ip, model, deviceName };
+    await mixerManager.connect(ip, model, deviceName, serial);
+    // If another connection request came in while we were connecting, don't
+    // update the preferred mixer — the later request owns that.
+    if (myGen !== mixerConnectGen) {
+      return { success: false, error: 'Superseded by newer connection request' };
+    }
+    mappingEngine.setPreferredMixerInfo(ip, model || null, deviceName || null, serial || null);
+    return { success: true, ip, model, deviceName, serial };
   } catch (error) {
+    if (myGen !== mixerConnectGen) {
+      return { success: false, error: 'Superseded by newer connection request' };
+    }
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
+  } finally {
+    if (myGen === mixerConnectGen) mixerConnecting = false;
   }
 });
 
@@ -450,11 +550,17 @@ ipcMain.handle('get-mixer-status', async () => {
     ip: mixerManager.getMixerIp(),
     model: mixerManager.getMixerModel(),
     deviceName: mixerManager.getMixerDeviceName(),
-    name: mixerManager.getMixerName() // For backward compatibility
+    serial: mixerManager.getMixerSerial(),
+    name: mixerManager.getMixerName(), // For backward compatibility
+    preferredIp: mappingEngine.getPreferredMixerIp(),
+    preferredModel: mappingEngine.getPreferredMixerModel(),
+    preferredDeviceName: mappingEngine.getPreferredMixerDeviceName(),
+    preferredSerial: mappingEngine.getPreferredMixerSerial()
   };
 });
 
 ipcMain.handle('get-midi-devices', async () => {
+  midiManager.isConnected(); // validates + evicts stale devices as a side effect
   return {
     inputs: midiManager.getAvailableDevices(),
     outputs: midiManager.getAvailableOutputDevices(),
@@ -463,15 +569,18 @@ ipcMain.handle('get-midi-devices', async () => {
 });
 
 ipcMain.handle('get-midi-status', async () => {
+  midiManager.isConnected(); // validates + evicts stale devices as a side effect
   const devices = midiManager.getConnectedDevices();
   return {
     connected: devices.length > 0,
     device: devices[0] || null,   // backward compat
-    devices                        // all connected devices
+    devices,                       // all connected devices
+    preferredDevices: mappingEngine.getPreferredMidiDevices()
   };
 });
 
 ipcMain.handle('get-connected-midi-devices', async () => {
+  midiManager.isConnected(); // validates + evicts stale devices as a side effect
   return midiManager.getConnectedDevices();
 });
 
@@ -811,7 +920,8 @@ ipcMain.handle('remove-mapping', async (_event, index: number) => {
 
 ipcMain.handle('save-preset', async (_event, name: string, description?: string) => {
   try {
-    const presetPath = path.join(__dirname, `../../presets/${name.toLowerCase().replace(/\s+/g, '-')}.json`);
+    const presetsDir = ensureProfilesDir();
+    const presetPath = path.join(presetsDir, `${name.toLowerCase().replace(/\s+/g, '-')}.json`);
     mappingEngine.savePreset(presetPath, name, description);
     return { success: true, path: presetPath };
   } catch (error) {
@@ -822,7 +932,8 @@ ipcMain.handle('save-preset', async (_event, name: string, description?: string)
 
 ipcMain.handle('load-preset', async (_event, presetName: string) => {
   try {
-    const presetPath = path.join(__dirname, `../../presets/${presetName.toLowerCase().replace(/\s+/g, '-')}.json`);
+    const presetsDir = getProfilesDir();
+    const presetPath = path.join(presetsDir, `${presetName.toLowerCase().replace(/\s+/g, '-')}.json`);
     mappingEngine.loadPreset(presetPath);
     return { success: true };
   } catch (error) {
@@ -836,7 +947,7 @@ ipcMain.handle('load-preset-dialog', async () => {
     const { dialog } = require('electron');
     const result = await dialog.showOpenDialog(mainWindow!, {
       title: 'Load Preset',
-      defaultPath: path.join(__dirname, '../../presets'),
+      defaultPath: ensureProfilesDir(),
       filters: [
         { name: 'Preset Files', extensions: ['json'] },
         { name: 'All Files', extensions: ['*'] }
@@ -854,7 +965,8 @@ ipcMain.handle('load-preset-dialog', async () => {
     // Store the current preset path
     currentPresetPath = presetPath;
 
-    return { success: true, path: presetPath, name: path.basename(presetPath, '.json') };
+    const mtime = fs.statSync(presetPath).mtime.toISOString();
+    return { success: true, path: presetPath, name: path.basename(presetPath, '.json'), mtime };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
@@ -864,7 +976,7 @@ ipcMain.handle('load-preset-dialog', async () => {
 ipcMain.handle('save-preset-dialog', async (_event, currentPath?: string) => {
   try {
     const { dialog } = require('electron');
-    const defaultPath = currentPath || path.join(__dirname, '../../presets/preset.json');
+    const defaultPath = currentPath || path.join(ensureProfilesDir(), 'preset.json');
 
     const result = await dialog.showSaveDialog(mainWindow!, {
       title: 'Save Preset',
@@ -893,11 +1005,13 @@ ipcMain.handle('save-preset-dialog', async (_event, currentPath?: string) => {
   }
 });
 
+ipcMain.handle('get-app-version', () => app.getVersion());
+
 ipcMain.handle('get-fader-filter', () => {
   return mappingEngine.getFaderFilter();
 });
 
-ipcMain.handle('set-fader-filter', (_event, filter: 'all' | 'mapped') => {
+ipcMain.handle('set-fader-filter', (_event, filter: 'all' | 'added' | 'mapped') => {
   mappingEngine.setFaderFilter(filter);
 });
 
@@ -905,9 +1019,90 @@ ipcMain.handle('get-current-preset-path', async () => {
   return currentPresetPath || null;
 });
 
+ipcMain.handle('save-preset-to-path', async (_event, presetPath: string) => {
+  try {
+    const name = path.basename(presetPath, '.json');
+    mappingEngine.savePreset(presetPath, name);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
 ipcMain.handle('set-midi-feedback-enabled', async (_event, enabled: boolean) => {
   mappingEngine.setMidiFeedbackEnabled(enabled);
   return { success: true };
+});
+
+ipcMain.handle('get-midi-device-colors', async () => {
+  return mappingEngine.getMidiDeviceColors();
+});
+
+ipcMain.handle('set-midi-device-color', async (_event, device: string, color: string) => {
+  mappingEngine.setMidiDeviceColor(device, color);
+  return { success: true };
+});
+
+ipcMain.handle('get-level-visibility', async () => {
+  return {
+    visibility: mappingEngine.getLevelVisibility(),
+    peakHold: mappingEngine.getPeakHold()
+  };
+});
+
+ipcMain.handle('set-level-visibility', async (_event, v: string) => {
+  mappingEngine.setLevelVisibility(v as any);
+  return { success: true };
+});
+
+ipcMain.handle('set-peak-hold', async (_event, v: boolean) => {
+  mappingEngine.setPeakHold(v);
+  return { success: true };
+});
+
+ipcMain.handle('open-docs', async () => {
+  const liveUrl = 'https://sandinak.github.io/studiolive-midi-controller/';
+
+  // Try live docs first with a 3-second timeout
+  const liveReachable = await new Promise<boolean>((resolve) => {
+    const https = require('https');
+    const req = https.request(liveUrl, { method: 'HEAD', timeout: 3000 }, (res: any) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 400);
+      res.resume();
+    });
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.on('error', () => resolve(false));
+    req.end();
+  });
+
+  if (liveReachable) {
+    await shell.openExternal(liveUrl);
+    return { success: true };
+  }
+
+  // Fall back to local copy
+  const localPath = path.join(app.getAppPath(), 'docs', 'index.html');
+  const err = await shell.openPath(localPath);
+  return { success: !err, error: err || 'Docs not available (offline and no local copy)' };
+});
+
+ipcMain.handle('get-changelog', async () => {
+  try {
+    const fs = require('fs');
+    const candidates = [
+      path.join(app.getAppPath(), 'CHANGELOG.md'),
+      path.join(__dirname, '../../CHANGELOG.md'),
+      path.join(__dirname, '../../../CHANGELOG.md'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return { success: true, content: fs.readFileSync(p, 'utf8') };
+      }
+    }
+    return { success: false, error: 'CHANGELOG.md not found' };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
 });
 
 ipcMain.handle('check-for-updates', async () => {

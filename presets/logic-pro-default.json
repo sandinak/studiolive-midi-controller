@@ -2,25 +2,50 @@
   "name": "logic-pro-default",
   "version": "1.0",
   "mixerIp": "192.168.21.41",
+  "mixerDeviceName": "Office",
   "midiDevices": [
     "Launchkey MK4 49 MIDI Out",
+    "Launchkey MK4 49 DAW Out",
     "Logic Pro Virtual Out",
-    "Launchkey MK4 49 DAW Out"
+    "APC mini mk2 Control"
   ],
-  "faderFilter": "dca-2",
+  "midiDeviceColors": {
+    "Logic Pro Virtual Out": "#b3d219",
+    "Launchkey MK4 49 DAW Out": "#07ab8b",
+    "Launchkey MK4 49 MIDI Out": "#8887d9",
+    "APC mini mk2 Control": "#1b0ed8"
+  },
+  "faderFilter": "all",
   "midiFeedbackEnabled": false,
+  "levelVisibility": "indicator",
   "mappings": [
     {
       "midi": {
         "type": "cc",
-        "channel": 13,
+        "channel": 16,
+        "device": "Launchkey MK4 49 DAW Out",
+        "controller": 5
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 1
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 16,
+        "device": "Launchkey MK4 49 DAW Out",
         "controller": 7
       },
       "mixer": {
         "action": "volume",
         "channel": {
-          "type": "DCA",
-          "channel": 2
+          "type": "LINE",
+          "channel": 3
         }
       }
     },
@@ -28,6 +53,7 @@
       "midi": {
         "type": "cc",
         "channel": 4,
+        "device": "Logic Pro Virtual Out",
         "controller": 7
       },
       "mixer": {
@@ -41,28 +67,42 @@
     {
       "midi": {
         "type": "cc",
-        "channel": 10,
-        "controller": 71
+        "channel": 13,
+        "device": "Logic Pro Virtual Out",
+        "controller": 7
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "DCA",
+          "channel": 2
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "none",
+        "channel": 13
       },
       "mixer": {
         "action": "volume",
         "channel": {
           "type": "LINE",
-          "channel": 3
+          "channel": 13
         }
       }
     },
     {
       "midi": {
         "type": "cc",
-        "channel": 16,
-        "device": "Launchkey MK4 49 DAW Out",
-        "controller": 5
+        "channel": 1,
+        "device": "APC mini mk2 Control",
+        "controller": 56
       },
       "mixer": {
         "action": "volume",
         "channel": {
-          "type": "LINE",
+          "type": "MAIN",
           "channel": 1
         }
       }

@@ -41,11 +41,17 @@ export interface MappingPreset {
   name: string;
   version: string;
   description?: string;
-  mixerIp?: string;       // Preferred mixer IP address
+  mixerIp?: string;         // Preferred mixer IP address
+  mixerModel?: string;      // Remembered mixer model (e.g. "StudioLive 32")
+  mixerDeviceName?: string; // Remembered mixer device name (user-assigned label)
+  mixerSerial?: string;     // Remembered mixer serial number
   midiDevice?: string;    // Legacy: single preferred MIDI device (backward compat)
   midiDevices?: string[]; // Preferred MIDI device names (multi-device)
-  faderFilter?: 'all' | 'mapped';  // Fader filter state
+  midiDeviceColors?: Record<string, string>;  // Per-device colors e.g. { "Launchkey 49": "#ff6600" }
+  faderFilter?: 'all' | 'added' | 'mapped';  // Fader filter state
   midiFeedbackEnabled?: boolean;  // MIDI feedback enabled state
+  levelVisibility?: 'none' | 'indicator' | 'meter';  // Channel level display mode
+  peakHold?: boolean;  // Peak hold for meter mode
   mappings: MidiMapping[];
 }
 

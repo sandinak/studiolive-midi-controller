@@ -1,7 +1,7 @@
 // Mixer Manager - Wraps the StudioLive API for easier control
 
 import { SimpleClient as StudioLiveClient } from 'presonus-studiolive-api/simple';
-import { Client } from 'presonus-studiolive-api';
+import { Client, Discovery } from 'presonus-studiolive-api';
 import type { ChannelSelector, DiscoveryType } from 'presonus-studiolive-api';
 import { EventEmitter } from 'events';
 
@@ -10,6 +10,7 @@ export class MixerManager extends EventEmitter {
   private mixerIp: string | null = null;
   private mixerModel: string | null = null;
   private mixerDeviceName: string | null = null;
+  private mixerSerial: string | null = null;
   private muteGroupPollInterval: NodeJS.Timeout | null = null;
   private lastMuteGroupStates: boolean[] = [false, false, false, false, false, false, false, false];
   private dcaLevelPollInterval: NodeJS.Timeout | null = null;
@@ -23,7 +24,7 @@ export class MixerManager extends EventEmitter {
   /**
    * Connect to the StudioLive mixer
    */
-  async connect(ipAddress: string, model?: string, deviceName?: string): Promise<void> {
+  async connect(ipAddress: string, model?: string, deviceName?: string, serial?: string): Promise<void> {
     if (this.client) {
       await this.disconnect();
     }
@@ -34,6 +35,7 @@ export class MixerManager extends EventEmitter {
       this.mixerIp = ipAddress;
       this.mixerModel = model || null;
       this.mixerDeviceName = deviceName || null;
+      this.mixerSerial = serial || null;
 
       // Set up event listeners
       this.client.on('level', (data) => {
@@ -100,6 +102,16 @@ export class MixerManager extends EventEmitter {
 
       await this.client.connect();
 
+      // Subscribe to real-time audio meter data in background — must NOT block connect
+      const clientRef = this.client;
+      (clientRef as any).meterSubscribe()
+        .then(() => {
+          clientRef.on('meter' as any, (data: any) => {
+            this.emit('meter', data);
+          });
+        })
+        .catch((_e: any) => { /* Non-fatal: meters unavailable */ });
+
       // Give the state a moment to populate
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -131,6 +143,9 @@ export class MixerManager extends EventEmitter {
       // Stop polling
       this.stopMuteGroupPolling();
       this.stopDCALevelPolling();
+
+      // Unsubscribe from meter data before closing
+      try { (this.client as any).meterUnsubscribe(); } catch (_e) {}
 
       // Method is 'close' not 'disconnect'
       await this.client.close();
@@ -238,6 +253,13 @@ export class MixerManager extends EventEmitter {
   }
 
   /**
+   * Get current mixer serial number
+   */
+  getMixerSerial(): string | null {
+    return this.mixerSerial;
+  }
+
+  /**
    * Get current mixer name (for backward compatibility)
    * Returns device name if available, otherwise model
    */
@@ -273,6 +295,28 @@ export class MixerManager extends EventEmitter {
   static async discover(timeout = 10000): Promise<DiscoveryType[]> {
     const devices = await Client.discover(timeout);
     return devices;
+  }
+
+  /**
+   * Discover mixers with a per-device callback fired as each is found.
+   * Returns all discovered devices once the timeout expires.
+   */
+  static async discoverProgressive(timeout = 10000, onDevice: (device: DiscoveryType) => void): Promise<DiscoveryType[]> {
+    const discovery = new Discovery();
+    const collected: DiscoveryType[] = [];
+    const seen = new Set<string>();
+
+    discovery.on('discover', (device: DiscoveryType) => {
+      const key = device.serial || device.ip;
+      if (!seen.has(key)) {
+        seen.add(key);
+        collected.push(device);
+        onDevice(device);
+      }
+    });
+
+    await discovery.start(timeout);
+    return collected;
   }
 
   /**

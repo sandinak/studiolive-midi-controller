@@ -1,8 +1,8 @@
 # StudioLive MIDI Controller
 
-Bidirectional MIDI control for PreSonus StudioLive III mixers. Map DAW faders and automation to your mixer's physical faders over the network — built on the [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api) by Andrew Wong.
+MIDI control for PreSonus StudioLive III mixers. Map DAW faders and automation to your mixer's physical faders over the network — built on [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api) by Andrew Wong; and builds on the ideas in https://github.com/featherbear/presonus-studiolive-api-midi-integration.git to provide a visual interface for mapping and monitoring. This tool is not meant as a replacment for Fender Universal Connect, but more an adjunct to it to allow users to control the mixer from their DAW, control surfaces, or other MIDI controllers.  
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Features
@@ -15,7 +15,7 @@ Bidirectional MIDI control for PreSonus StudioLive III mixers. Map DAW faders an
 - **Persistent reconnection** — automatically reconnects to configured MIDI and mixer
 - **Profile management** — save/load complete configurations
 - **Filter modes** — view all, mapped only, DCA groups, or custom groups
-- **Channel colors & icons** — pulled from mixer configuration
+- **Channel labels, colors & icons** — set based on mixer configuration
 
 ## Quick Start
 
@@ -28,7 +28,6 @@ cd studiolive-midi-controller
 # Install, build, run
 npm install && npm run build && npm start
 ```
-
 Or download the latest DMG from [Releases](https://github.com/sandinak/studiolive-midi-controller/releases).
 
 ## Documentation
@@ -44,6 +43,10 @@ Or download the latest DMG from [Releases](https://github.com/sandinak/studioliv
 ## Acknowledgments
 
 Built on the excellent [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api) by Andrew Wong (featherbear).
+
+## Disclaimer
+
+Not affiliated with or endorsed by PreSonus. StudioLive is a trademark of PreSonus.
 
 ## License
 

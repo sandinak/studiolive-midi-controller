@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudioLive MIDI Controller — Docs</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0d0d;
+      --surface:  #161616;
+      --border:   #2a2a2a;
+      --accent:   #4a9b7f;
+      --accent2:  #58a6ff;
+      --text:     #e0e0e0;
+      --muted:    #888;
+      --warn:     #f4c430;
+      --danger:   #f44336;
+      --green:    #4CAF50;
+      --sidebar-w: 220px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 15px;
+      line-height: 1.65;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar nav ─────────────────────────────────────────── */
+    nav {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 24px 0 40px;
+    }
+
+    nav .nav-brand {
+      padding: 0 18px 18px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 12px;
+    }
+    nav .nav-brand h1 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1.3;
+    }
+    nav .nav-brand small { font-size: 0.72rem; color: var(--muted); }
+
+    nav a {
+      display: block;
+      padding: 5px 18px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.82rem;
+      border-left: 2px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    nav a:hover { color: var(--text); border-left-color: var(--accent); }
+    nav .nav-section {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      padding: 14px 18px 4px;
+    }
+
+    /* ── Main content ────────────────────────────────────────── */
+    main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      padding: 48px 56px 80px;
+      max-width: 900px;
+    }
+
+    section { margin-bottom: 64px; }
+    section:target > h2 { color: var(--accent); }
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #ccc;
+      margin: 28px 0 10px;
+    }
+    h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 20px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    p { margin-bottom: 12px; color: #c0c0c0; }
+    ul, ol { margin: 8px 0 14px 22px; color: #c0c0c0; }
+    li { margin-bottom: 5px; }
+    a { color: var(--accent2); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code {
+      background: #1e1e1e;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      font-size: 0.85em;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #ce9178;
+    }
+    pre {
+      background: #1a1a1a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 18px;
+      overflow-x: auto;
+      margin: 12px 0 18px;
+    }
+    pre code { background: none; border: none; padding: 0; color: #d4d4d4; font-size: 0.85rem; }
+
+    strong { color: var(--text); }
+
+    /* ── Hero header ─────────────────────────────────────────── */
+    .hero {
+      margin-bottom: 56px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .hero h1 {
+      font-size: 2.1rem;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .hero .subtitle { color: var(--muted); font-size: 1rem; margin-bottom: 18px; }
+    .hero-links { display: flex; gap: 12px; flex-wrap: wrap; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid;
+      transition: opacity 0.15s;
+    }
+    .pill:hover { opacity: 0.8; text-decoration: none; }
+    .pill-green { background: rgba(74,155,127,0.15); border-color: var(--accent); color: var(--accent); }
+    .pill-blue  { background: rgba(88,166,255,0.12); border-color: var(--accent2); color: var(--accent2); }
+
+    /* ── Screenshot / image ──────────────────────────────────── */
+    figure.screenshot { margin: 20px 0 28px; }
+    figure.screenshot img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+    .img-placeholder {
+      width: 100%;
+      min-height: 180px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      background: rgba(255,255,255,0.02);
+      padding: 24px;
+    }
+    .img-placeholder em { color: #aaa; }
+    .img-placeholder code { font-size: 0.78rem; }
+    figcaption {
+      margin-top: 8px;
+      font-size: 0.8rem;
+      color: var(--muted);
+      font-style: italic;
+      text-align: center;
+    }
+
+    /* ── Annotation grid (side-by-side image + callouts) ─────── */
+    .annotated {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+      margin: 20px 0 28px;
+    }
+    @media (max-width: 700px) { .annotated { grid-template-columns: 1fr; } }
+
+    .callouts { list-style: none; margin: 0; padding: 0; }
+    .callouts li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: #c0c0c0;
+    }
+    .callouts li:last-child { border-bottom: none; }
+    .callout-num {
+      background: var(--accent);
+      color: #000;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    /* ── Tables ──────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 14px 0 20px;
+      font-size: 0.88rem;
+    }
+    th {
+      text-align: left;
+      padding: 8px 12px;
+      background: rgba(74,155,127,0.1);
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: #c0c0c0;
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── Callout boxes ───────────────────────────────────────── */
+    .note, .tip, .warning {
+      border-left: 3px solid;
+      padding: 10px 16px;
+      margin: 16px 0;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+    }
+    .note    { border-color: var(--accent2); background: rgba(88,166,255,0.06); }
+    .tip     { border-color: var(--accent);  background: rgba(74,155,127,0.06); }
+    .warning { border-color: var(--warn);    background: rgba(244,196,48,0.06); }
+    .note strong, .tip strong, .warning strong { display: block; margin-bottom: 3px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .note strong { color: var(--accent2); }
+    .tip strong  { color: var(--accent); }
+    .warning strong { color: var(--warn); }
+
+    /* ── Step list ───────────────────────────────────────────── */
+    ol.steps { margin-left: 0; list-style: none; counter-reset: step; }
+    ol.steps li {
+      counter-increment: step;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 14px;
+      align-items: flex-start;
+    }
+    ol.steps li::before {
+      content: counter(step);
+      background: var(--accent);
+      color: #000;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 800;
+      margin-top: 2px;
+    }
+
+    /* ── Badge replicas (for inline reference) ───────────────── */
+    .badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin: 0 2px;
+    }
+    .badge-green  { background: rgba(76,175,80,0.2);  color: #4CAF50; border: 1px solid rgba(76,175,80,0.4); }
+    .badge-yellow { background: rgba(244,196,48,0.2); color: #f4c430; border: 1px solid rgba(244,196,48,0.4); }
+    .badge-red    { background: rgba(244,67,54,0.2);  color: #f44336; border: 1px solid rgba(244,67,54,0.4); }
+    .badge-blue   { background: rgba(88,166,255,0.2); color: #58a6ff; border: 1px solid rgba(88,166,255,0.4); }
+    .badge-grey   { background: rgba(136,136,136,0.2);color: #888;    border: 1px solid rgba(136,136,136,0.4); }
+  </style>
+</head>
+<body>
+
+<!-- ── Sidebar ─────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-brand">
+    <h1><a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/CHANGELOG.md"
+           target="_blank" style="color:inherit;text-decoration:none;">StudioLive<br>MIDI Controller</a></h1>
+    <small>Documentation</small>
+  </div>
+
+  <div class="nav-section">Getting Started</div>
+  <a href="#overview">Overview</a>
+  <a href="#install">Installation</a>
+  <a href="#first-launch">First Launch</a>
+
+  <div class="nav-section">Interface</div>
+  <a href="#main-window">Main Window</a>
+  <a href="#channel-strip">Channel Strip</a>
+  <a href="#toolbar">Toolbar &amp; Filters</a>
+
+
+  <div class="nav-section">Operations</div>
+  <a href="#mappings">Creating Mappings</a>
+  <a href="#midi-modes">MIDI Modes</a>
+  <a href="#context-menus">Right-Click Menus</a>
+  <a href="#mute-groups">Mute Groups</a>
+  <a href="#profiles">Profiles</a>
+
+  <div class="nav-section">Integration</div>
+  <a href="#logic-pro">Logic Pro Setup</a>
+
+  <div class="nav-section">Reference</div>
+  <a href="#troubleshooting">Troubleshooting</a>
+  <a href="setup.md">Setup Guide ↗</a>
+  <a href="usage.md">Usage Guide ↗</a>
+  <a href="https://github.com/sandinak/studiolive-midi-controller">GitHub ↗</a>
+</nav>
+
+<!-- ── Content ─────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Hero -->
+  <div class="hero">
+    <h1><a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/CHANGELOG.md"
+           target="_blank" style="color:inherit;text-decoration:none;">StudioLive MIDI Controller</a></h1>
+    <p class="subtitle">MIDI control surface for PreSonus StudioLive III mixers — map DAW faders, mute, and solo to your mixer over the network.</p>
+    <div class="hero-links">
+      <a class="pill pill-green" href="#first-launch">⚡ Quick Start</a>
+      <a class="pill pill-blue"  href="https://github.com/sandinak/studiolive-midi-controller">GitHub</a>
+      <a class="pill pill-blue"  href="https://github.com/sandinak/studiolive-midi-controller/releases">Releases</a>
+    </div>
+  </div>
+
+  <!-- ── Overview ──────────────────────────────────────────────── -->
+  <section id="overview">
+    <h2>Overview</h2>
+    <p>StudioLive MIDI Controller bridges your DAW and your PreSonus StudioLive III mixer. Move a fader in Logic Pro (or any DAW with MIDI output) and the physical mixer fader moves in real time — and vice versa. You can also trigger mute/solo from pads or buttons on any MIDI controller.</p>
+    <p>It is not a replacement for Universal Control — it works <em>alongside</em> it, adding DAW-driven automation and remote control that Universal Control doesn't provide.</p>
+    <table>
+      <thead><tr><th>Feature</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>MIDI ↔ Mixer</strong></td><td>CC, Note, and Note-Value modes with real-time feedback</td></tr>
+        <tr><td><strong>All channel types</strong></td><td>LINE, AUX, FX, SUB, DCA, MAIN, and Mute Groups</td></tr>
+        <tr><td><strong>Stereo linking</strong></td><td>Automatic detection — paired L/R faders move together</td></tr>
+        <tr><td><strong>Auto-discovery</strong></td><td>Finds mixers on the local network via mDNS</td></tr>
+        <tr><td><strong>Auto-reconnect</strong></td><td>Reconnects to MIDI (3 s) and mixer (10 s) automatically</td></tr>
+        <tr><td><strong>Profiles</strong></td><td>Save and load complete configurations as JSON</td></tr>
+        <tr><td><strong>Filter modes</strong></td><td>All, Mapped-only, DCA groups, Auto-filter groups</td></tr>
+        <tr><td><strong>Level indicators</strong></td><td>Per-channel audio level dots (grey→green→yellow→red)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── Installation ──────────────────────────────────────────── -->
+  <section id="install">
+    <h2>Installation</h2>
+    <h3>From DMG (recommended)</h3>
+    <ol class="steps">
+      <li>Download the latest <strong>.dmg</strong> from <a href="https://github.com/sandinak/studiolive-midi-controller/releases">Releases</a>.</li>
+      <li>Open the DMG and drag <strong>StudioLive MIDI Controller</strong> to <strong>Applications</strong>.</li>
+      <li>Launch from Launchpad or Applications.</li>
+    </ol>
+    <h3>From Source</h3>
+    <pre><code>git clone https://github.com/featherbear/presonus-studiolive-api.git
+git clone https://github.com/sandinak/studiolive-midi-controller.git
+cd studiolive-midi-controller
+npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
+    <div class="note"><strong>Note</strong>The <code>presonus-studiolive-api</code> repo must be cloned <em>alongside</em> this repo in the same parent directory — it is referenced as a local dependency.</div>
+  </section>
+
+  <!-- ── First Launch ──────────────────────────────────────────── -->
+  <section id="first-launch">
+    <h2>First Launch</h2>
+
+    <h3>1 — Connect to your mixer</h3>
+    <ol class="steps">
+      <li>Click the <strong>Mixer</strong> status dot in the header.</li>
+      <li>Click <strong>Discover Mixers</strong>. Found mixers appear as they are detected.</li>
+      <li>Click <strong>Connect</strong> next to your mixer. The IP is saved for automatic reconnection on future launches.</li>
+    </ol>
+    <figure class="screenshot">
+      <img src="images/mixer-discovery.png" alt="Mixer discovery dialog"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>Mixer Discovery Dialog</em>
+        <code>docs/images/mixer-discovery.png</code>
+      </div>
+      <figcaption>Mixer discovery — mixers appear progressively as the scan runs.</figcaption>
+    </figure>
+
+    <h3>2 — Connect a MIDI device</h3>
+    <ol class="steps">
+      <li>Click the <strong>MIDI</strong> status dot in the header.</li>
+      <li>Select your device (e.g. <em>Logic Pro Virtual In</em>) and click <strong>Connect</strong>.</li>
+      <li>Optionally assign a colour to the device — all mappings from it are highlighted with that colour.</li>
+    </ol>
+    <figure class="screenshot">
+      <img src="images/midi-modal.png" alt="MIDI device selection"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>MIDI Device Selection</em>
+        <code>docs/images/midi-modal.png</code>
+      </div>
+      <figcaption>MIDI device list — connect a device and assign it a colour.</figcaption>
+    </figure>
+
+    <h3>3 — Create your first mapping</h3>
+    <ol class="steps">
+      <li>Double-click any channel fader, or right-click → <strong>Edit Volume</strong>.</li>
+      <li>Set <strong>MIDI Type</strong>, <strong>Channel</strong>, and the CC/Note number.</li>
+      <li>Click <strong>Save</strong>. The fader border glows with the device colour.</li>
+    </ol>
+
+    <h3>4 — Save your profile</h3>
+    <p>Click <strong>Save</strong> in the toolbar. Your mixer IP, MIDI device, and all mappings are stored as a JSON preset file.</p>
+  </section>
+
+  <!-- ── Main Window ───────────────────────────────────────────── -->
+  <section id="main-window">
+    <h2>Main Window</h2>
+    <figure class="screenshot">
+      <img src="images/main-window.png" alt="Main window overview"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>Full Application Screenshot</em>
+        <code>docs/images/main-window.png</code>
+      </div>
+      <figcaption>The main interface: header bar, filter toolbar, channel strip area, and fixed status bar.</figcaption>
+    </figure>
+
+    <div class="annotated">
+      <div>
+        <figure class="screenshot">
+          <img src="images/main-window-annotated.png" alt="Annotated main window"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="img-placeholder" style="display:none; min-height:240px">
+            📸 <em>Annotated Main Window</em>
+            <code>docs/images/main-window-annotated.png</code>
+          </div>
+        </figure>
+      </div>
+      <ul class="callouts">
+        <li><span class="callout-num">1</span><span><strong>Header bar</strong> — connection status dots (mixer + MIDI), unsaved-changes indicator, and the version number (click to open this changelog).</span></li>
+        <li><span class="callout-num">2</span><span><strong>Toolbar</strong> — Save, Load, Add Channel, filter dropdown, and mute-group buttons.</span></li>
+        <li><span class="callout-num">3</span><span><strong>Channel strip area</strong> — horizontal row of faders, right-justified. Channels fill from the right; scrolls left when there are more channels than fit.</span></li>
+        <li><span class="callout-num">4</span><span><strong>Status bar</strong> — connection log, current mixer name, MIDI activity, and app version.</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ── Channel Strip ─────────────────────────────────────────── -->
+  <section id="channel-strip">
+    <h2>Channel Strip</h2>
+    <div class="annotated">
+      <div>
+        <figure class="screenshot">
+          <img src="images/channel-strip.png" alt="Channel strip anatomy"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="img-placeholder" style="display:none; min-height:320px">
+            📸 <em>Single Channel Strip</em>
+            <code>docs/images/channel-strip.png</code>
+          </div>
+        </figure>
+      </div>
+      <ul class="callouts">
+        <li><span class="callout-num">1</span><span><strong>Main assign badge</strong> — click to toggle routing to the MAIN mix. Lit = assigned.</span></li>
+        <li><span class="callout-num">2</span><span><strong>Input source icon</strong> — shows the physical input type: XLR/Analog, Network, USB, or SD Card.</span></li>
+        <li><span class="callout-num">3</span><span><strong>M button</strong> — toggle mute. Right-click to edit or learn a MIDI mapping for mute.</span></li>
+        <li><span class="callout-num">4</span><span><strong>S button</strong> — toggle solo. Glows yellow when active. Right-click to map.</span></li>
+        <li><span class="callout-num">5</span><span><strong>Fader</strong> — drag to adjust level. The orange line shows the current MIDI-received position. Right-click → Edit/Learn volume mapping.</span></li>
+        <li><span class="callout-num">6</span><span><strong>Channel icon &amp; number</strong> — emoji icon from mixer config. The small dot to the left of the number is the <strong>level indicator</strong>.</span></li>
+        <li><span class="callout-num">7</span><span><strong>Channel label</strong> — name from the mixer (editable in Universal Control).</span></li>
+        <li><span class="callout-num">8</span><span><strong>MIDI mapping badge</strong> — shows the CC/Note assigned to this channel. Border colour matches the MIDI device colour.</span></li>
+      </ul>
+    </div>
+
+    <h3>Level Indicator Dot</h3>
+    <p>The small dot to the left of each channel number reflects the live audio level from the mixer's meter stream:</p>
+    <table>
+      <thead><tr><th>Colour</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-grey">●</span> Grey</td><td>Silent / no signal</td></tr>
+        <tr><td><span class="badge badge-green">●</span> Green</td><td>Normal level</td></tr>
+        <tr><td><span class="badge badge-yellow">●</span> Yellow</td><td>Approaching 0 dBFS — watch the level</td></tr>
+        <tr><td><span class="badge badge-red">●</span> Red</td><td>Peaking / clipping</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Fader Glow (change source)</h3>
+    <p>When a fader value changes, its container briefly glows to show <em>who</em> changed it:</p>
+    <table>
+      <thead><tr><th>Glow colour</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge badge-green">Green</span></td><td>MIDI input (DAW / controller)</td></tr>
+        <tr><td><span class="badge badge-blue">Blue</span></td><td>Mixer / Universal Control</td></tr>
+        <tr><td>Purple</td><td>Dragged in this app</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Stereo Channels</h3>
+    <p>Stereo-linked channel pairs (configured on the mixer) are shown as two narrow faders side by side, labelled <em>11/12</em>. Moving one moves both.</p>
+  </section>
+
+  <!-- ── Toolbar ───────────────────────────────────────────────── -->
+  <section id="toolbar">
+    <h2>Toolbar &amp; Filter Modes</h2>
+    <figure class="screenshot">
+      <img src="images/toolbar.png" alt="Toolbar"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none; min-height:80px">
+        📸 <em>Filter Toolbar</em>
+        <code>docs/images/toolbar.png</code>
+      </div>
+      <figcaption>The toolbar: save/load, channel management, filter selector, and mute-group buttons.</figcaption>
+    </figure>
+
+    <h3>Filter Modes</h3>
+    <table>
+      <thead><tr><th>Mode</th><th>Shows</th></tr></thead>
+      <tbody>
+        <tr><td><strong>All</strong></td><td>All LINE channels plus any non-LINE mapped channels. MAIN always appears.</td></tr>
+        <tr><td><strong>Mapped</strong></td><td>Only channels that have at least one MIDI mapping (volume, mute, or solo).</td></tr>
+        <tr><td><strong>DCA 1–8</strong></td><td>Channels assigned to that DCA group on the mixer.</td></tr>
+        <tr><td><strong>Auto-filter groups</strong></td><td>Custom channel groupings defined in Universal Control.</td></tr>
+      </tbody>
+    </table>
+    <div class="tip"><strong>Tip</strong>MAIN is always shown regardless of the active filter — it is anchored to the far right of the strip area.</div>
+  </section>
+
+
+  <!-- ── Mappings ──────────────────────────────────────────────── -->
+  <section id="mappings">
+    <h2>Creating Mappings</h2>
+    <p>A <em>mapping</em> links one MIDI message (CC, Note, or Note-Value) to one mixer action (volume, mute, or solo) on one channel.</p>
+
+    <h3>Add or edit a volume mapping</h3>
+    <ol class="steps">
+      <li>Double-click the fader, or right-click it → <strong>✏️ Edit Volume</strong>.</li>
+      <li>In the mapping dialog, set <strong>MIDI Type</strong>, <strong>MIDI Channel</strong>, and the CC or Note number.</li>
+      <li>Optionally click <strong>🎹 Listen</strong> — move a fader/knob on your controller and the CC number fills in automatically.</li>
+      <li>Click <strong>Save</strong>.</li>
+    </ol>
+    <figure class="screenshot">
+      <img src="images/mapping-modal.png" alt="Mapping modal"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>Add / Edit Mapping Dialog</em>
+        <code>docs/images/mapping-modal.png</code>
+      </div>
+      <figcaption>The mapping dialog — set MIDI type, channel, CC/Note, and optionally use MIDI Learn.</figcaption>
+    </figure>
+
+    <h3>Add or edit a mute / solo mapping</h3>
+    <ol class="steps">
+      <li>Right-click the <strong>M</strong> button → <strong>✏️ Edit Mute Mapping</strong>.</li>
+      <li>Set <strong>MIDI Type</strong> to <em>Note</em> and the note number that your controller sends.</li>
+      <li>Click <strong>Save</strong>. The M button border now glows with the device colour when mapped.</li>
+    </ol>
+    <p>The same flow applies to solo (<strong>S</strong> button).</p>
+
+    <h3>MIDI Learn</h3>
+    <p>Use right-click → <strong>🎹 Learn Volume / Mute / Solo</strong> on any channel to open the mapping dialog <em>and</em> immediately start listening. Move the intended knob or pad on your controller and it maps automatically.</p>
+
+    <h3>Clear a mapping</h3>
+    <p>Right-click the channel strip → <strong>🧹 Clear All MIDI Mappings</strong> to remove volume, mute, and solo mappings for that channel in one step.</p>
+  </section>
+
+  <!-- ── MIDI Modes ─────────────────────────────────────────────── -->
+  <section id="midi-modes">
+    <h2>MIDI Modes</h2>
+    <table>
+      <thead><tr><th>Mode</th><th>MIDI message</th><th>Best for</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>CC</strong></td>
+          <td>Control Change (CC 0–127, value 0–127 mapped to fader range)</td>
+          <td>DAW fader automation, knobs, sliders</td>
+        </tr>
+        <tr>
+          <td><strong>Note</strong></td>
+          <td>Note On/Off (fixed velocity)</td>
+          <td>Pads and buttons for mute/solo/toggles</td>
+        </tr>
+        <tr>
+          <td><strong>Note-Value</strong></td>
+          <td>Note On with velocity mapped to level</td>
+          <td>Velocity-sensitive pads used as faders</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="tip"><strong>Logic Pro tip</strong>Use <strong>CC7</strong> (Volume) on the track automation lane for fader control, or draw in CC automation on a dedicated External MIDI track routed to <em>Logic Pro Virtual Out</em>.</div>
+  </section>
+
+  <!-- ── Context Menus ─────────────────────────────────────────── -->
+  <section id="context-menus">
+    <h2>Right-Click Menus</h2>
+    <figure class="screenshot">
+      <img src="images/context-menus.png" alt="Context menus"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>All Three Context Menus Side-by-Side</em>
+        <code>docs/images/context-menus.png</code>
+      </div>
+      <figcaption>Left to right: channel strip, mute button, and solo button context menus.</figcaption>
+    </figure>
+    <table>
+      <thead><tr><th>Target</th><th>Right-click shows</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Channel strip</strong></td>
+          <td>✏️ Edit Volume · 🎹 Learn Volume · 🧹 Clear All MIDI Mappings</td>
+        </tr>
+        <tr>
+          <td><strong>M button</strong></td>
+          <td>✏️ Edit Mute Mapping · 🎹 Learn Mute Mapping</td>
+        </tr>
+        <tr>
+          <td><strong>S button</strong></td>
+          <td>✏️ Edit Solo Mapping · 🎹 Learn Solo Mapping</td>
+        </tr>
+        <tr>
+          <td><strong>Mute Group button</strong></td>
+          <td>✏️ Edit Mute Group Mapping · 🎹 Learn Mute Group Mapping</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>Right-clicking anywhere outside an open menu dismisses it.</p>
+  </section>
+
+  <!-- ── Mute Groups ───────────────────────────────────────────── -->
+  <section id="mute-groups">
+    <h2>Mute Groups</h2>
+    <p>Mute groups are defined on the mixer itself (in Universal Control). The app reads them and shows a button for each active group in the toolbar.</p>
+    <ul>
+      <li>Click a mute-group button to toggle muting of all assigned channels simultaneously.</li>
+      <li>Right-click a mute-group button to map it to a MIDI pad or note.</li>
+      <li>The button glows when the group is active (at least one channel muted by the group).</li>
+    </ul>
+    <figure class="screenshot">
+      <img src="images/mute-groups.png" alt="Mute group buttons"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none; min-height:80px">
+        📸 <em>Mute Group Buttons in Toolbar</em>
+        <code>docs/images/mute-groups.png</code>
+      </div>
+      <figcaption>Mute group buttons — each one maps to a group defined on the mixer.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ── Profiles ──────────────────────────────────────────────── -->
+  <section id="profiles">
+    <h2>Profiles</h2>
+    <p>A profile stores your entire configuration as a JSON file:</p>
+    <ul>
+      <li>Mixer IP (used for auto-reconnect on next launch)</li>
+      <li>MIDI device name and colour</li>
+      <li>All volume, mute, solo, and mute-group mappings</li>
+      <li>Display preferences (fader smoothing, level display)</li>
+    </ul>
+    <p>Profiles are saved to:</p>
+    <pre><code>~/Library/Application Support/studiolive-midi-controller/presets/</code></pre>
+    <table>
+      <thead><tr><th>Action</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Save</strong></td><td>Toolbar → <em>Save</em> (or <em>Save As…</em> for a new file). The orange unsaved-changes dot disappears.</td></tr>
+        <tr><td><strong>Load</strong></td><td>Toolbar → <em>Load</em>. Channels update immediately.</td></tr>
+        <tr><td><strong>Auto-save</strong></td><td>Certain preference changes (smoothing, colours) auto-save to the current profile.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── Logic Pro ─────────────────────────────────────────────── -->
+  <section id="logic-pro">
+    <h2>Logic Pro Setup</h2>
+
+    <h3>Quickest path — External Instrument track</h3>
+    <ol class="steps">
+      <li>Create an <strong>External Instrument</strong> track in Logic Pro.</li>
+      <li>Set <strong>MIDI Destination</strong> to <em>Logic Pro Virtual Out</em> and the <strong>MIDI Channel</strong> to match your mapping.</li>
+      <li>Enable Automation (<kbd>A</kbd>) and draw volume automation on the track.</li>
+    </ol>
+
+    <h3>Dedicated fader panel — MIDI Environment</h3>
+    <ol class="steps">
+      <li>Open MIDI Environment: hold <kbd>Option</kbd>, click <em>Window</em> → <em>Open MIDI Environment</em>.</li>
+      <li>Create a layer named <em>StudioLive Mixer</em>.</li>
+      <li>Add a <strong>Physical Output</strong> pointing to <em>Logic Pro Virtual Out</em>.</li>
+      <li>Add <strong>Fader</strong> objects (CC 1–8 for volume, etc.) and cable them to the Physical Output.</li>
+    </ol>
+    <p>See <a href="LOGIC_ENVIRONMENT_QUICK_REFERENCE.md">Logic Environment Quick Reference</a> for detailed settings tables.</p>
+
+    <div class="warning"><strong>Important</strong>Make sure the MIDI channel numbers in Logic match the channels set in the app's mapping dialog. Mismatched channels are the most common cause of faders not responding.</div>
+  </section>
+
+  <!-- ── Troubleshooting ───────────────────────────────────────── -->
+  <section id="troubleshooting">
+    <h2>Troubleshooting</h2>
+
+    <h3>Mixer not found during discovery</h3>
+    <ul>
+      <li>Ensure the mixer and your Mac are on the same subnet.</li>
+      <li>Check firewall — allow port <strong>53000</strong> (UDP and TCP).</li>
+      <li>Try entering the IP manually in the Mixer connection panel.</li>
+    </ul>
+
+    <h3>MIDI not working</h3>
+    <ul>
+      <li>Check the MIDI status dot in the header — it must be green.</li>
+      <li>Open the <strong>MIDI Log</strong> and verify messages arrive when you move a knob.</li>
+      <li>Confirm MIDI channels match between the DAW track and the mapping.</li>
+    </ul>
+
+    <h3>Faders not responding (DAW → Mixer)</h3>
+    <ul>
+      <li>Both mixer and MIDI dots must be green.</li>
+      <li>Verify the mapping uses the correct CC and MIDI channel.</li>
+      <li>In Logic, make sure the track's MIDI output is set to <em>Logic Pro Virtual Out</em>.</li>
+    </ul>
+
+    <h3>Jerky fader movement</h3>
+    <ul>
+      <li>Increase <strong>Fader Smoothing</strong> in Preferences (try 400–500 ms).</li>
+      <li>Use a wired network connection rather than Wi-Fi.</li>
+    </ul>
+
+    <h3>Level dots always grey</h3>
+    <ul>
+      <li>The mixer meter stream requires an active connection — check the mixer status dot.</li>
+      <li>Play audio through the mixer and confirm signal is present on the physical meters.</li>
+    </ul>
+
+    <h3>Profile not loading</h3>
+    <ul>
+      <li>Check the preset directory: <code>~/Library/Application Support/studiolive-midi-controller/presets/</code></li>
+      <li>Verify the JSON is valid (open in a text editor).</li>
+    </ul>
+  </section>
+
+</main>
+</body>
+</html>
