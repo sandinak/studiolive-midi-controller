@@ -230,38 +230,60 @@ export class MidiManager extends EventEmitter {
   /**
    * Scan ALL available MIDI input ports simultaneously for any incoming message.
    * Used in MIDI learn mode to detect which port a signal comes from.
+   *
+   * For ports already open in this.inputs, temporary listeners are added to the
+   * EXISTING Input instance to avoid double-opening (which causes duplicate events
+   * on macOS CoreMIDI). For other ports, a new Input is opened for the scan only.
+   *
    * Returns a cleanup function to stop scanning.
    */
   scanAllInputs(callback: (deviceName: string, message: MidiMessage) => void): () => void {
-    const scanInputs: easymidi.Input[] = [];
+    type TempListener = { input: easymidi.Input; event: string; fn: (...args: any[]) => void };
+    const tempListeners: TempListener[] = [];
+    const scanOnlyInputs: easymidi.Input[] = [];
     const deviceNames = this.getAvailableDevices();
 
     for (const name of deviceNames) {
-      try {
-        const scanInput = new easymidi.Input(name);
-
-        const wrapCC = (msg: any) => {
+      const makeWrappers = (input: easymidi.Input) => {
+        const wrapCC = (msg: any) =>
           callback(name, { type: 'cc', channel: msg.channel + 1, controller: msg.controller, value: msg.value, device: name });
-        };
-        const wrapNoteOn = (msg: any) => {
+        const wrapNoteOn = (msg: any) =>
           callback(name, { type: 'note_on', channel: msg.channel + 1, note: msg.note, value: msg.velocity, device: name });
-        };
-        const wrapPitch = (msg: any) => {
+        const wrapPitch = (msg: any) =>
           callback(name, { type: 'pitch_bend', channel: msg.channel + 1, value: msg.value, device: name });
-        };
 
-        scanInput.on('cc', wrapCC);
-        scanInput.on('noteon', wrapNoteOn);
-        scanInput.on('pitch', wrapPitch);
+        input.on('cc', wrapCC);
+        input.on('noteon', wrapNoteOn);
+        input.on('pitch', wrapPitch);
 
-        scanInputs.push(scanInput);
-      } catch (_e) {
-        // Skip devices that can't be opened
+        tempListeners.push(
+          { input, event: 'cc',     fn: wrapCC },
+          { input, event: 'noteon', fn: wrapNoteOn },
+          { input, event: 'pitch',  fn: wrapPitch },
+        );
+      };
+
+      if (this.inputs.has(name)) {
+        // Reuse existing Input — avoids duplicate messages on macOS CoreMIDI
+        makeWrappers(this.inputs.get(name)!);
+      } else {
+        try {
+          const scanInput = new easymidi.Input(name);
+          makeWrappers(scanInput);
+          scanOnlyInputs.push(scanInput);
+        } catch (_e) {
+          // Skip ports that can't be opened
+        }
       }
     }
 
     return () => {
-      for (const scanInput of scanInputs) {
+      // Remove temporary listeners from existing inputs
+      for (const { input, event, fn } of tempListeners) {
+        try { input.removeListener(event, fn); } catch (_e) { /* ignore */ }
+      }
+      // Close scan-only inputs
+      for (const scanInput of scanOnlyInputs) {
         try { scanInput.close(); } catch (_e) { /* ignore */ }
       }
     };

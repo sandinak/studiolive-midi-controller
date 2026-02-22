@@ -14,17 +14,90 @@ export class MappingEngine extends EventEmitter {
   private faderFilter: 'all' | 'mapped' = 'all';
   private midiFeedbackEnabled: boolean = true;
 
+  // O(1) lookup structures — rebuilt on every mappings mutation
+  private midiLookup: Map<string, MidiMapping> = new Map();
+  private noteValueMappings: MidiMapping[] = [];   // range-based — must linear-scan
+  private volumeLookup: Map<string, MidiMapping> = new Map();
+
   constructor() {
     super();
   }
+
+  // ---------------------------------------------------------------------------
+  // Lookup table management
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Rebuild all O(1) lookup structures from the current mappings array.
+   * Must be called whenever this.mappings changes.
+   */
+  private rebuildLookup(): void {
+    this.midiLookup.clear();
+    this.noteValueMappings = [];
+    this.volumeLookup.clear();
+
+    for (const m of this.mappings) {
+      // ---- MIDI lookup (for translateMidiToMixer) ----
+      const device = m.midi.device ?? '';
+
+      if (m.midi.type === 'cc') {
+        // Key includes device so per-device mappings don't overwrite global ones
+        const key = `cc-${device}-${m.midi.channel}-${m.midi.controller}`;
+        this.midiLookup.set(key, m);
+      } else if (
+        m.midi.type === 'note' ||
+        m.midi.type === 'note-on' ||
+        m.midi.type === 'note-off' ||
+        m.midi.type === 'note-toggle'
+      ) {
+        const key = `note-${device}-${m.midi.channel}-${m.midi.note}`;
+        this.midiLookup.set(key, m);
+      } else if (m.midi.type === 'note-value') {
+        // Range-based — cannot use a single Map key; kept in a separate small list
+        this.noteValueMappings.push(m);
+      }
+
+      // ---- Volume lookup (for MIDI feedback on level events) ----
+      if (m.mixer.action === 'volume' && 'type' in m.mixer.channel) {
+        const chType = ((m.mixer.channel as any).type || 'LINE').toUpperCase();
+        const chNum  = (m.mixer.channel as any).channel;
+        if (chNum !== undefined) {
+          this.volumeLookup.set(`${chType}-${chNum}`, m);
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preset management
+  // ---------------------------------------------------------------------------
 
   /**
    * Load a mapping preset from file
    */
   loadPreset(presetPath: string): void {
     try {
+      // Reject oversized files before reading
+      const MAX_PRESET_SIZE = 5_242_880; // 5 MB
+      const stat = fs.statSync(presetPath);
+      if (stat.size > MAX_PRESET_SIZE) {
+        throw new Error(`Preset file too large: ${stat.size} bytes`);
+      }
+
       const data = fs.readFileSync(presetPath, 'utf-8');
       const preset: MappingPreset = JSON.parse(data);
+
+      // Basic schema validation
+      if (!preset || typeof preset !== 'object') {
+        throw new Error('Invalid preset: not an object');
+      }
+      if (!Array.isArray(preset.mappings)) {
+        throw new Error('Invalid preset: mappings must be an array');
+      }
+      if (typeof preset.name !== 'string' || !preset.name) {
+        throw new Error('Invalid preset: name is required');
+      }
+
       this.mappings = preset.mappings;
       this.currentPreset = preset.name;
       this.currentPresetPath = presetPath;
@@ -39,6 +112,8 @@ export class MappingEngine extends EventEmitter {
       }
       this.faderFilter = preset.faderFilter || 'all';
       this.midiFeedbackEnabled = preset.midiFeedbackEnabled !== undefined ? preset.midiFeedbackEnabled : true;
+
+      this.rebuildLookup();
       this.emit('preset-loaded', preset);
     } catch (error) {
       this.emit('error', error);
@@ -92,11 +167,16 @@ export class MappingEngine extends EventEmitter {
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Mapping CRUD
+  // ---------------------------------------------------------------------------
+
   /**
    * Add a new mapping
    */
   addMapping(mapping: MidiMapping): void {
     this.mappings.push(mapping);
+    this.rebuildLookup();
     this.emit('mapping-added', mapping);
   }
 
@@ -106,6 +186,7 @@ export class MappingEngine extends EventEmitter {
   removeMapping(index: number): void {
     if (index >= 0 && index < this.mappings.length) {
       const removed = this.mappings.splice(index, 1)[0];
+      this.rebuildLookup();
       this.emit('mapping-removed', removed);
     }
   }
@@ -116,6 +197,7 @@ export class MappingEngine extends EventEmitter {
   updateMapping(index: number, mapping: MidiMapping): void {
     if (index >= 0 && index < this.mappings.length) {
       this.mappings[index] = mapping;
+      this.rebuildLookup();
       this.emit('mapping-updated', mapping);
     }
   }
@@ -125,44 +207,63 @@ export class MappingEngine extends EventEmitter {
    */
   clearMappings(): void {
     this.mappings = [];
+    this.rebuildLookup();
     this.emit('mappings-cleared');
   }
 
   /**
-   * Get all current mappings
+   * Get all current mappings.
+   * Returns the internal array directly — callers must not mutate it.
+   * (IPC sends a structured-clone copy automatically; internal callers only read.)
    */
   getMappings(): MidiMapping[] {
-    return [...this.mappings];
+    return this.mappings;
   }
 
   /**
-   * Translate a MIDI message to a mixer command
+   * Find the volume mapping for a given channel type + number in O(1).
+   * Used for MIDI feedback when the mixer reports a level change.
+   */
+  findVolumeMapping(channelType: string, channelNumber: number): MidiMapping | undefined {
+    return this.volumeLookup.get(`${channelType.toUpperCase()}-${channelNumber}`);
+  }
+
+  // ---------------------------------------------------------------------------
+  // MIDI → Mixer translation
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Translate a MIDI message to a mixer command.
+   * Uses pre-built Maps for O(1) lookup on CC and note messages.
    */
   translateMidiToMixer(midiMessage: MidiMessage): MixerCommand | null {
-    // Find matching mapping
-    const mapping = this.mappings.find(m => {
-      // Device filter: if the mapping specifies a device, it must match the message's device
-      if (m.midi.device && midiMessage.device && m.midi.device !== midiMessage.device) {
-        return false;
-      }
+    let mapping: MidiMapping | undefined;
+    const msgDevice = midiMessage.device ?? '';
 
-      if (m.midi.type === 'cc' && midiMessage.type === 'cc') {
-        return m.midi.channel === midiMessage.channel &&
-               m.midi.controller === midiMessage.controller;
-      } else if (m.midi.type === 'note' && (midiMessage.type === 'note_on' || midiMessage.type === 'note_off')) {
-        return m.midi.channel === midiMessage.channel &&
-               m.midi.note === midiMessage.note;
-      } else if (m.midi.type === 'note-value' && midiMessage.type === 'note_on') {
-        // Note-value mode: match channel and check if note is in range
-        return m.midi.channel === midiMessage.channel &&
-               midiMessage.note !== undefined &&
-               (m.midi as any).noteMin !== undefined &&
-               (m.midi as any).noteMax !== undefined &&
-               midiMessage.note >= (m.midi as any).noteMin &&
-               midiMessage.note <= (m.midi as any).noteMax;
+    if (midiMessage.type === 'cc') {
+      // Try device-specific mapping first, then global (empty device)
+      mapping =
+        this.midiLookup.get(`cc-${msgDevice}-${midiMessage.channel}-${midiMessage.controller}`) ??
+        this.midiLookup.get(`cc--${midiMessage.channel}-${midiMessage.controller}`);
+
+    } else if (midiMessage.type === 'note_on' || midiMessage.type === 'note_off') {
+      // Try device-specific, then global
+      mapping =
+        this.midiLookup.get(`note-${msgDevice}-${midiMessage.channel}-${midiMessage.note}`) ??
+        this.midiLookup.get(`note--${midiMessage.channel}-${midiMessage.note}`);
+
+      // Note-value range mappings — still need a linear scan (small list)
+      if (!mapping && midiMessage.type === 'note_on' && midiMessage.note !== undefined) {
+        mapping = this.noteValueMappings.find(m => {
+          if (m.midi.device && m.midi.device !== msgDevice) return false;
+          return (
+            m.midi.channel === midiMessage.channel &&
+            midiMessage.note! >= ((m.midi as any).noteMin ?? 0) &&
+            midiMessage.note! <= ((m.midi as any).noteMax ?? 127)
+          );
+        });
       }
-      return false;
-    });
+    }
 
     if (!mapping) {
       return null;
@@ -180,20 +281,13 @@ export class MappingEngine extends EventEmitter {
       case 'pan': {
         let scaledValue: number;
 
-        // Check if this is note-value mode
         if (mapping.midi.type === 'note-value' && midiMessage.note !== undefined) {
           const noteMin = (mapping.midi as any).noteMin || 24;
           const noteMax = (mapping.midi as any).noteMax || 60;
           const noteRange = noteMax - noteMin;
-
-          // Map note number to 0-100 range
           scaledValue = ((midiMessage.note - noteMin) / noteRange) * 100;
-
-          // Clamp to 0-100
           scaledValue = Math.max(0, Math.min(100, scaledValue));
-
         } else {
-          // Standard CC or note mode: scale MIDI value (0-127) to mixer range
           const [min, max] = mapping.mixer.range || [0, 100];
           scaledValue = min + (midiMessage.value / 127) * (max - min);
         }
@@ -206,15 +300,12 @@ export class MappingEngine extends EventEmitter {
         let shouldActivate = false;
 
         if (mapping.midi.type === 'cc') {
-          // Use threshold (default 64 = middle of 0-127 range)
           const threshold = (mapping.midi as any).threshold !== undefined ? (mapping.midi as any).threshold : 64;
           shouldActivate = midiMessage.value >= threshold;
         } else {
-          // Note-based: activate on note_on, deactivate on note_off
           shouldActivate = midiMessage.type === 'note_on';
         }
 
-        // Apply invert if specified
         if ((mapping.midi as any).invert) {
           shouldActivate = !shouldActivate;
         }
@@ -227,39 +318,28 @@ export class MappingEngine extends EventEmitter {
     return command;
   }
 
-  /**
-   * Get current preset name
-   */
+  // ---------------------------------------------------------------------------
+  // Accessors
+  // ---------------------------------------------------------------------------
+
   getCurrentPreset(): string | null {
     return this.currentPreset;
   }
 
-  /**
-   * Get preferred mixer IP
-   */
   getPreferredMixerIp(): string | null {
     return this.preferredMixerIp;
   }
 
-  /**
-   * Set preferred mixer IP (will be saved with preset)
-   */
   setPreferredMixerIp(ip: string): void {
     this.preferredMixerIp = ip;
     console.log(`✓ Set preferred mixer IP: ${ip}`);
     this.autoSavePreset();
   }
 
-  /**
-   * Get all preferred MIDI devices
-   */
   getPreferredMidiDevices(): string[] {
     return [...this.preferredMidiDevices];
   }
 
-  /**
-   * Add a preferred MIDI device (idempotent)
-   */
   addPreferredMidiDevice(device: string): void {
     if (!this.preferredMidiDevices.includes(device)) {
       this.preferredMidiDevices.push(device);
@@ -268,9 +348,6 @@ export class MappingEngine extends EventEmitter {
     }
   }
 
-  /**
-   * Remove a preferred MIDI device
-   */
   removePreferredMidiDevice(device: string): void {
     const before = this.preferredMidiDevices.length;
     this.preferredMidiDevices = this.preferredMidiDevices.filter(d => d !== device);
@@ -280,44 +357,28 @@ export class MappingEngine extends EventEmitter {
     }
   }
 
-  /**
-   * Get preferred MIDI device (backward compat — returns first)
-   */
+  /** Backward compat — returns first preferred device */
   getPreferredMidiDevice(): string | null {
     return this.preferredMidiDevices.length > 0 ? this.preferredMidiDevices[0] : null;
   }
 
-  /**
-   * Set preferred MIDI device (backward compat — adds to list)
-   */
+  /** Backward compat — adds to list */
   setPreferredMidiDevice(device: string): void {
     this.addPreferredMidiDevice(device);
   }
 
-  /**
-   * Get fader filter state
-   */
   getFaderFilter(): 'all' | 'mapped' {
     return this.faderFilter;
   }
 
-  /**
-   * Set fader filter state (will be saved with preset)
-   */
   setFaderFilter(filter: 'all' | 'mapped'): void {
     this.faderFilter = filter;
   }
 
-  /**
-   * Get MIDI feedback enabled state
-   */
   getMidiFeedbackEnabled(): boolean {
     return this.midiFeedbackEnabled;
   }
 
-  /**
-   * Set MIDI feedback enabled state (will be saved with preset)
-   */
   setMidiFeedbackEnabled(enabled: boolean): void {
     this.midiFeedbackEnabled = enabled;
     console.log(`✓ Set MIDI feedback: ${enabled ? 'enabled' : 'disabled'}`);

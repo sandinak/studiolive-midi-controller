@@ -5,12 +5,22 @@ import * as path from 'path';
 import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
+import { clampCount } from './ipc-validators';
 import type { DiscoveryType } from 'presonus-studiolive-api';
 
 let mainWindow: BrowserWindow | null = null;
 const midiManager = new MidiManager();
 const mixerManager = new MixerManager();
 const mappingEngine = new MappingEngine();
+let currentPresetPath: string | null = null;
+
+// Skip DCA polling when no DCA channels are mapped (saves CPU)
+mixerManager.setDcaMappingsChecker(() =>
+  mappingEngine.getMappings().some(m =>
+    'type' in m.mixer.channel &&
+    (m.mixer.channel as any).type?.toUpperCase() === 'DCA'
+  )
+);
 let discoveredMixers: DiscoveryType[] = [];
 let midiReconnectTimer: ReturnType<typeof setInterval> | null = null;
 let mixerReconnectTimer: ReturnType<typeof setInterval> | null = null;
@@ -39,8 +49,10 @@ function createWindow() {
     height: 900,
     icon: iconPath,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,        // preload needs Node access for ipcRenderer/shell
     }
   });
 
@@ -158,12 +170,7 @@ async function initializeApp() {
     }
 
     try {
-      const mappings = mappingEngine.getMappings();
-      const mapping = mappings.find(m =>
-        m.mixer.action === 'volume' &&
-        ('type' in m.mixer.channel ? (m.mixer.channel.type || 'LINE') : 'LINE') === data.channel.type &&
-        (m.mixer.channel.channel || m.mixer.channel) == data.channel.channel
-      );
+      const mapping = mappingEngine.findVolumeMapping(data.channel.type, data.channel.channel);
 
       if (mapping && midiManager.hasOutput()) {
         const percentage = data.value * 100; // Convert 0-1 to 0-100
@@ -226,7 +233,7 @@ async function initializeApp() {
   try {
     mappingEngine.loadPreset(presetPath);
     // Store the current preset path and notify renderer
-    (global as any).currentPresetPath = presetPath;
+    currentPresetPath = presetPath;
     if (mainWindow) {
       mainWindow.webContents.send('preset-loaded', {
         name: path.basename(presetPath, '.json'),
@@ -397,6 +404,10 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  if (midiScanCleanup) {
+    midiScanCleanup();
+    midiScanCleanup = null;
+  }
   stopReconnectionLoop();
 });
 
@@ -533,12 +544,7 @@ ipcMain.handle('set-mixer-volume', async (_event, type: string, channel: number,
 
     // Send MIDI feedback based on the mapping (only if enabled)
     if (mappingEngine.getMidiFeedbackEnabled()) {
-      const mappings = mappingEngine.getMappings();
-      const mapping = mappings.find(m =>
-        m.mixer.action === 'volume' &&
-        ('type' in m.mixer.channel ? (m.mixer.channel.type || 'LINE') : 'LINE') === type &&
-        (m.mixer.channel.channel || m.mixer.channel) == channel
-      );
+      const mapping = mappingEngine.findVolumeMapping(type, channel);
 
       if (mapping && midiManager.hasOutput()) {
         if (mapping.midi.type === 'cc') {
@@ -568,8 +574,7 @@ ipcMain.handle('get-channel-names', async (_event, type: string = 'line', count:
     if (!mixerManager.isConnected()) {
       return [];
     }
-    const names = mixerManager.getAllChannelNames(type, count);
-    return names;
+    return mixerManager.getAllChannelNames(type, clampCount(count));
   } catch (error) {
     return [];
   }
@@ -592,7 +597,8 @@ ipcMain.handle('get-channel-colors', async (_event, type: string = 'line', count
       return [];
     }
     const colors = [];
-    for (let i = 1; i <= count; i++) {
+    const safeCount = clampCount(count);
+    for (let i = 1; i <= safeCount; i++) {
       const color = mixerManager.getChannelColor(type, i);
       colors.push({ channel: i, color });
     }
@@ -618,7 +624,7 @@ ipcMain.handle('get-channel-icons', async (_event, type: string = 'line', count:
     if (!mixerManager.isConnected()) {
       return [];
     }
-    return mixerManager.getAllChannelIcons(type, count);
+    return mixerManager.getAllChannelIcons(type, clampCount(count));
   } catch (error) {
     return [];
   }
@@ -640,7 +646,7 @@ ipcMain.handle('get-channel-input-sources', async (_event, type: string = 'line'
     if (!mixerManager.isConnected()) {
       return [];
     }
-    return mixerManager.getAllChannelInputSources(type, count);
+    return mixerManager.getAllChannelInputSources(type, clampCount(count));
   } catch (error) {
     return [];
   }
@@ -673,7 +679,7 @@ ipcMain.handle('get-autofilter-group-names', async (_event, count: number = 8) =
     if (!mixerManager.isConnected()) {
       return [];
     }
-    return mixerManager.getAllAutoFilterGroupNames(count);
+    return mixerManager.getAllAutoFilterGroupNames(clampCount(count, 64));
   } catch (error) {
     return [];
   }
@@ -761,6 +767,11 @@ ipcMain.handle('get-channel-main-assign', async (_event, type: string, channel: 
   }
 });
 
+// Stub: renderer invokes this but the API doesn't expose a set method yet
+ipcMain.handle('set-channel-main-assign', async () => {
+  return { success: false, error: 'Not yet implemented' };
+});
+
 ipcMain.handle('toggle-solo', async (_event, type: string, channel: number) => {
   try {
     if (!mixerManager.isConnected()) {
@@ -841,7 +852,7 @@ ipcMain.handle('load-preset-dialog', async () => {
     mappingEngine.loadPreset(presetPath);
 
     // Store the current preset path
-    (global as any).currentPresetPath = presetPath;
+    currentPresetPath = presetPath;
 
     return { success: true, path: presetPath, name: path.basename(presetPath, '.json') };
   } catch (error) {
@@ -873,7 +884,7 @@ ipcMain.handle('save-preset-dialog', async (_event, currentPath?: string) => {
     mappingEngine.savePreset(presetPath, presetName);
 
     // Store the current preset path
-    (global as any).currentPresetPath = presetPath;
+    currentPresetPath = presetPath;
 
     return { success: true, path: presetPath, name: presetName };
   } catch (error) {
@@ -891,7 +902,7 @@ ipcMain.handle('set-fader-filter', (_event, filter: 'all' | 'mapped') => {
 });
 
 ipcMain.handle('get-current-preset-path', async () => {
-  return (global as any).currentPresetPath || null;
+  return currentPresetPath || null;
 });
 
 ipcMain.handle('set-midi-feedback-enabled', async (_event, enabled: boolean) => {
@@ -914,14 +925,23 @@ ipcMain.handle('check-for-updates', async () => {
         }
       };
 
+      const MAX_RESPONSE_SIZE = 1_048_576; // 1 MB — guard against runaway responses
+
       const req = https.request(options, (res: any) => {
         let data = '';
+        let aborted = false;
 
         res.on('data', (chunk: any) => {
           data += chunk;
+          if (data.length > MAX_RESPONSE_SIZE && !aborted) {
+            aborted = true;
+            req.destroy();
+            resolve({ success: false, currentVersion, error: 'Response too large' });
+          }
         });
 
         res.on('end', () => {
+          if (aborted) return;
           try {
             const release = JSON.parse(data);
             const latestVersion = release.tag_name?.replace(/^v/, '') || currentVersion;

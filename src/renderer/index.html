@@ -1704,8 +1704,19 @@
 
   <script>
     console.log('[Renderer] Script starting...');
-    const { ipcRenderer } = require('electron');
-    console.log('[Renderer] ipcRenderer loaded');
+    // Use contextBridge API exposed by preload.js (contextIsolation is enabled)
+    const ipcRenderer = window.electronAPI;
+
+    // Inline HTML sanitizer — escapes untrusted strings before DOM insertion
+    function sanitizeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#x27;');
+    }
 
     // Track mapping activity
     const mappingActivity = new Map();
@@ -1823,7 +1834,7 @@
 
     function downloadUpdate() {
       if (updateDownloadUrl) {
-        require('electron').shell.openExternal(updateDownloadUrl);
+        window.electronAPI.openExternal(updateDownloadUrl);
       }
       hideUpdateModal();
     }
@@ -2326,7 +2337,7 @@
     }
 
     // Listen for preset loaded event (from default preset on startup)
-    ipcRenderer.on('preset-loaded', async (event, data) => {
+    ipcRenderer.on('preset-loaded', async (data) => {
       if (data.name) {
         updateStatusProfile(data.name);
         updateStatusLastSaved(new Date().toLocaleTimeString());
@@ -2344,7 +2355,7 @@
     });
 
     // Listen for MIDI activity
-    ipcRenderer.on('midi-activity', async (event, midiMessage) => {
+    ipcRenderer.on('midi-activity', async (midiMessage) => {
       flashActivity('midi-activity');
       addMidiLogEntry(midiMessage);
 
@@ -2373,7 +2384,7 @@
     });
 
     // Listen for mixer activity
-    ipcRenderer.on('mixer-activity', (event, mixerCommand) => {
+    ipcRenderer.on('mixer-activity', (mixerCommand) => {
       flashActivity('mixer-activity');
 
       // Update fader if it's a volume command
@@ -2386,7 +2397,7 @@
     });
 
     // Listen for mixer level changes (from physical mixer or Universal Control)
-    ipcRenderer.on('mixer-level', (event, data) => {
+    ipcRenderer.on('mixer-level', (data) => {
       flashActivity('mixer-activity');
       // data.channel.type, data.channel.channel, data.level
       // Update fader for any channel type (LINE, MAIN, AUX, etc.)
@@ -2458,7 +2469,7 @@
     });
 
     // Listen for connection events (initial connect or reconnect)
-    ipcRenderer.on('connection-restored', (event, data) => {
+    ipcRenderer.on('connection-restored', (data) => {
       if (data.type === 'midi') {
         addStatusLog(`MIDI connected: ${data.device}`, 'success');
       } else if (data.type === 'mixer') {
@@ -2468,7 +2479,7 @@
     });
 
     // Listen for mixer mute changes (from physical mixer or Universal Control)
-    ipcRenderer.on('mixer-mute', (event, data) => {
+    ipcRenderer.on('mixer-mute', (data) => {
       // data.channel.type, data.channel.channel, data.status
       if (data.channel) {
         updateMuteButton(data.channel.type, data.channel.channel, data.status);
@@ -2476,7 +2487,7 @@
     });
 
     // Listen for mixer solo changes (from physical mixer or Universal Control)
-    ipcRenderer.on('mixer-solo', (event, data) => {
+    ipcRenderer.on('mixer-solo', (data) => {
       // data.channel.type, data.channel.channel, data.status
       if (data.channel) {
         updateSoloButton(data.channel.type, data.channel.channel, data.status);
@@ -2484,7 +2495,7 @@
     });
 
     // Listen for mixer property changes (main assignment, input source, etc.)
-    ipcRenderer.on('mixer-property-change', async (event, data) => {
+    ipcRenderer.on('mixer-property-change', async (data) => {
       // Log all property changes to see what we're getting
       console.log('[Renderer] mixer-property-change:', data);
 
@@ -2822,7 +2833,7 @@
     }
 
     // Handle MIDI scan result (fires from any port, not just the connected one)
-    ipcRenderer.on('midi-scan-captured', (event, { deviceName, message }) => {
+    ipcRenderer.on('midi-scan-captured', ({ deviceName, message }) => {
       if (!midiLearnActive) return;
       applyMidiLearnResult(message, deviceName);
     });
@@ -3181,7 +3192,11 @@
 
         modal.classList.add('show');
       } catch (error) {
-        listView.innerHTML = `<div class="empty-state">Error loading mappings: ${error.message}</div>`;
+        const errEl = document.createElement('div');
+        errEl.className = 'empty-state';
+        errEl.textContent = 'Error loading mappings: ' + (error.message || String(error));
+        listView.innerHTML = '';
+        listView.appendChild(errEl);
         modal.classList.add('show');
       }
     }
@@ -3477,24 +3492,46 @@
         if (mixers.length === 0) {
           listEl.innerHTML = '<div class="empty-state">No mixers found. Try manual connection below.</div>';
         } else {
-          listEl.innerHTML = mixers.map(mixer => {
-            // Format display: IP {model} {deviceName}
-            const displayName = `${mixer.ip} ${mixer.model || mixer.name}${mixer.deviceName ? ' ' + mixer.deviceName : ''}`;
-            // Tooltip: Show all three fields
-            const tooltip = `IP: ${mixer.ip}\\nModel: ${mixer.model || mixer.name}${mixer.deviceName ? '\\nDevice Name: ' + mixer.deviceName : ''}\\nSerial: ${mixer.serial}`;
+          listEl.innerHTML = '';
+          for (const mixer of mixers) {
+            const ip = mixer.ip || '';
+            const modelName = mixer.model || mixer.name || '';
+            const deviceName = mixer.deviceName || '';
+            const serial = mixer.serial || '';
 
-            return `
-            <div class="mixer-item" title="${tooltip}">
-              <div class="mixer-info">
-                <div class="mixer-name">${displayName}</div>
-                <div class="mixer-details">Serial: ${mixer.serial}</div>
-              </div>
-              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.model || mixer.name}', '${mixer.deviceName || ''}')">Connect</button>
-            </div>
-          `}).join('');
+            const div = document.createElement('div');
+            div.className = 'mixer-item';
+            div.title = `IP: ${ip}\nModel: ${modelName}${deviceName ? '\nDevice Name: ' + deviceName : ''}\nSerial: ${serial}`;
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'mixer-info';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'mixer-name';
+            nameDiv.textContent = ip + ' ' + modelName + (deviceName ? ' ' + deviceName : '');
+
+            const detailDiv = document.createElement('div');
+            detailDiv.className = 'mixer-details';
+            detailDiv.textContent = 'Serial: ' + serial;
+
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.textContent = 'Connect';
+            btn.addEventListener('click', () => connectToMixer(ip, modelName, deviceName));
+
+            infoDiv.appendChild(nameDiv);
+            infoDiv.appendChild(detailDiv);
+            div.appendChild(infoDiv);
+            div.appendChild(btn);
+            listEl.appendChild(div);
+          }
         }
       } catch (error) {
-        listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+        const errDiv = document.createElement('div');
+        errDiv.className = 'empty-state';
+        errDiv.textContent = 'Error: ' + (error.message || String(error));
+        listEl.innerHTML = '';
+        listEl.appendChild(errDiv);
       } finally {
         btn.disabled = false;
         btn.textContent = 'Scan Network';
@@ -6007,21 +6044,39 @@
         const listEl = document.getElementById('mixer-list');
 
         if (mixers.length > 0) {
-          listEl.innerHTML = mixers.map(mixer => {
-            // Format display: IP {model} {deviceName}
-            const displayName = `${mixer.ip} ${mixer.model || mixer.name}${mixer.deviceName ? ' ' + mixer.deviceName : ''}`;
-            // Tooltip: Show all three fields
-            const tooltip = `IP: ${mixer.ip}\\nModel: ${mixer.model || mixer.name}${mixer.deviceName ? '\\nDevice Name: ' + mixer.deviceName : ''}\\nSerial: ${mixer.serial}`;
+          listEl.innerHTML = '';
+          for (const mixer of mixers) {
+            const ip = mixer.ip || '';
+            const modelName = mixer.model || mixer.name || '';
+            const deviceName = mixer.deviceName || '';
+            const serial = mixer.serial || '';
 
-            return `
-            <div class="mixer-item" title="${tooltip}">
-              <div class="mixer-info">
-                <div class="mixer-name">${displayName}</div>
-                <div class="mixer-details">Serial: ${mixer.serial}</div>
-              </div>
-              <button class="btn" onclick="connectToMixer('${mixer.ip}', '${mixer.model || mixer.name}', '${mixer.deviceName || ''}')">Connect</button>
-            </div>
-          `}).join('');
+            const div = document.createElement('div');
+            div.className = 'mixer-item';
+            div.title = `IP: ${ip}\nModel: ${modelName}${deviceName ? '\nDevice Name: ' + deviceName : ''}\nSerial: ${serial}`;
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'mixer-info';
+
+            const nameDiv = document.createElement('div');
+            nameDiv.className = 'mixer-name';
+            nameDiv.textContent = ip + ' ' + modelName + (deviceName ? ' ' + deviceName : '');
+
+            const detailDiv = document.createElement('div');
+            detailDiv.className = 'mixer-details';
+            detailDiv.textContent = 'Serial: ' + serial;
+
+            const btn = document.createElement('button');
+            btn.className = 'btn';
+            btn.textContent = 'Connect';
+            btn.addEventListener('click', () => connectToMixer(ip, modelName, deviceName));
+
+            infoDiv.appendChild(nameDiv);
+            infoDiv.appendChild(detailDiv);
+            div.appendChild(infoDiv);
+            div.appendChild(btn);
+            listEl.appendChild(div);
+          }
         }
 
         await updateStatusInitWithDelay('Loading preset...');

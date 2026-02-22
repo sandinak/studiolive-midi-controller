@@ -1,6 +1,6 @@
 # Makefile for StudioLive MIDI Controller
 
-.PHONY: help build clean dev start dist dist-mac dist-win dist-all install typecheck copy-assets rebuild install-deps build-deps
+.PHONY: help build clean dev start dist dist-mac dist-win dist-all install typecheck copy-assets rebuild install-deps build-deps test
 
 # Paths
 DEPS_DIR = ../presonus-studiolive-api
@@ -63,4 +63,7 @@ dist-all: build ## Build packages for all platforms
 
 typecheck: ## Run TypeScript type checking without building
 	tsc -p tsconfig.main.json --noEmit
+
+test: ## Run Jest unit tests
+	npm test
 

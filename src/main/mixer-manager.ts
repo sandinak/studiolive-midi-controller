@@ -10,11 +10,11 @@ export class MixerManager extends EventEmitter {
   private mixerIp: string | null = null;
   private mixerModel: string | null = null;
   private mixerDeviceName: string | null = null;
-  private stateReadyEmitted: boolean = false;
   private muteGroupPollInterval: NodeJS.Timeout | null = null;
   private lastMuteGroupStates: boolean[] = [false, false, false, false, false, false, false, false];
   private dcaLevelPollInterval: NodeJS.Timeout | null = null;
   private lastDcaLevels: (number | null)[] = [null, null, null, null, null, null, null, null];
+  private hasDcaMappingsCallback: (() => boolean) | null = null;
 
   constructor() {
     super();
@@ -728,9 +728,9 @@ export class MixerManager extends EventEmitter {
 
       // Use the same pattern as setMute() - send packet directly to mixer
       const MessageCode = { ParamValue: 'PV' };
-      const toFloat = (value: number) => {
+      const toFloat = (v: number) => {
         const buffer = Buffer.allocUnsafe(4);
-        buffer.writeFloatLE(value, 0);
+        buffer.writeFloatLE(v, 0);
         return buffer;
       };
 
@@ -741,8 +741,6 @@ export class MixerManager extends EventEmitter {
 
       // Also update local state so getMuteGroupState() returns the correct value immediately
       (this.client as any).state?.set(path, value);
-
-      console.log(`[MixerManager] Sent mute group ${groupNum} command: ${active ? 'active' : 'inactive'}`);
     } catch (error) {
       throw new Error(`Failed to set mute group ${groupNum} state: ${error}`);
     }
@@ -824,12 +822,8 @@ export class MixerManager extends EventEmitter {
         }
       }
 
-      console.log(`[getMuteGroupAssignments] Group ${groupNum} has ${assignments.length} channels assigned:`,
-        assignments.map(a => `${a.type}${a.channel}`).join(', '));
-
       return assignments;
     } catch (error) {
-      console.error(`[getMuteGroupAssignments] Error:`, error);
       return [];
     }
   }
@@ -840,16 +834,12 @@ export class MixerManager extends EventEmitter {
    * we need to poll the state periodically
    */
   private startMuteGroupPolling(): void {
-    // Stop any existing polling
     this.stopMuteGroupPolling();
-
-    console.log('[MixerManager] Starting mute group polling...');
 
     // Initialize last states
     for (let groupNum = 1; groupNum <= 8; groupNum++) {
       this.lastMuteGroupStates[groupNum - 1] = this.getMuteGroupState(groupNum);
     }
-    console.log('[MixerManager] Initial mute group states:', this.lastMuteGroupStates);
 
     // Poll every 200ms (5 times per second)
     this.muteGroupPollInterval = setInterval(() => {
@@ -858,17 +848,12 @@ export class MixerManager extends EventEmitter {
         return;
       }
 
-      // Check all 8 mute groups
       for (let groupNum = 1; groupNum <= 8; groupNum++) {
         const currentState = this.getMuteGroupState(groupNum);
         const lastState = this.lastMuteGroupStates[groupNum - 1];
 
-        // If state changed, emit a property change event
         if (currentState !== lastState) {
-          console.log(`[MixerManager] Mute group ${groupNum} state changed: ${lastState} -> ${currentState}`);
           this.lastMuteGroupStates[groupNum - 1] = currentState;
-
-          // Emit as a property change event
           this.emit('propertyChange', {
             path: `mutegroup/mutegroup${groupNum}`,
             value: currentState ? 1.0 : 0.0
@@ -893,17 +878,23 @@ export class MixerManager extends EventEmitter {
    * The PreSonus API's MS (FaderPosition) packet does NOT include DCA/filtergroup data,
    * so we poll the state (updated by PV messages) and emit level events when changes are detected.
    */
+  /**
+   * Register a callback that returns true if any DCA channel is currently mapped.
+   * When provided, the DCA poll skips processing when no DCA mappings exist,
+   * saving CPU when the user has no DCA faders configured.
+   */
+  setDcaMappingsChecker(fn: () => boolean): void {
+    this.hasDcaMappingsCallback = fn;
+  }
+
   private startDCALevelPolling(): void {
     this.stopDCALevelPolling();
-
-    console.log('[MixerManager] Starting DCA level polling...');
 
     // Initialize last known levels
     for (let i = 1; i <= 8; i++) {
       const level = this.getLevel({ type: 'DCA' as any, channel: i });
       this.lastDcaLevels[i - 1] = level !== null && level !== undefined ? this.normalizeDcaLevel(level) : null;
     }
-    console.log('[MixerManager] Initial DCA levels:', this.lastDcaLevels);
 
     // Poll every 100ms (10 times per second) for responsive fader tracking
     this.dcaLevelPollInterval = setInterval(() => {
@@ -911,6 +902,9 @@ export class MixerManager extends EventEmitter {
         this.stopDCALevelPolling();
         return;
       }
+
+      // Skip expensive loop when no DCA channels are mapped
+      if (this.hasDcaMappingsCallback && !this.hasDcaMappingsCallback()) return;
 
       for (let i = 1; i <= 8; i++) {
         const rawLevel = this.getLevel({ type: 'DCA' as any, channel: i });
@@ -948,16 +942,15 @@ export class MixerManager extends EventEmitter {
 
   /**
    * Normalize DCA level to 0-100 range.
-   * PV messages from the mixer store values as 0-1 floats,
-   * while _setLevel (from our app) stores 0-100.
+   * PV packets from the mixer send values as 0.0–1.0 floats.
+   * Values > 1.0 are treated as already in the 0-100 range and clamped.
    */
   private normalizeDcaLevel(value: number): number {
-    if (value >= 0 && value <= 1.0) {
-      // PV float value (0-1) → scale to 0-100
-      return value * 100;
+    if (value <= 1.0) {
+      // PV float 0-1 → 0-100, rounded to 1 decimal to avoid float drift
+      return Math.round(value * 1000) / 10;
     }
-    // Already in 0-100 range (from our app's _setLevel)
-    return value;
+    return Math.min(100, Math.max(0, value));
   }
 }
 
