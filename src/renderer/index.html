@@ -4747,14 +4747,23 @@
             }
           }
 
-          // Update the mute button states for all channels in this mute group
+          // Update the mute button states for all channels in this mute group.
+          // NOTE: The mixer doesn't update individual channel mute states when a mute
+          // group is activated — the group acts as a master override. Querying
+          // get-channel-mute immediately would return stale (pre-toggle) values.
+          // Instead, drive visual state directly from the new group state.
           const assignments = await ipcRenderer.invoke('get-mute-group-assignments', groupNum);
 
           for (const assignment of assignments) {
-            // Get the current mute state for this channel
-            const muted = await ipcRenderer.invoke('get-channel-mute', assignment.type, assignment.channel);
-            if (muted !== null) {
-              updateMuteButton(assignment.type, assignment.channel, muted);
+            if (newState) {
+              // Group just activated → show all assigned channels as muted
+              updateMuteButton(assignment.type, assignment.channel, true);
+            } else {
+              // Group just deactivated → query the actual individual channel state
+              const muted = await ipcRenderer.invoke('get-channel-mute', assignment.type, assignment.channel);
+              if (muted !== null) {
+                updateMuteButton(assignment.type, assignment.channel, muted);
+              }
             }
           }
         } else {

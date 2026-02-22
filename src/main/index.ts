@@ -462,14 +462,13 @@ function stopReconnectionLoop() {
 
 app.whenReady().then(() => {
   // Set dock icon as early as possible so it takes effect before any window appears
+  // Use PNG — nativeImage reliably parses it regardless of ICNS subformat (ic12 etc.)
   if (process.platform === 'darwin') {
     const { nativeImage } = require('electron');
-    const icnsPath = path.join(app.getAppPath(), 'assets', 'icon.icns');
-    const dockImage = nativeImage.createFromPath(icnsPath);
+    const pngPath = path.join(app.getAppPath(), 'assets', 'icon.png');
+    const dockImage = nativeImage.createFromPath(pngPath);
     if (!dockImage.isEmpty()) {
       app.dock.setIcon(dockImage);
-    } else {
-      console.warn('[Main] Could not load dock icon from:', icnsPath);
     }
   }
 

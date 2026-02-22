@@ -1,111 +1,12 @@
 {
-  "name": "logic-pro-default",
+  "name": "default",
   "version": "1.0",
-  "mixerIp": "192.168.21.41",
-  "mixerDeviceName": "Office",
-  "midiDevices": [
-    "Launchkey MK4 49 MIDI Out",
-    "Launchkey MK4 49 DAW Out",
-    "Logic Pro Virtual Out",
-    "APC mini mk2 Control"
-  ],
-  "midiDeviceColors": {
-    "Logic Pro Virtual Out": "#b3d219",
-    "Launchkey MK4 49 DAW Out": "#07ab8b",
-    "Launchkey MK4 49 MIDI Out": "#8887d9",
-    "APC mini mk2 Control": "#1b0ed8"
-  },
+  "mixerIp": "",
+  "mixerDeviceName": "",
+  "midiDevices": [],
+  "midiDeviceColors": {},
   "faderFilter": "all",
   "midiFeedbackEnabled": false,
-  "levelVisibility": "indicator",
-  "mappings": [
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 16,
-        "device": "Launchkey MK4 49 DAW Out",
-        "controller": 5
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "LINE",
-          "channel": 1
-        }
-      }
-    },
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 16,
-        "device": "Launchkey MK4 49 DAW Out",
-        "controller": 7
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "LINE",
-          "channel": 3
-        }
-      }
-    },
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 4,
-        "device": "Logic Pro Virtual Out",
-        "controller": 7
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "LINE",
-          "channel": 4
-        }
-      }
-    },
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 13,
-        "device": "Logic Pro Virtual Out",
-        "controller": 7
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "DCA",
-          "channel": 2
-        }
-      }
-    },
-    {
-      "midi": {
-        "type": "none",
-        "channel": 13
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "LINE",
-          "channel": 13
-        }
-      }
-    },
-    {
-      "midi": {
-        "type": "cc",
-        "channel": 1,
-        "device": "APC mini mk2 Control",
-        "controller": 56
-      },
-      "mixer": {
-        "action": "volume",
-        "channel": {
-          "type": "MAIN",
-          "channel": 1
-        }
-      }
-    }
-  ]
+  "levelVisibility": "none",
+  "mappings": []
 }
