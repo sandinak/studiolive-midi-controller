@@ -8,6 +8,7 @@ export interface MidiMessage {
   controller?: number;  // For CC messages
   note?: number;        // For note messages
   value: number;
+  device?: string;      // Source MIDI device name
 }
 
 export interface MixerCommand {
@@ -27,6 +28,7 @@ export interface MidiMapping {
     noteMax?: number;     // For note-value mode: maximum note number
     threshold?: number;   // For CC boolean controls: threshold value (0-127, default 64)
     invert?: boolean;     // For boolean controls: invert the logic
+    device?: string;      // Optional: only match messages from this device (absent = any device)
   };
   mixer: {
     action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup';
@@ -39,8 +41,9 @@ export interface MappingPreset {
   name: string;
   version: string;
   description?: string;
-  mixerIp?: string;  // Preferred mixer IP address
-  midiDevice?: string;  // Preferred MIDI device name
+  mixerIp?: string;       // Preferred mixer IP address
+  midiDevice?: string;    // Legacy: single preferred MIDI device (backward compat)
+  midiDevices?: string[]; // Preferred MIDI device names (multi-device)
   faderFilter?: 'all' | 'mapped';  // Fader filter state
   midiFeedbackEnabled?: boolean;  // MIDI feedback enabled state
   mappings: MidiMapping[];
@@ -58,4 +61,3 @@ export interface ConnectionStatus {
     error?: string;
   };
 }
-

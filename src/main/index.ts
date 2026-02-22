@@ -15,6 +15,7 @@ let discoveredMixers: DiscoveryType[] = [];
 let midiReconnectTimer: ReturnType<typeof setInterval> | null = null;
 let mixerReconnectTimer: ReturnType<typeof setInterval> | null = null;
 let mixerConnecting = false; // Guard against overlapping mixer connect attempts
+let midiScanCleanup: (() => void) | null = null; // Cleanup fn for multi-port MIDI scan
 const MIDI_RECONNECT_MS = 3000;   // Check MIDI every 3 seconds
 const MIXER_RECONNECT_MS = 10000; // Check mixer every 10 seconds
 
@@ -235,26 +236,38 @@ async function initializeApp() {
   } catch (error) {
   }
 
-  // Auto-connect to MIDI device BEFORE mixer (mixer connect can block)
-  const devices = midiManager.getAvailableDevices();
-  const preferredMidiDevice = mappingEngine.getPreferredMidiDevice();
-  let targetDevice: string | null = null;
+  // Auto-connect to all preferred MIDI devices BEFORE mixer (mixer connect can block)
+  const availableMidiDevices = midiManager.getAvailableDevices();
+  const preferredMidiDevices = mappingEngine.getPreferredMidiDevices();
 
-  if (preferredMidiDevice && devices.includes(preferredMidiDevice)) {
-    targetDevice = preferredMidiDevice;
-  } else {
-    const logicDevice = devices.find(d => d.toLowerCase().includes('logic'));
-    targetDevice = logicDevice || devices[0];
+  let connectedAny = false;
+  for (const preferred of preferredMidiDevices) {
+    if (availableMidiDevices.includes(preferred)) {
+      try {
+        midiManager.connectDevice(preferred);
+        connectedAny = true;
+        if (mainWindow) {
+          mainWindow.webContents.send('connection-restored', { type: 'midi', device: preferred });
+        }
+      } catch (_error) {
+        // Will retry via reconnection loop
+      }
+    }
   }
 
-  if (targetDevice) {
-    try {
-      midiManager.connect(targetDevice);
-      if (mainWindow) {
-        mainWindow.webContents.send('connection-restored', { type: 'midi', device: targetDevice });
+  // Fallback: if no preferred devices connected yet, auto-pick Logic or first available
+  if (!connectedAny) {
+    const logicDevice = availableMidiDevices.find(d => d.toLowerCase().includes('logic'));
+    const fallback = logicDevice || availableMidiDevices[0];
+    if (fallback) {
+      try {
+        midiManager.connectDevice(fallback);
+        if (mainWindow) {
+          mainWindow.webContents.send('connection-restored', { type: 'midi', device: fallback });
+        }
+      } catch (_error) {
+        // Will retry via reconnection loop
       }
-    } catch (error) {
-      // Will retry via reconnection loop
     }
   }
 
@@ -315,21 +328,21 @@ async function initializeApp() {
  */
 function startReconnectionLoop() {
   // --- MIDI reconnect (fast, synchronous) ---
+  // Connect to any preferred device that's available but not yet connected
   if (!midiReconnectTimer) {
     midiReconnectTimer = setInterval(() => {
-      if (!midiManager.isConnected()) {
-        const preferredMidi = mappingEngine.getPreferredMidiDevice();
-        if (preferredMidi) {
-          const devices = midiManager.getAvailableDevices();
-          if (devices.includes(preferredMidi)) {
-            try {
-              midiManager.connect(preferredMidi);
-              if (mainWindow) {
-                mainWindow.webContents.send('connection-restored', { type: 'midi', device: preferredMidi });
-              }
-            } catch (err) {
-              // Will retry next interval
+      const preferred = mappingEngine.getPreferredMidiDevices();
+      if (preferred.length === 0) return;
+      const available = midiManager.getAvailableDevices();
+      for (const device of preferred) {
+        if (!midiManager.isDeviceConnected(device) && available.includes(device)) {
+          try {
+            midiManager.connectDevice(device);
+            if (mainWindow) {
+              mainWindow.webContents.send('connection-restored', { type: 'midi', device });
             }
+          } catch (_err) {
+            // Will retry next interval
           }
         }
       }
@@ -431,26 +444,82 @@ ipcMain.handle('get-mixer-status', async () => {
 });
 
 ipcMain.handle('get-midi-devices', async () => {
-  return midiManager.getAvailableDevices();
+  return {
+    inputs: midiManager.getAvailableDevices(),
+    outputs: midiManager.getAvailableOutputDevices(),
+    connected: midiManager.getConnectedDevices()  // now an array
+  };
 });
 
 ipcMain.handle('get-midi-status', async () => {
+  const devices = midiManager.getConnectedDevices();
   return {
-    connected: midiManager.isConnected(),
-    device: midiManager.getCurrentDevice()
+    connected: devices.length > 0,
+    device: devices[0] || null,   // backward compat
+    devices                        // all connected devices
   };
+});
+
+ipcMain.handle('get-connected-midi-devices', async () => {
+  return midiManager.getConnectedDevices();
 });
 
 ipcMain.handle('connect-midi-device', async (_event, deviceName: string) => {
   try {
-    midiManager.connect(deviceName);
-    // Save MIDI device preference
-    mappingEngine.setPreferredMidiDevice(deviceName);
+    midiManager.connectDevice(deviceName);
+    mappingEngine.addPreferredMidiDevice(deviceName);
     return { success: true, device: deviceName };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
   }
+});
+
+ipcMain.handle('disconnect-midi-device', async (_event, deviceName: string) => {
+  try {
+    midiManager.disconnectDevice(deviceName);
+    mappingEngine.removePreferredMidiDevice(deviceName);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
+});
+
+// Scan ALL MIDI input ports simultaneously for MIDI learn mode.
+// The first CC, Note On, or Pitch Bend received on any port fires midi-scan-captured.
+ipcMain.handle('start-midi-scan', async () => {
+  // Stop any previous scan first
+  if (midiScanCleanup) {
+    midiScanCleanup();
+    midiScanCleanup = null;
+  }
+
+  let fired = false;
+  midiScanCleanup = midiManager.scanAllInputs((deviceName, message) => {
+    if (fired) return; // Only capture the first signal
+    fired = true;
+
+    if (mainWindow) {
+      mainWindow.webContents.send('midi-scan-captured', { deviceName, message });
+    }
+
+    // Auto-stop after first capture
+    if (midiScanCleanup) {
+      midiScanCleanup();
+      midiScanCleanup = null;
+    }
+  });
+
+  return { success: true };
+});
+
+ipcMain.handle('stop-midi-scan', async () => {
+  if (midiScanCleanup) {
+    midiScanCleanup();
+    midiScanCleanup = null;
+  }
+  return { success: true };
 });
 
 // Mixer control IPC handlers

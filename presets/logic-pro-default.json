@@ -2,7 +2,11 @@
   "name": "logic-pro-default",
   "version": "1.0",
   "mixerIp": "192.168.21.41",
-  "midiDevice": "Logic Pro Virtual Out",
+  "midiDevices": [
+    "Launchkey MK4 49 MIDI Out",
+    "Logic Pro Virtual Out",
+    "Launchkey MK4 49 DAW Out"
+  ],
   "faderFilter": "dca-2",
   "midiFeedbackEnabled": false,
   "mappings": [
@@ -31,6 +35,35 @@
         "channel": {
           "type": "LINE",
           "channel": 4
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 10,
+        "controller": 71
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 3
+        }
+      }
+    },
+    {
+      "midi": {
+        "type": "cc",
+        "channel": 16,
+        "device": "Launchkey MK4 49 DAW Out",
+        "controller": 5
+      },
+      "mixer": {
+        "action": "volume",
+        "channel": {
+          "type": "LINE",
+          "channel": 1
         }
       }
     }

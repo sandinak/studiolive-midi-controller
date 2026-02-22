@@ -1000,6 +1000,32 @@
       margin-bottom: 5px;
     }
 
+    .midi-section-header {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #888;
+      padding: 8px 2px 4px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 8px;
+    }
+
+    .mixer-item.connected-device {
+      border-color: #4a9b7f;
+      background: rgba(74, 155, 127, 0.1);
+    }
+
+    .btn.listening {
+      background: #ff9800;
+      color: #000;
+      animation: pulse-orange 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-orange {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
     .mixer-details {
       opacity: 0.8;
       font-size: 0.9rem;
@@ -1442,9 +1468,17 @@
         <small style="color: #888; display: block; margin-top: 5px;">Logic Pro default: CC7 (Volume) with channel = mixer channel number</small>
       </div>
       <div class="form-group">
-        <label>Logic Channel (1-16)</label>
+        <label>MIDI Channel (1-16)</label>
         <input type="number" id="midi-channel" value="1" min="1" max="16" />
         <small style="color: #888; display: block; margin-top: 5px;">Logic Pro uses channels 1-16 (MIDI 0-15 internally)</small>
+      </div>
+      <div class="form-group" id="midi-device-filter-group">
+        <label>MIDI Device Filter</label>
+        <select id="midi-device-filter">
+          <option value="">Any connected device</option>
+          <!-- Populated dynamically from connected devices -->
+        </select>
+        <small style="color: #888; display: block; margin-top: 5px;">Optional: only respond to signals from this specific device</small>
       </div>
       <div class="form-group" id="note-group" style="display:none;">
         <label>Note Number (Trigger)</label>
@@ -1473,6 +1507,14 @@
           </div>
         </div>
         <small style="color: #888; display: block; margin-top: 5px;">Note number maps to fader value (min=0%, max=100%)</small>
+      </div>
+      <div class="form-group" id="midi-listen-group">
+        <label>MIDI Learn</label>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="btn" id="midi-listen-btn" type="button" onclick="toggleMidiListen()">Learn</button>
+          <span id="midi-listen-status" style="color: #888; font-size: 0.85rem;"></span>
+        </div>
+        <small style="color: #888; display: block; margin-top: 5px;">Click Learn, then send a MIDI signal to auto-detect type, channel, and CC/note</small>
       </div>
       <div class="modal-buttons">
         <button class="btn" onclick="addMapping()">Add Mapping</button>
@@ -2212,14 +2254,17 @@
       if (midiMessage.type === 'cc') {
         type = 'cc';
         details = `CC${midiMessage.controller} Ch${midiMessage.channel} = ${midiMessage.value}`;
-      } else if (midiMessage.type === 'noteon') {
+      } else if (midiMessage.type === 'note_on') {
         type = 'note';
         const noteName = getNoteNameFromNumber(midiMessage.note);
-        details = `Note ON ${noteName} (${midiMessage.note}) Ch${midiMessage.channel} Vel=${midiMessage.velocity}`;
-      } else if (midiMessage.type === 'noteoff') {
+        details = `Note ON ${noteName} (${midiMessage.note}) Ch${midiMessage.channel} Vel=${midiMessage.value}`;
+      } else if (midiMessage.type === 'note_off') {
         type = 'note';
         const noteName = getNoteNameFromNumber(midiMessage.note);
         details = `Note OFF ${noteName} (${midiMessage.note}) Ch${midiMessage.channel}`;
+      } else if (midiMessage.type === 'pitch_bend') {
+        type = 'cc';
+        details = `Pitch Bend Ch${midiMessage.channel} = ${midiMessage.value}`;
       }
 
       const entry = { timestamp, type, details };
@@ -2302,6 +2347,12 @@
     ipcRenderer.on('midi-activity', async (event, midiMessage) => {
       flashActivity('midi-activity');
       addMidiLogEntry(midiMessage);
+
+      // MIDI learn: intercept and auto-fill form fields
+      if (midiLearnActive && (midiMessage.type === 'cc' || midiMessage.type === 'note_on')) {
+        applyMidiLearnResult(midiMessage, midiMessage.device);
+        return;
+      }
 
       // Update MIDI indicator for CC messages
       if (midiMessage.type === 'cc') {
@@ -2703,13 +2754,41 @@
       document.getElementById('mixer-channel-type').value = 'LINE';
       updateMidiTypeFields();
 
+      // Reset device filter and populate with connected devices
+      document.getElementById('midi-device-filter').value = '';
+      populateMidiDeviceFilter();
+
       modal.classList.add('show');
       updateChannelNumberOptions(); // Populate channel numbers and auto-set MIDI settings (including MIDI channel)
+    }
+
+    async function populateMidiDeviceFilter(selectedDevice) {
+      const select = document.getElementById('midi-device-filter');
+      const devices = await ipcRenderer.invoke('get-connected-midi-devices');
+      // Rebuild options, keep "Any" as first
+      select.innerHTML = '<option value="">Any connected device</option>';
+      for (const dev of devices) {
+        const opt = document.createElement('option');
+        opt.value = dev;
+        opt.textContent = dev;
+        if (dev === selectedDevice) opt.selected = true;
+        select.appendChild(opt);
+      }
     }
 
     function hideAddMapping() {
       const modal = document.getElementById('add-mapping-modal');
       modal.classList.remove('show');
+
+      // Cancel MIDI learn if active
+      if (midiLearnActive) {
+        midiLearnActive = false;
+        ipcRenderer.invoke('stop-midi-scan');
+        const btn = document.getElementById('midi-listen-btn');
+        const status = document.getElementById('midi-listen-status');
+        if (btn) { btn.textContent = 'Learn'; btn.classList.remove('listening'); }
+        if (status) { status.textContent = ''; }
+      }
 
       // Reset modal title and editing flag
       const modalTitle = modal.querySelector('h2');
@@ -2720,6 +2799,79 @@
       if (returnToMappingsList) {
         returnToMappingsList = false;
         setTimeout(() => showMappingsList(), 100);
+      }
+    }
+
+    function toggleMidiListen() {
+      const btn = document.getElementById('midi-listen-btn');
+      const status = document.getElementById('midi-listen-status');
+      if (midiLearnActive) {
+        midiLearnActive = false;
+        btn.textContent = 'Learn';
+        btn.classList.remove('listening');
+        status.textContent = '';
+        ipcRenderer.invoke('stop-midi-scan');
+      } else {
+        midiLearnActive = true;
+        btn.textContent = 'Cancel';
+        btn.classList.add('listening');
+        status.textContent = 'Listening on all MIDI ports... move a fader or press a pad';
+        status.style.color = '#ff9800';
+        ipcRenderer.invoke('start-midi-scan');
+      }
+    }
+
+    // Handle MIDI scan result (fires from any port, not just the connected one)
+    ipcRenderer.on('midi-scan-captured', (event, { deviceName, message }) => {
+      if (!midiLearnActive) return;
+      applyMidiLearnResult(message, deviceName);
+    });
+
+    async function applyMidiLearnResult(msg, deviceName) {
+      const btn = document.getElementById('midi-listen-btn');
+      const status = document.getElementById('midi-listen-status');
+
+      midiLearnActive = false;
+      btn.textContent = 'Learn';
+      btn.classList.remove('listening');
+      ipcRenderer.invoke('stop-midi-scan');
+
+      // Auto-connect to the detected device if it isn't already connected
+      if (deviceName) {
+        const connectedDevices = await ipcRenderer.invoke('get-connected-midi-devices');
+        if (!connectedDevices.includes(deviceName)) {
+          await ipcRenderer.invoke('connect-midi-device', deviceName);
+          updateStatus();
+        }
+      }
+
+      const devLabel = deviceName ? ` [${deviceName}]` : '';
+
+      if (msg.type === 'cc') {
+        document.getElementById('midi-type').value = 'cc';
+        document.getElementById('midi-channel').value = msg.channel;
+        document.getElementById('midi-cc').value = msg.controller;
+        updateMidiTypeFields();
+        status.textContent = `Detected: CC${msg.controller} Ch${msg.channel}${devLabel}`;
+        status.style.color = '#4a9b7f';
+        if (deviceName) populateMidiDeviceFilter(deviceName);
+      } else if (msg.type === 'note_on') {
+        document.getElementById('midi-type').value = 'note';
+        document.getElementById('midi-channel').value = msg.channel;
+        document.getElementById('midi-note').value = msg.note;
+        updateMidiTypeFields();
+        updateNoteDisplay();
+        status.textContent = `Detected: Note ${msg.note} (${getNoteNameFromNumber(msg.note)}) Ch${msg.channel}${devLabel}`;
+        status.style.color = '#4a9b7f';
+        if (deviceName) populateMidiDeviceFilter(deviceName);
+      } else if (msg.type === 'pitch_bend') {
+        // Pitch bend not mappable — re-enable learn so user can try a CC control
+        status.textContent = `Detected: Pitch Bend Ch${msg.channel}${devLabel} — use a CC fader instead`;
+        status.style.color = '#ff9800';
+        midiLearnActive = true;
+        btn.textContent = 'Cancel';
+        btn.classList.add('listening');
+        ipcRenderer.invoke('start-midi-scan');
       }
     }
 
@@ -2940,8 +3092,10 @@
               </thead>
               <tbody>
                 ${sortedMappings.map((m, index) => {
-                  // MIDI Input - Channel and type
-                  const midiInput = `Ch ${m.midi.channel}`;
+                  // MIDI Input - Channel and device (show device when mapping has a filter)
+                  const midiInput = m.midi.device
+                    ? `Ch ${m.midi.channel} [${shortenMidiDeviceName(m.midi.device)}]`
+                    : `Ch ${m.midi.channel}`;
 
                   // MIDI Trigger - What triggers it and value ranges
                   let midiTrigger = '';
@@ -3039,6 +3193,7 @@
     // Store mappings for edit/delete operations
     let currentMappingsList = [];
     let returnToMappingsList = false;
+    let midiLearnActive = false;
 
     async function editMappingFromList(index) {
       const mapping = currentMappingsList[index];
@@ -3382,27 +3537,47 @@
     // Load MIDI devices
     async function loadMidiDevices() {
       try {
-        const devices = await ipcRenderer.invoke('get-midi-devices');
+        const { inputs, connected } = await ipcRenderer.invoke('get-midi-devices');
+        // connected is now an array of device names
+        const connectedSet = new Set(Array.isArray(connected) ? connected : (connected ? [connected] : []));
         const listEl = document.getElementById('midi-devices-list');
 
-        if (devices.length === 0) {
-          listEl.innerHTML = '<div class="empty-state">No MIDI devices found. Make sure Logic Pro is running and MIDI output is enabled.</div>';
+        if (inputs.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No MIDI input devices found. Make sure Logic Pro is running or your MIDI controller is connected.</div>';
         } else {
-          listEl.innerHTML = devices.map(device => {
-            const shortName = shortenMidiDeviceName(device);
+          let html = `<div class="midi-section-header">MIDI Inputs (${inputs.length})</div>`;
+          html += inputs.map(device => {
+            const isConnected = connectedSet.has(device);
+            const escapedDevice = device.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
             return `
-              <div class="mixer-item">
+              <div class="mixer-item${isConnected ? ' connected-device' : ''}">
                 <div class="mixer-info">
-                  <div class="mixer-name">🎹 ${shortName}</div>
+                  <div class="mixer-name">🎹 ${device}</div>
+                  ${isConnected ? '<div class="mixer-details" style="color: #4a9b7f; font-size: 0.8rem;">● Connected</div>' : ''}
                 </div>
-                <button class="btn" onclick="connectToMidiDevice('${device}')">Connect</button>
+                ${isConnected
+                  ? `<button class="btn" style="background:rgba(200,50,50,0.3); border-color:#c74a3a;" onclick="disconnectMidiDevice('${escapedDevice}')">Disconnect</button>`
+                  : `<button class="btn" onclick="connectToMidiDevice('${escapedDevice}')">Connect</button>`
+                }
               </div>
             `;
           }).join('');
+          listEl.innerHTML = html;
         }
       } catch (error) {
         const listEl = document.getElementById('midi-devices-list');
         listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+      }
+    }
+
+    // Disconnect a MIDI device
+    async function disconnectMidiDevice(deviceName) {
+      try {
+        await ipcRenderer.invoke('disconnect-midi-device', deviceName);
+        await loadMidiDevices();
+        updateStatus();
+      } catch (error) {
+        alert(`✗ Error disconnecting: ${error.message}`);
       }
     }
 
@@ -3749,6 +3924,10 @@
 
         isEditingMapping = false;
 
+        // Populate device filter, pre-selecting existing mapping's device if any
+        const existingMuteGroupMapping = mappingIndex !== -1 ? mappings[mappingIndex] : null;
+        await populateMidiDeviceFilter(existingMuteGroupMapping && existingMuteGroupMapping.midi.device);
+
         // Show modal
         modal.classList.add('show');
       } catch (error) {
@@ -3890,6 +4069,10 @@
         // Store the mapping index so we know we're editing
         modal.dataset.editingIndex = mappingIndex;
 
+        // Populate device filter dropdown and pre-select the mapping's device if set
+        const editedMapping = mappings[mappingIndex];
+        await populateMidiDeviceFilter(editedMapping && editedMapping.midi && editedMapping.midi.device);
+
         // Show the modal
         modal.classList.add('show');
       } catch (error) {
@@ -4021,6 +4204,10 @@
 
         isEditingMapping = false;
 
+        // Populate device filter, pre-selecting existing mapping's device if any
+        const existingMuteMapping = mappingIndex !== -1 ? mappings[mappingIndex] : null;
+        await populateMidiDeviceFilter(existingMuteMapping && existingMuteMapping.midi.device);
+
         // Show modal
         modal.classList.add('show');
       } catch (error) {
@@ -4125,6 +4312,10 @@
         updateMidiTypeFields();
 
         isEditingMapping = false;
+
+        // Populate device filter, pre-selecting existing mapping's device if any
+        const existingSoloMapping = mappingIndex !== -1 ? mappings[mappingIndex] : null;
+        await populateMidiDeviceFilter(existingSoloMapping && existingSoloMapping.midi.device);
 
         // Show modal
         modal.classList.add('show');
@@ -4272,13 +4463,13 @@
       hideAllContextMenus();
     }
 
-    // Connect to MIDI device
+    // Connect to MIDI device (additive — keeps existing connections)
     async function connectToMidiDevice(deviceName) {
       try {
         const result = await ipcRenderer.invoke('connect-midi-device', deviceName);
         if (result.success) {
-          alert(`✓ Connected to MIDI device: ${deviceName}`);
-          hideMidiSelect();
+          // Reload the device list in-place (don't close modal — user may want to add more)
+          await loadMidiDevices();
           updateStatus();
         } else {
           alert(`✗ Failed to connect: ${result.error}`);
@@ -4296,6 +4487,7 @@
 
       const midiType = document.getElementById('midi-type').value;
       const midiChannel = parseInt(document.getElementById('midi-channel').value);
+      const midiDeviceFilter = document.getElementById('midi-device-filter').value || undefined;
       const mixerAction = document.getElementById('mixer-action').value;
       const channelType = document.getElementById('mixer-channel-type').value;
       const channelNum = parseInt(document.getElementById('mixer-channel-num').value);
@@ -4303,7 +4495,8 @@
       const mapping = {
         midi: {
           type: midiType,
-          channel: midiChannel
+          channel: midiChannel,
+          ...(midiDeviceFilter ? { device: midiDeviceFilter } : {})
         },
         mixer: {
           action: mixerAction,
@@ -5006,7 +5199,7 @@
             // Apply color as background of label with appropriate text color
             const labelStyle = `background: ${channelColor}; color: ${textColor};`;
 
-            // Get MIDI mapping info (use correct property names)
+            // Get MIDI mapping info — type and channel only
             const midiInfo = mapping.midi.type === 'none'
               ? ''
               : mapping.midi.type === 'cc'
@@ -5724,19 +5917,27 @@
         const statusMidi = document.getElementById('status-midi');
 
         if (midiStatusDot) {
-          if (midiStatus.connected) {
+          const connectedDevices = midiStatus.devices || (midiStatus.device ? [midiStatus.device] : []);
+          if (midiStatus.connected && connectedDevices.length > 0) {
             midiStatusDot.classList.add('connected');
-            const shortDeviceName = shortenMidiDeviceName(midiStatus.device);
-            if (midiStatusShort) midiStatusShort.textContent = shortDeviceName || 'MIDI';
 
-            // Update tooltip with MIDI details
+            let shortLabel;
+            if (connectedDevices.length === 1) {
+              shortLabel = shortenMidiDeviceName(connectedDevices[0]);
+            } else {
+              shortLabel = `${connectedDevices.length} MIDI`;
+            }
+            if (midiStatusShort) midiStatusShort.textContent = shortLabel || 'MIDI';
+
+            // Update tooltip listing all connected devices
             const midiConnectionEl = document.getElementById('midi-connection-status');
             if (midiConnectionEl) {
-              midiConnectionEl.title = `MIDI Device: ${shortDeviceName || 'Unknown'}\nClick to open connection panel`;
+              const deviceList = connectedDevices.map(d => `  • ${shortenMidiDeviceName(d)}`).join('\n');
+              midiConnectionEl.title = `MIDI Devices:\n${deviceList}\nClick to manage connections`;
             }
 
             if (statusMidi) {
-              statusMidi.textContent = shortDeviceName || 'Connected';
+              statusMidi.textContent = shortLabel || 'Connected';
               statusMidi.classList.add('connected');
               statusMidi.classList.remove('disconnected');
             }
@@ -5744,7 +5945,6 @@
             midiStatusDot.classList.remove('connected');
             if (midiStatusShort) midiStatusShort.textContent = 'MIDI';
 
-            // Update tooltip
             const midiConnectionEl = document.getElementById('midi-connection-status');
             if (midiConnectionEl) {
               midiConnectionEl.title = 'MIDI: Disconnected\nClick to open connection panel';

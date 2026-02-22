@@ -10,7 +10,7 @@ export class MappingEngine extends EventEmitter {
   private currentPreset: string | null = null;
   private currentPresetPath: string | null = null;
   private preferredMixerIp: string | null = null;
-  private preferredMidiDevice: string | null = null;
+  private preferredMidiDevices: string[] = [];
   private faderFilter: 'all' | 'mapped' = 'all';
   private midiFeedbackEnabled: boolean = true;
 
@@ -29,13 +29,16 @@ export class MappingEngine extends EventEmitter {
       this.currentPreset = preset.name;
       this.currentPresetPath = presetPath;
       this.preferredMixerIp = preset.mixerIp || null;
-      this.preferredMidiDevice = preset.midiDevice || null;
+      // Support both new midiDevices array and legacy midiDevice string
+      if (preset.midiDevices && preset.midiDevices.length > 0) {
+        this.preferredMidiDevices = preset.midiDevices;
+      } else if (preset.midiDevice) {
+        this.preferredMidiDevices = [preset.midiDevice];
+      } else {
+        this.preferredMidiDevices = [];
+      }
       this.faderFilter = preset.faderFilter || 'all';
       this.midiFeedbackEnabled = preset.midiFeedbackEnabled !== undefined ? preset.midiFeedbackEnabled : true;
-      if (this.preferredMixerIp) {
-      }
-      if (this.preferredMidiDevice) {
-      }
       this.emit('preset-loaded', preset);
     } catch (error) {
       this.emit('error', error);
@@ -52,7 +55,7 @@ export class MappingEngine extends EventEmitter {
       version: '1.0',
       description,
       mixerIp: this.preferredMixerIp || undefined,
-      midiDevice: this.preferredMidiDevice || undefined,
+      midiDevices: this.preferredMidiDevices.length > 0 ? this.preferredMidiDevices : undefined,
       faderFilter: this.faderFilter,
       midiFeedbackEnabled: this.midiFeedbackEnabled,
       mappings: this.mappings
@@ -138,6 +141,11 @@ export class MappingEngine extends EventEmitter {
   translateMidiToMixer(midiMessage: MidiMessage): MixerCommand | null {
     // Find matching mapping
     const mapping = this.mappings.find(m => {
+      // Device filter: if the mapping specifies a device, it must match the message's device
+      if (m.midi.device && midiMessage.device && m.midi.device !== midiMessage.device) {
+        return false;
+      }
+
       if (m.midi.type === 'cc' && midiMessage.type === 'cc') {
         return m.midi.channel === midiMessage.channel &&
                m.midi.controller === midiMessage.controller;
@@ -179,7 +187,6 @@ export class MappingEngine extends EventEmitter {
           const noteRange = noteMax - noteMin;
 
           // Map note number to 0-100 range
-          // Formula: ((noteNumber - noteMin) / (noteMax - noteMin)) * 100
           scaledValue = ((midiMessage.note - noteMin) / noteRange) * 100;
 
           // Clamp to 0-100
@@ -240,25 +247,51 @@ export class MappingEngine extends EventEmitter {
   setPreferredMixerIp(ip: string): void {
     this.preferredMixerIp = ip;
     console.log(`✓ Set preferred mixer IP: ${ip}`);
-    // Auto-save if a preset is loaded
     this.autoSavePreset();
   }
 
   /**
-   * Get preferred MIDI device
+   * Get all preferred MIDI devices
+   */
+  getPreferredMidiDevices(): string[] {
+    return [...this.preferredMidiDevices];
+  }
+
+  /**
+   * Add a preferred MIDI device (idempotent)
+   */
+  addPreferredMidiDevice(device: string): void {
+    if (!this.preferredMidiDevices.includes(device)) {
+      this.preferredMidiDevices.push(device);
+      console.log(`✓ Added preferred MIDI device: ${device}`);
+      this.autoSavePreset();
+    }
+  }
+
+  /**
+   * Remove a preferred MIDI device
+   */
+  removePreferredMidiDevice(device: string): void {
+    const before = this.preferredMidiDevices.length;
+    this.preferredMidiDevices = this.preferredMidiDevices.filter(d => d !== device);
+    if (this.preferredMidiDevices.length < before) {
+      console.log(`✓ Removed preferred MIDI device: ${device}`);
+      this.autoSavePreset();
+    }
+  }
+
+  /**
+   * Get preferred MIDI device (backward compat — returns first)
    */
   getPreferredMidiDevice(): string | null {
-    return this.preferredMidiDevice;
+    return this.preferredMidiDevices.length > 0 ? this.preferredMidiDevices[0] : null;
   }
 
   /**
-   * Set preferred MIDI device (will be saved with preset)
+   * Set preferred MIDI device (backward compat — adds to list)
    */
   setPreferredMidiDevice(device: string): void {
-    this.preferredMidiDevice = device;
-    console.log(`✓ Set preferred MIDI device: ${device}`);
-    // Auto-save if a preset is loaded
-    this.autoSavePreset();
+    this.addPreferredMidiDevice(device);
   }
 
   /**
@@ -288,8 +321,6 @@ export class MappingEngine extends EventEmitter {
   setMidiFeedbackEnabled(enabled: boolean): void {
     this.midiFeedbackEnabled = enabled;
     console.log(`✓ Set MIDI feedback: ${enabled ? 'enabled' : 'disabled'}`);
-    // Auto-save if a preset is loaded
     this.autoSavePreset();
   }
 }
-
