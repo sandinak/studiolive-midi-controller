@@ -498,7 +498,7 @@
       gap: 3px;
       justify-content: center;
       margin-bottom: 2px;
-      min-height: 20px;
+      min-height: 24px;
     }
 
     .fader-indicator {
@@ -537,7 +537,7 @@
       color: #e0e0e0;
       padding: 2px 4px;
       border-radius: 3px;
-      min-height: 24px;
+      min-height: 28px;
       width: 100%;
       display: flex;
       align-items: center;
@@ -547,8 +547,8 @@
     .fader-indicator.input-source svg {
       display: block;
       flex-shrink: 0;
-      width: 20px;
-      height: 20px;
+      width: 24px;
+      height: 24px;
     }
 
     .fader-indicator.input-source.source-analog {
@@ -5956,7 +5956,7 @@
           const src = (inputsrc === null || inputsrc === undefined) ? 0 : inputsrc;
           switch (src) {
             case 0: // Analog — XLR connector: outer ring w/ latch notch at top, filled inner circle, pins at 3/6/9
-              return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.2" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.2" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.8" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.2" fill="currentColor" stroke="none"/></svg>`;
+              return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.6" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.6" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.4" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.6" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.0" fill="rgba(0,0,0,0.6)" stroke="none"/></svg>`;
             case 1: // Network — hierarchy diagram
               return `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-label="Network"><rect x="5" y="1" width="6" height="3.5" rx="0.8"/><rect x="1" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="6" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="11" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="7.3" y="4.5" width="1.4" height="3" rx="0.3"/><rect x="1.5" y="8.8" width="13" height="1.4" rx="0.3"/><rect x="2.5" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="7.3" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="12.1" y="8.8" width="1.4" height="2.7" rx="0.3"/></svg>`;
             case 2: // USB — USB trident symbol
@@ -5964,7 +5964,7 @@
             case 3: // SD Card
               return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="SD Card"><path d="M3 1.5h7l3.5 3.5V15H3V1.5z"/><line x1="5" y1="9" x2="5" y2="14" stroke-width="1"/><line x1="7.5" y1="9" x2="7.5" y2="14" stroke-width="1"/><line x1="10" y1="9" x2="10" y2="14" stroke-width="1"/></svg>`;
             default:
-              return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.2" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.2" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.8" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.2" fill="currentColor" stroke="none"/></svg>`;
+              return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.6" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.6" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.4" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.6" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.0" fill="rgba(0,0,0,0.6)" stroke="none"/></svg>`;
           }
         };
 
@@ -6453,7 +6453,7 @@
 
         // Inline SVG icons matching getInputSourceLabel()
         const icons = {
-          0: { cls: 'source-analog',  tip: 'Input: Analog (XLR)', svg: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.2" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.2" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.8" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.2" fill="currentColor" stroke="none"/></svg>` },
+          0: { cls: 'source-analog',  tip: 'Input: Analog (XLR)', svg: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.6" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.6" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.4" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.6" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.0" fill="rgba(0,0,0,0.6)" stroke="none"/></svg>` },
           1: { cls: 'source-network', tip: 'Input: Network', svg: `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-label="Network"><rect x="5" y="1" width="6" height="3.5" rx="0.8"/><rect x="1" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="6" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="11" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="7.3" y="4.5" width="1.4" height="3" rx="0.3"/><rect x="1.5" y="8.8" width="13" height="1.4" rx="0.3"/><rect x="2.5" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="7.3" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="12.1" y="8.8" width="1.4" height="2.7" rx="0.3"/></svg>` },
           2: { cls: 'source-usb',     tip: 'Input: USB', svg: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="USB"><line x1="8" y1="2" x2="8" y2="10.5"/><line x1="5" y1="5.5" x2="11" y2="5.5"/><line x1="5" y1="3.5" x2="5" y2="5.5"/><rect x="3.5" y="1.8" width="3" height="2" rx="0.5" fill="currentColor" stroke="none"/><circle cx="5" cy="8.2" r="1.5" stroke="currentColor"/><rect x="9.5" y="5.5" width="3" height="2" rx="0.5" fill="currentColor" stroke="none"/><line x1="8" y1="10.5" x2="8" y2="12.5"/><rect x="5.5" y="12.5" width="5" height="3" rx="0.8" fill="currentColor" stroke="none"/></svg>` },
           3: { cls: 'source-sdcard',  tip: 'Input: SD Card', svg: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="SD Card"><path d="M3 1.5h7l3.5 3.5V15H3V1.5z"/><line x1="5" y1="9" x2="5" y2="14" stroke-width="1"/><line x1="7.5" y1="9" x2="7.5" y2="14" stroke-width="1"/><line x1="10" y1="9" x2="10" y2="14" stroke-width="1"/></svg>` },
