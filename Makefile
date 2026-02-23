@@ -1,9 +1,18 @@
 # Makefile for StudioLive MIDI Controller
 
-.PHONY: help build clean dev start dist dist-mac dist-win dist-all install typecheck copy-assets rebuild install-deps build-deps test
+.PHONY: help build clean dev start dist dist-mac dist-win dist-all install setup typecheck copy-assets rebuild install-deps build-deps test
 
 # Paths
-DEPS_DIR = ../presonus-studiolive-api
+DEPS_DIR  = ../presonus-studiolive-api
+APP_NAME  = StudioLive MIDI Controller
+
+# Detect local architecture for install target
+UNAME_M  := $(shell uname -m)
+ifeq ($(UNAME_M),arm64)
+  RELEASE_APP_DIR = release/mac-arm64
+else
+  RELEASE_APP_DIR = release/mac
+endif
 
 # Default target
 .DEFAULT_GOAL := help
@@ -26,8 +35,15 @@ build-deps: install-deps ## Build the dependent repo
 	@echo "Building dependent repo..."
 	@cd $(DEPS_DIR) && npm run build
 
-install: install-deps build-deps ## Install and link dependencies
+setup: install-deps build-deps ## Install and link all dependencies (dev setup)
 	npm install
+
+install: setup build ## Build and install app to /Applications
+	@echo "Building app bundle for $(UNAME_M)..."
+	CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dir
+	@rm -rf "/Applications/$(APP_NAME).app"
+	cp -r "$(RELEASE_APP_DIR)/$(APP_NAME).app" "/Applications/$(APP_NAME).app"
+	@echo "Installed: /Applications/$(APP_NAME).app"
 
 build: clean copy-assets ## Build the application
 	tsc -p tsconfig.main.json
@@ -86,4 +102,3 @@ typecheck: ## Run TypeScript type checking without building
 
 test: ## Run Jest unit tests
 	npm test
-
