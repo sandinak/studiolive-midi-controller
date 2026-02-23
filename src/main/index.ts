@@ -91,7 +91,7 @@ function createWindow() {
           // User chose Quit — tear down and exit
           stopReconnectionLoop();
           mainWindow?.removeAllListeners('close');
-          mainWindow?.close();
+          app.quit();
         }
       });
     }
@@ -491,6 +491,8 @@ app.on('before-quit', () => {
     midiScanCleanup = null;
   }
   stopReconnectionLoop();
+  midiManager.disconnectAll();
+  mixerManager.disconnect();
 });
 
 app.on('activate', () => {
