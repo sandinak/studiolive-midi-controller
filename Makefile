@@ -52,6 +52,8 @@ dist: dist-mac ## Build distributable packages (default: macOS)
 dist-mac: build ## Build macOS packages (DMG and ZIP for x64 and arm64)
 	@echo "Building macOS packages..."
 	npm run dist -- --mac
+	@echo "Restoring native modules for local arch after cross-compile..."
+	npm install --ignore-scripts=false
 
 dist-win: build ## Build Windows packages (NSIS installer and portable)
 	@echo "Building Windows packages..."
