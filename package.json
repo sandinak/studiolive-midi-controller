@@ -74,6 +74,11 @@
       "createStartMenuShortcut": true,
       "shortcutName": "StudioLive MIDI Controller"
     },
+    "asarUnpack": [
+      "**/*.node",
+      "**/node_modules/@julusian/midi/**",
+      "**/node_modules/dtrace-provider/**"
+    ],
     "files": [
       "dist/**/*",
       "node_modules/**/*",
