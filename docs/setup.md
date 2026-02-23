@@ -6,7 +6,7 @@
 - **Node.js 18+** and npm (install via [Homebrew](https://brew.sh): `brew install node`)
 - **PreSonus StudioLive III** mixer on the same network
 - **Logic Pro** or any DAW with MIDI output capability
-  - Logic Pro Virtual MIDI is built-in and always enabled
+  - Logic Pro exposes **Logic Pro Virtual Out** automatically — no extra setup needed
 
 ## Installation
 
@@ -70,7 +70,7 @@ CSC_IDENTITY_AUTO_DISCOVERY=false make dist-mac
 ### 2. Connect MIDI
 
 1. Click the **MIDI** connection status in the sidebar
-2. Select your MIDI device (e.g., **Logic Pro Virtual In**)
+2. Select your MIDI device (e.g., **Logic Pro Virtual Out**)
 3. Click **Connect**
    - The MIDI device is saved for automatic reconnection
 
@@ -88,32 +88,30 @@ Click **💾 Save** to persist your configuration. Profiles store mixer IP, MIDI
 
 ## Logic Pro Configuration
 
-### Quick Start with Logic Pro
+### Quick Start
 
-1. Open Logic Pro
-2. Create an **External Instrument** track
-3. Set **MIDI Destination** to **Logic Pro Virtual Out**
-4. Set the **MIDI Channel** to match your mapping
-5. Press **A** to enable Automation mode
-6. Create volume automation on the track
+1. In Logic, create an **External MIDI** track. In the Inspector set **MIDI Out** to **Logic Pro Virtual Out** and choose a unique **MIDI Channel** per mixer channel.
+2. Draw **CC 7 (Volume)** automation on the track.
+3. In the app, open the MIDI panel and connect to **Logic Pro Virtual Out**.
+4. Right-click a fader in the app → **Learn MIDI mapping**, then press Play in Logic and move the fader.
 
 ### Environment Setup (Advanced)
 
-For dedicated fader panels in Logic Pro, use the MIDI Environment:
+For a visual fader panel inside Logic, use the MIDI Environment:
 
 1. Open MIDI Environment: hold **Option** + click **Window** → **Open MIDI Environment**
 2. Create a new layer named "StudioLive Mixer"
 3. Create a **Physical Output** pointing to **Logic Pro Virtual Out**
-4. Create faders (CC 1–8 for volume, CC 16–23 for mute)
+4. Create Fader objects (CC 7 per channel, unique MIDI channel each)
 5. Cable all controls to the Physical Output
 
-See [Logic Environment Quick Reference](LOGIC_ENVIRONMENT_QUICK_REFERENCE.md) for detailed settings tables.
+See [Logic Quick Reference](LOGIC_ENVIRONMENT_QUICK_REFERENCE.md) for full settings tables and a step-by-step walkthrough.
 
-### Three Integration Approaches
+### Integration Approaches
 
 | Approach | Pros | Best For |
 |----------|------|----------|
-| **Environment** ⭐ | Most flexible, automatable, visual | Full control with one-time setup |
-| **Smart Controls** | Easier setup | Quick mapping with fewer controls |
-| **Physical Controller** | Tactile hardware | Users with existing MIDI controllers |
+| **External MIDI track** ⭐ | Simple, uses standard Logic automation | Most users |
+| **MIDI Environment** | Visual fader panel, more CC flexibility | Power users wanting a dedicated panel |
+| **Hardware MIDI controller** | Tactile hardware, works alongside Logic | Users with BCF2000, X-Touch, etc. |
 

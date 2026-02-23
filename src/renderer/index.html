@@ -498,7 +498,7 @@
       gap: 3px;
       justify-content: center;
       margin-bottom: 2px;
-      min-height: 16px;
+      min-height: 20px;
     }
 
     .fader-indicator {
@@ -537,7 +537,7 @@
       color: #e0e0e0;
       padding: 2px 4px;
       border-radius: 3px;
-      min-height: 18px;
+      min-height: 24px;
       width: 100%;
       display: flex;
       align-items: center;
@@ -547,6 +547,8 @@
     .fader-indicator.input-source svg {
       display: block;
       flex-shrink: 0;
+      width: 20px;
+      height: 20px;
     }
 
     .fader-indicator.input-source.source-analog {
@@ -1429,7 +1431,7 @@
     <div class="status-bar-right">
       <div class="status-item">
         <span class="status-item-label">Version:</span>
-        <span class="status-item-value" id="status-version">1.1.0</span>
+        <span class="status-item-value" id="status-version">1.2.2</span>
       </div>
     </div>
   </div>
@@ -6913,6 +6915,17 @@
 
     // Load initial state
     async function loadInitialState() {
+      // Set real version immediately and kick off update check — both must run
+      // regardless of which connection path (auto-connect / discovery / manual) is taken.
+      ipcRenderer.invoke('get-app-version').then(v => {
+        const el = document.getElementById('status-version');
+        if (el && v) el.textContent = String(v);
+      }).catch(() => {});
+
+      checkForUpdates().catch(err => {
+        console.error('[Renderer] Update check failed:', err);
+      });
+
       try {
         // Check if there's a preferred mixer (use get-mixer-status to get all stored metadata)
         const prefStatus = await ipcRenderer.invoke('get-mixer-status');
@@ -7011,17 +7024,6 @@
       // The mixer-state-ready event will handle loading when a mixer connects
 
       updateStatusInit('Ready');
-
-      // Set real version immediately (synchronous IPC — no network needed)
-      ipcRenderer.invoke('get-app-version').then(v => {
-        const el = document.getElementById('status-version');
-        if (el && v) el.textContent = String(v);
-      }).catch(() => {});
-
-      // Check for updates (non-blocking — may take up to 5s)
-      checkForUpdates().catch(err => {
-        console.error('[Renderer] Update check failed:', err);
-      });
     }
 
     // Update status every 2 seconds

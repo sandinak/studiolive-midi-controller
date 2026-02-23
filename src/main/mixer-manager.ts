@@ -4,6 +4,7 @@ import { SimpleClient as StudioLiveClient } from 'presonus-studiolive-api/simple
 import { Client, Discovery } from 'presonus-studiolive-api';
 import type { ChannelSelector, DiscoveryType } from 'presonus-studiolive-api';
 import { EventEmitter } from 'events';
+import * as os from 'os';
 
 export class MixerManager extends EventEmitter {
   private client: StudioLiveClient | null = null;
@@ -154,6 +155,7 @@ export class MixerManager extends EventEmitter {
       this.mixerIp = null;
       this.mixerModel = null;
       this.mixerDeviceName = null;
+      this.mixerSerial = null;
       this.emit('disconnected', ip);
     }
   }
@@ -306,7 +308,24 @@ export class MixerManager extends EventEmitter {
     const collected: DiscoveryType[] = [];
     const seen = new Set<string>();
 
+    /** Return the set of IPv4 addresses assigned to local interfaces. */
+    const getLocalIps = (): Set<string> => {
+      const ips = new Set<string>();
+      for (const ifaces of Object.values(os.networkInterfaces())) {
+        for (const iface of ifaces ?? []) {
+          if (iface.family === 'IPv4') ips.add(iface.address);
+        }
+      }
+      return ips;
+    };
+
     discovery.on('discover', (device: DiscoveryType) => {
+      // Refresh local IPs on every packet — they can change while scanning.
+      // Discard any packet whose source IP matches a local interface; this
+      // prevents the app from discovering its own machine.
+      const localIps = getLocalIps();
+      if (localIps.has(device.ip)) return;
+
       const key = device.serial || device.ip;
       if (!seen.has(key)) {
         seen.add(key);

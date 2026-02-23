@@ -321,8 +321,12 @@
 <!-- ── Sidebar ─────────────────────────────────────────────────── -->
 <nav>
   <div class="nav-brand">
-    <h1><a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/CHANGELOG.md"
-           target="_blank" style="color:inherit;text-decoration:none;">StudioLive<br>MIDI Controller</a></h1>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+      <img src="../assets/icon.png" alt="" style="width:28px;height:28px;flex-shrink:0;"
+           onerror="this.style.display='none'">
+      <h1><a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/CHANGELOG.md"
+             target="_blank" style="color:inherit;text-decoration:none;">StudioLive<br>MIDI Controller</a></h1>
+    </div>
     <small>Documentation</small>
   </div>
 
@@ -347,6 +351,10 @@
   <div class="nav-section">Integration</div>
   <a href="#logic-pro">Logic Pro Setup</a>
 
+  <div class="nav-section">Settings</div>
+  <a href="#shortcuts">Keyboard Shortcuts</a>
+  <a href="#preferences">Preferences</a>
+
   <div class="nav-section">Reference</div>
   <a href="#troubleshooting">Troubleshooting</a>
   <a href="setup.md">Setup Guide ↗</a>
@@ -359,8 +367,12 @@
 
   <!-- Hero -->
   <div class="hero">
-    <h1><a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/CHANGELOG.md"
-           target="_blank" style="color:inherit;text-decoration:none;">StudioLive MIDI Controller</a></h1>
+    <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px;">
+      <img src="../assets/icon.png" alt="StudioLive MIDI Controller" style="width:52px;height:52px;"
+           onerror="this.style.display='none'">
+      <h1><a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/CHANGELOG.md"
+             target="_blank" style="color:inherit;text-decoration:none;">StudioLive MIDI Controller</a></h1>
+    </div>
     <p class="subtitle">MIDI control surface for PreSonus StudioLive III mixers — map DAW faders, mute, and solo to your mixer over the network.</p>
     <div class="hero-links">
       <a class="pill pill-green" href="#first-launch">⚡ Quick Start</a>
@@ -381,7 +393,9 @@
         <tr><td><strong>All channel types</strong></td><td>LINE, AUX, FX, SUB, DCA, MAIN, and Mute Groups</td></tr>
         <tr><td><strong>Stereo linking</strong></td><td>Automatic detection — paired L/R faders move together</td></tr>
         <tr><td><strong>Auto-discovery</strong></td><td>Finds mixers on the local network via mDNS</td></tr>
-        <tr><td><strong>Auto-reconnect</strong></td><td>Reconnects to MIDI (3 s) and mixer (10 s) automatically</td></tr>
+        <tr><td><strong>Auto-reconnect</strong></td><td>Reconnects to both MIDI and mixer automatically (every 3 s)</td></tr>
+        <tr><td><strong>MIDI device colors</strong></td><td>Assign a color per device — color badges appear on mapped faders</td></tr>
+        <tr><td><strong>Level display</strong></td><td>Per-channel level indicator dot or live VU meter with optional peak hold</td></tr>
         <tr><td><strong>Profiles</strong></td><td>Save and load complete configurations as JSON</td></tr>
         <tr><td><strong>Filter modes</strong></td><td>All, Mapped-only, DCA groups, Auto-filter groups</td></tr>
         <tr><td><strong>Level indicators</strong></td><td>Per-channel audio level dots (grey→green→yellow→red)</td></tr>
@@ -429,7 +443,7 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
     <h3>2 — Connect a MIDI device</h3>
     <ol class="steps">
       <li>Click the <strong>MIDI</strong> status dot in the header.</li>
-      <li>Select your device (e.g. <em>Logic Pro Virtual In</em>) and click <strong>Connect</strong>.</li>
+      <li>Select your device (e.g. <em>Logic Pro Virtual Out</em>) and click <strong>Connect</strong>.</li>
       <li>Optionally assign a colour to the device — all mappings from it are highlighted with that colour.</li>
     </ol>
     <figure class="screenshot">
@@ -512,10 +526,19 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
       </ul>
     </div>
 
-    <h3>Level Indicator Dot</h3>
-    <p>The small dot to the left of each channel number reflects the live audio level from the mixer's meter stream:</p>
+    <h3>Level Display</h3>
+    <p>Configurable in <strong>⚙️ Preferences → Channel Level Display</strong>:</p>
     <table>
-      <thead><tr><th>Colour</th><th>Meaning</th></tr></thead>
+      <thead><tr><th>Mode</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><strong>None</strong></td><td>No level indicator (default). Lowest CPU overhead.</td></tr>
+        <tr><td><strong>Indicator</strong></td><td>Colored dot to the left of the channel number — grey/green/yellow/red based on signal level.</td></tr>
+        <tr><td><strong>Meter</strong></td><td>Vertical VU bar alongside the fader showing real-time audio levels from the mixer's UDP meter stream.</td></tr>
+      </tbody>
+    </table>
+    <p>When <strong>Meter</strong> mode is active, enable <strong>Peak Hold</strong> in Preferences to show a white line at the highest recent level — it holds for 3 seconds before dropping.</p>
+    <table>
+      <thead><tr><th>Indicator colour</th><th>Meaning</th></tr></thead>
       <tbody>
         <tr><td><span class="badge badge-grey">●</span> Grey</td><td>Silent / no signal</td></tr>
         <tr><td><span class="badge badge-green">●</span> Green</td><td>Normal level</td></tr>
@@ -523,6 +546,9 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
         <tr><td><span class="badge badge-red">●</span> Red</td><td>Peaking / clipping</td></tr>
       </tbody>
     </table>
+
+    <h3>MIDI Device Color Badge</h3>
+    <p>When a MIDI device has a color assigned (see MIDI panel), a small colored dot appears on every fader mapped to that device. If the mapped device disconnects, the fader border switches to a <strong>pulsing dashed red/white</strong> animation until it reconnects.</p>
 
     <h3>Fader Glow (change source)</h3>
     <p>When a fader value changes, its container briefly glows to show <em>who</em> changed it:</p>
@@ -552,6 +578,19 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
       <figcaption>The toolbar: save/load, channel management, filter selector, and mute-group buttons.</figcaption>
     </figure>
 
+    <h3>Toolbar Buttons</h3>
+    <table>
+      <thead><tr><th>Button</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><strong>💾 Save / Save As…</strong></td><td>Save the current preset to disk. <kbd>Cmd-S</kbd> / <kbd>Ctrl-S</kbd> quick-saves to the current file path (opens Save dialog if none set).</td></tr>
+        <tr><td><strong>📂 Load</strong></td><td>Open a preset file. Channels update immediately.</td></tr>
+        <tr><td><strong>➕ Add Channel</strong></td><td>Create a new channel strip with a mapping.</td></tr>
+        <tr><td><strong>➖ Remove Selected</strong></td><td>Remove the currently selected channel strips.</td></tr>
+        <tr><td><strong>📋 Mappings</strong></td><td>Open a table of every mapping in the preset with Edit and Delete actions.</td></tr>
+        <tr><td><strong>⚙️ Preferences</strong></td><td>Open display and feedback preferences.</td></tr>
+      </tbody>
+    </table>
+
     <h3>Filter Modes</h3>
     <table>
       <thead><tr><th>Mode</th><th>Shows</th></tr></thead>
@@ -560,6 +599,7 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
         <tr><td><strong>Mapped</strong></td><td>Only channels that have at least one MIDI mapping (volume, mute, or solo).</td></tr>
         <tr><td><strong>DCA 1–8</strong></td><td>Channels assigned to that DCA group on the mixer.</td></tr>
         <tr><td><strong>Auto-filter groups</strong></td><td>Custom channel groupings defined in Universal Control.</td></tr>
+        <tr><td><strong>Device</strong></td><td>Only channels mapped to a specific MIDI device.</td></tr>
       </tbody>
     </table>
     <div class="tip"><strong>Tip</strong>MAIN is always shown regardless of the active filter — it is anchored to the far right of the strip area.</div>
@@ -626,7 +666,7 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
         </tr>
       </tbody>
     </table>
-    <div class="tip"><strong>Logic Pro tip</strong>Use <strong>CC7</strong> (Volume) on the track automation lane for fader control, or draw in CC automation on a dedicated External MIDI track routed to <em>Logic Pro Virtual Out</em>.</div>
+    <div class="tip"><strong>Logic Pro tip</strong>Use <strong>CC 7</strong> (Volume) on the track automation lane for fader control, or draw CC automation on a dedicated External MIDI track routed to <em>Logic Pro Virtual Out</em>.</div>
   </section>
 
   <!-- ── Context Menus ─────────────────────────────────────────── -->
@@ -696,7 +736,7 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
       <li>Display preferences (fader smoothing, level display)</li>
     </ul>
     <p>Profiles are saved to:</p>
-    <pre><code>~/Library/Application Support/studiolive-midi-controller/presets/</code></pre>
+    <pre><code>~/Library/Application Support/StudioLive Midi Controller/</code></pre>
     <table>
       <thead><tr><th>Action</th><th>How</th></tr></thead>
       <tbody>
@@ -710,24 +750,95 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
   <!-- ── Logic Pro ─────────────────────────────────────────────── -->
   <section id="logic-pro">
     <h2>Logic Pro Setup</h2>
+    <p>Logic Pro exposes a built-in virtual MIDI port called <strong>Logic Pro Virtual Out</strong> that is visible to all CoreMIDI apps on the same Mac — no extra setup required.</p>
 
-    <h3>Quickest path — External Instrument track</h3>
+    <h3>Step 1 — Configure Logic tracks</h3>
     <ol class="steps">
-      <li>Create an <strong>External Instrument</strong> track in Logic Pro.</li>
-      <li>Set <strong>MIDI Destination</strong> to <em>Logic Pro Virtual Out</em> and the <strong>MIDI Channel</strong> to match your mapping.</li>
-      <li>Enable Automation (<kbd>A</kbd>) and draw volume automation on the track.</li>
+      <li>For each mixer channel, create an <strong>External MIDI</strong> track in Logic.</li>
+      <li>In the track <strong>Inspector</strong>, set <strong>MIDI Out</strong> to <em>Logic Pro Virtual Out</em> and pick a unique <strong>MIDI Channel</strong> (1–16) per mixer channel.</li>
+      <li>Draw <strong>CC 7 (Volume)</strong> automation on the track, or record fader moves during playback.</li>
     </ol>
 
-    <h3>Dedicated fader panel — MIDI Environment</h3>
+    <h3>Step 2 — Connect the app</h3>
     <ol class="steps">
-      <li>Open MIDI Environment: hold <kbd>Option</kbd>, click <em>Window</em> → <em>Open MIDI Environment</em>.</li>
-      <li>Create a layer named <em>StudioLive Mixer</em>.</li>
-      <li>Add a <strong>Physical Output</strong> pointing to <em>Logic Pro Virtual Out</em>.</li>
-      <li>Add <strong>Fader</strong> objects (CC 1–8 for volume, etc.) and cable them to the Physical Output.</li>
+      <li>Click the <strong>MIDI status dot</strong> in the app header to open the MIDI panel.</li>
+      <li>Select <strong>Logic Pro Virtual Out</strong> from the device list and click <strong>Connect</strong>.</li>
     </ol>
-    <p>See <a href="LOGIC_ENVIRONMENT_QUICK_REFERENCE.md">Logic Environment Quick Reference</a> for detailed settings tables.</p>
 
-    <div class="warning"><strong>Important</strong>Make sure the MIDI channel numbers in Logic match the channels set in the app's mapping dialog. Mismatched channels are the most common cause of faders not responding.</div>
+    <h3>Step 3 — Add mappings</h3>
+    <ol class="steps">
+      <li>Right-click a fader → <strong>Learn MIDI mapping</strong>, then press Play in Logic and move the corresponding fader to auto-detect CC and channel.</li>
+      <li>Alternatively, right-click → <strong>Edit Mapping</strong> and enter the CC number and MIDI channel manually.</li>
+      <li>The MIDI channel in the mapping must match the channel set on the Logic track.</li>
+    </ol>
+
+    <p>For the advanced MIDI Environment approach (a visual fader panel inside Logic) see the <a href="LOGIC_ENVIRONMENT_QUICK_REFERENCE.md">Logic Quick Reference</a>.</p>
+
+    <div class="warning"><strong>Important</strong>MIDI channel numbers in Logic must match the channels in the app's mappings. Mismatched channels are the most common reason faders don't respond.</div>
+  </section>
+
+  <!-- ── Keyboard Shortcuts ───────────────────────────────────── -->
+  <section id="shortcuts">
+    <h2>Keyboard Shortcuts</h2>
+    <table>
+      <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Cmd-S</kbd> / <kbd>Ctrl-S</kbd></td><td>Quick-save to the current preset path. Opens Save dialog if no path is set yet.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── Preferences ───────────────────────────────────────────── -->
+  <section id="preferences">
+    <h2>Preferences</h2>
+    <figure class="screenshot">
+      <img src="images/preferences-modal.png" alt="Preferences dialog"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>Preferences Dialog</em>
+        <code>docs/images/preferences-modal.png</code>
+      </div>
+      <figcaption>The Preferences dialog — accessed via ⚙️ in the toolbar.</figcaption>
+    </figure>
+    <p>Click <strong>⚙️ Preferences</strong> in the toolbar to configure display and feedback options.</p>
+    <table>
+      <thead><tr><th>Setting</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Fader Smoothing</strong></td>
+          <td>Transition duration in milliseconds (0–500 ms, default 300 ms). Higher values smooth out jerky fader movement from coarse MIDI resolution.</td>
+        </tr>
+        <tr>
+          <td><strong>Channel Level Display</strong></td>
+          <td>Choose <em>None</em> (off), <em>Indicator</em> (colored dot), or <em>Meter</em> (live VU bar). Meter mode requires an active mixer connection and uses the UDP audio meter stream.</td>
+        </tr>
+        <tr>
+          <td><strong>Peak Hold</strong></td>
+          <td>When Meter mode is active, hold a white peak marker for 3 seconds before it drops. Useful for catching transient overloads.</td>
+        </tr>
+        <tr>
+          <td><strong>MIDI Feedback</strong></td>
+          <td>When enabled, dragging a fader in the app sends a CC message back to the DAW so automation lanes stay in sync.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>MIDI Device Colors</h3>
+    <ol class="steps">
+      <li>Open the <strong>MIDI</strong> connection panel (click the MIDI status dot).</li>
+      <li>Click the color swatch next to a connected device name.</li>
+      <li>Choose a color. Mapped faders immediately show a small colored dot badge.</li>
+    </ol>
+    <figure class="screenshot">
+      <img src="images/midi-modal.png" alt="MIDI panel with device color swatches"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>MIDI Panel — Device Color Swatches</em>
+        <code>docs/images/midi-modal.png</code>
+      </div>
+      <figcaption>The MIDI connection panel — color swatches appear next to each connected device name.</figcaption>
+    </figure>
+    <p>Colors are stored in the preset so they persist across launches.</p>
   </section>
 
   <!-- ── Troubleshooting ───────────────────────────────────────── -->
@@ -752,7 +863,7 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
     <ul>
       <li>Both mixer and MIDI dots must be green.</li>
       <li>Verify the mapping uses the correct CC and MIDI channel.</li>
-      <li>In Logic, make sure the track's MIDI output is set to <em>Logic Pro Virtual Out</em>.</li>
+      <li>In Logic, confirm the track's <strong>MIDI Out</strong> is set to <em>Logic Pro Virtual Out</em> (track Inspector).</li>
     </ul>
 
     <h3>Jerky fader movement</h3>
@@ -769,8 +880,21 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
 
     <h3>Profile not loading</h3>
     <ul>
-      <li>Check the preset directory: <code>~/Library/Application Support/studiolive-midi-controller/presets/</code></li>
+      <li>Check the preset directory: <code>~/Library/Application Support/StudioLive Midi Controller/</code></li>
       <li>Verify the JSON is valid (open in a text editor).</li>
+    </ul>
+
+    <h3>Fader border pulsing red/white</h3>
+    <ul>
+      <li>A pulsing dashed red/white border means the MIDI device assigned to that fader is not currently connected.</li>
+      <li>Reconnect the MIDI device, or open <strong>Preferences → MIDI Device Colors</strong> and remove the color assignment to clear the animation.</li>
+    </ul>
+
+    <h3>Level meter not working</h3>
+    <ul>
+      <li>Open <strong>Preferences</strong> and confirm <strong>Level Display</strong> is set to <em>Indicator</em> or <em>Meter</em> (not <em>None</em>).</li>
+      <li>Level data requires an active mixer connection — check the status bar dot is green.</li>
+      <li>Play audio through the mixer and verify signal on the physical meters; the app only shows levels when the mixer is streaming meter data.</li>
     </ul>
   </section>
 

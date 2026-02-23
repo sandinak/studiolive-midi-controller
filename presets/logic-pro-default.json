@@ -1,12 +1,10 @@
 {
   "name": "default",
   "version": "1.0",
-  "mixerIp": "",
-  "mixerDeviceName": "",
-  "midiDevices": [],
-  "midiDeviceColors": {},
+  "mixerIp": "192.168.21.41",
+  "mixerModel": "StudioLive 16R",
+  "mixerSerial": "RA1E24090034",
   "faderFilter": "all",
   "midiFeedbackEnabled": false,
-  "levelVisibility": "none",
   "mappings": []
 }

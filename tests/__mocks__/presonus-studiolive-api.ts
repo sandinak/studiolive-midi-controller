@@ -49,6 +49,29 @@ export class Client extends EventEmitter {
   static discover = jest.fn().mockResolvedValue([]);
 }
 
+// ---- Discovery (used by MixerManager.discoverProgressive) ----
+export class Discovery extends EventEmitter {
+  // Devices to emit during start() — set via __setDevices() in tests
+  private static _devices: any[] = [];
+
+  static __setDevices(devices: any[]) {
+    Discovery._devices = devices;
+  }
+
+  static __reset() {
+    Discovery._devices = [];
+  }
+
+  start = jest.fn((_timeout?: number) => {
+    // Emit queued devices synchronously then resolve
+    const devices = Discovery._devices;
+    for (const device of devices) {
+      this.emit('discover', device);
+    }
+    return Promise.resolve();
+  });
+}
+
 // ---- Re-export types so type imports in shared/types.ts resolve ----
 export type ChannelSelector = {
   type: string;

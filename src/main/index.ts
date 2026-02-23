@@ -13,10 +13,11 @@ import type { DiscoveryType } from 'presonus-studiolive-api';
 /** Returns the platform-appropriate directory for storing profiles/presets. */
 function getProfilesDir(): string {
   if (process.platform === 'darwin') {
-    return path.join(app.getPath('home'), 'Library', 'Application Preferences', 'StudioLive Midi Controller', 'profiles');
+    // ~/Library/Application Support/StudioLive Midi Controller
+    return path.join(app.getPath('appData'), 'StudioLive Midi Controller');
   }
   // Windows / Linux: use app's user data directory
-  return path.join(app.getPath('userData'), 'profiles');
+  return app.getPath('userData');
 }
 
 /** Ensures the profiles directory exists and returns its path. */
@@ -356,7 +357,7 @@ async function initializeApp() {
       if (discoveredMixers.length > 0) {
         // Auto-connect to first discovered mixer
         const mixer = discoveredMixers[0];
-        await mixerManager.connect(mixer.ip, mixer.model || mixer.name, mixer.deviceName, mixer.serial);
+        await mixerManager.connect(mixer.ip, mixer.name, undefined, mixer.serial);
         if (mainWindow) {
           mainWindow.webContents.send('connection-restored', { type: 'mixer', ip: mixer.ip });
         }

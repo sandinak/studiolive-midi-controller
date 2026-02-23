@@ -256,4 +256,152 @@ describe('MappingEngine', () => {
       expect(engine.getPreferredMidiDevices()).toHaveLength(1);
     });
   });
+
+  // ---- MIDI feedback ----
+  describe('MIDI feedback enabled', () => {
+    it('is enabled by default', () => {
+      expect(engine.getMidiFeedbackEnabled()).toBe(true);
+    });
+
+    it('can be disabled', () => {
+      engine.setMidiFeedbackEnabled(false);
+      expect(engine.getMidiFeedbackEnabled()).toBe(false);
+    });
+
+    it('can be re-enabled after being disabled', () => {
+      engine.setMidiFeedbackEnabled(false);
+      engine.setMidiFeedbackEnabled(true);
+      expect(engine.getMidiFeedbackEnabled()).toBe(true);
+    });
+  });
+
+  // ---- MIDI device colors ----
+  describe('MIDI device colors', () => {
+    it('returns empty object by default', () => {
+      expect(engine.getMidiDeviceColors()).toEqual({});
+    });
+
+    it('sets and gets a color for a device', () => {
+      engine.setMidiDeviceColor('Korg nanoKONTROL2', '#ff0000');
+      expect(engine.getMidiDeviceColors()).toEqual({ 'Korg nanoKONTROL2': '#ff0000' });
+    });
+
+    it('returns a shallow copy (external mutation does not affect engine state)', () => {
+      engine.setMidiDeviceColor('Device A', '#00ff00');
+      const colors = engine.getMidiDeviceColors();
+      colors['Device A'] = '#000000';
+      expect(engine.getMidiDeviceColors()['Device A']).toBe('#00ff00');
+    });
+
+    it('removes a color entry when set to empty string', () => {
+      engine.setMidiDeviceColor('Device A', '#ff0000');
+      engine.setMidiDeviceColor('Device A', '');
+      expect(engine.getMidiDeviceColors()).not.toHaveProperty('Device A');
+    });
+
+    it('can store colors for multiple devices', () => {
+      engine.setMidiDeviceColor('Device A', '#ff0000');
+      engine.setMidiDeviceColor('Device B', '#0000ff');
+      const colors = engine.getMidiDeviceColors();
+      expect(colors['Device A']).toBe('#ff0000');
+      expect(colors['Device B']).toBe('#0000ff');
+    });
+  });
+
+  // ---- Level visibility ----
+  describe('level visibility', () => {
+    it('defaults to "none"', () => {
+      expect(engine.getLevelVisibility()).toBe('none');
+    });
+
+    it('can be set to "indicator"', () => {
+      engine.setLevelVisibility('indicator');
+      expect(engine.getLevelVisibility()).toBe('indicator');
+    });
+
+    it('can be set to "meter"', () => {
+      engine.setLevelVisibility('meter');
+      expect(engine.getLevelVisibility()).toBe('meter');
+    });
+
+    it('can be reset back to "none"', () => {
+      engine.setLevelVisibility('meter');
+      engine.setLevelVisibility('none');
+      expect(engine.getLevelVisibility()).toBe('none');
+    });
+  });
+
+  // ---- Peak hold ----
+  describe('peak hold', () => {
+    it('defaults to false', () => {
+      expect(engine.getPeakHold()).toBe(false);
+    });
+
+    it('can be enabled', () => {
+      engine.setPeakHold(true);
+      expect(engine.getPeakHold()).toBe(true);
+    });
+
+    it('can be disabled after being enabled', () => {
+      engine.setPeakHold(true);
+      engine.setPeakHold(false);
+      expect(engine.getPeakHold()).toBe(false);
+    });
+  });
+
+  // ---- Fader filter ----
+  describe('fader filter', () => {
+    it('defaults to "all"', () => {
+      expect(engine.getFaderFilter()).toBe('all');
+    });
+
+    it('can be set to "mapped"', () => {
+      engine.setFaderFilter('mapped');
+      expect(engine.getFaderFilter()).toBe('mapped');
+    });
+
+    it('can be set to "added"', () => {
+      engine.setFaderFilter('added');
+      expect(engine.getFaderFilter()).toBe('added');
+    });
+
+    it('can be reset to "all"', () => {
+      engine.setFaderFilter('mapped');
+      engine.setFaderFilter('all');
+      expect(engine.getFaderFilter()).toBe('all');
+    });
+  });
+
+  // ---- Settings persistence via preset save/load ----
+  describe('settings round-trip via preset save/load', () => {
+    it('persists midiDeviceColors, levelVisibility, peakHold, midiFeedbackEnabled across save/load', () => {
+      engine.setMidiDeviceColor('Korg', '#abcdef');
+      engine.setLevelVisibility('meter');
+      engine.setPeakHold(true);
+      engine.setMidiFeedbackEnabled(false);
+
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'preset-'));
+      const file = path.join(dir, 'settings-test.json');
+      engine.savePreset(file, 'Settings Test');
+
+      const engine2 = new MappingEngine();
+      engine2.loadPreset(file);
+      expect(engine2.getMidiDeviceColors()).toEqual({ 'Korg': '#abcdef' });
+      expect(engine2.getLevelVisibility()).toBe('meter');
+      expect(engine2.getPeakHold()).toBe(true);
+      expect(engine2.getMidiFeedbackEnabled()).toBe(false);
+    });
+
+    it('defaults midiFeedbackEnabled to true when not present in preset', () => {
+      const file = writeTempPreset({ name: 'P', version: '1.0', mappings: [] });
+      engine.loadPreset(file);
+      expect(engine.getMidiFeedbackEnabled()).toBe(true);
+    });
+
+    it('defaults levelVisibility to "none" when not present in preset', () => {
+      const file = writeTempPreset({ name: 'P', version: '1.0', mappings: [] });
+      engine.loadPreset(file);
+      expect(engine.getLevelVisibility()).toBe('none');
+    });
+  });
 });

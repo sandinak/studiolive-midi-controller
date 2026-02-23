@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-02-22
+
+### Added
+- Input source icons enlarged from 16×16 to 20×20 px for improved readability
+- Comprehensive test coverage: 192 tests covering all v1.2.x settings methods, channel getters, mute group methods, meter subscribe error path, and progressive discovery
+- Discovery: local-IP filter in `discoverProgressive` prevents the app from mistakenly connecting to itself on multi-homed systems
+
+### Changed
+- Version update check now queries both `/releases/latest` and `/tags` APIs in parallel — unreleased git tags are detected as available updates
+- Clicking the version badge in the status bar now opens the local changelog instead of the update modal
+- Logic Pro documentation updated: uses **Logic Pro Virtual Out** (Logic's built-in CoreMIDI port) directly — no IAC Driver setup required
+- Future-features: removed **Channel Level Meters** (shipped in v1.2.0) and **Cmd-S** shortcut (shipped in v1.2.0)
+
+### Fixed
+- Discovery: reverted upstream `Discovery.ts` change that incorrectly overrode `rinfo.address` with a packet-embedded IP, causing wrong mixer IPs to be reported on networks with multiple interfaces
+- Save dialog: default path now correctly resolves to `~/Library/Application Support/StudioLive Midi Controller/` (was `~/Library/Application Preferences/…/profiles/`)
+- Status bar version stuck at `1.1.0` when preferred mixer auto-connected on startup (version fetch was unreachable behind early-return path)
+- `getMixerSerial` not cleared on disconnect — could return stale serial after reconnecting to a different mixer
+- TypeScript: fixed `DiscoveryType` property access (`model` → `name`, removed undefined `deviceName`) in auto-connect path
+
 ## [1.2.1] - 2026-02-22
 
 ### Fixed
@@ -105,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.2.2]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.2
 [1.2.1]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.1
 [1.2.0]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.0
 [1.1.0]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.1.0
