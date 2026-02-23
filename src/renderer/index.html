@@ -2117,18 +2117,49 @@
       return html;
     }
 
+    // Pending update info — set by checkForUpdates() when a newer version is found
+    let pendingUpdate = null; // { latestVersion, downloadUrl, releaseNotes }
+
     // Changelog modal
     async function showChangelogModal() {
       const modal = document.getElementById('changelog-modal');
       const content = document.getElementById('changelog-content');
-      // Populate version badge from the already-loaded status bar version
+
+      // Populate version badge — read from data-version attribute to avoid
+      // picking up badge text that may have been appended to #status-version
       const badge = document.getElementById('changelog-version-badge');
       if (badge) {
-        const v = document.getElementById('status-version')?.textContent?.trim();
+        const versionEl = document.getElementById('status-version');
+        const v = versionEl?.dataset?.version || versionEl?.textContent?.split(' ')[0]?.trim();
         badge.textContent = v ? `v${v}` : '';
       }
+
       content.innerHTML = '<p style="color:#666">Loading…</p>';
       modal.classList.add('show');
+
+      // If an update is pending, show a banner above the changelog content
+      const existingBanner = modal.querySelector('.update-banner');
+      if (existingBanner) existingBanner.remove();
+      if (pendingUpdate) {
+        const banner = document.createElement('div');
+        banner.className = 'update-banner';
+        banner.style.cssText = 'background:#1e3a1e;border:1px solid #4CAF50;border-radius:4px;padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;';
+        const text = document.createElement('span');
+        text.style.color = '#4CAF50';
+        text.textContent = `Update available: v${pendingUpdate.latestVersion}`;
+        const btn = document.createElement('button');
+        btn.className = 'btn';
+        btn.style.cssText = 'background:#4CAF50;font-size:0.75rem;padding:3px 10px;width:auto;margin:0;';
+        btn.textContent = 'Download';
+        btn.addEventListener('click', () => {
+          window.electronAPI.openExternal(pendingUpdate.downloadUrl);
+          hideChangelogModal();
+        });
+        banner.appendChild(text);
+        banner.appendChild(btn);
+        content.parentNode.insertBefore(banner, content);
+      }
+
       try {
         const result = await ipcRenderer.invoke('get-changelog');
         if (result.success) {
@@ -2165,6 +2196,9 @@
         const versionEl = document.getElementById('status-version');
         if (versionEl && result.currentVersion) {
           versionEl.textContent = result.currentVersion;
+          // Store clean version in data attribute so showChangelogModal can read it
+          // even after a badge child node has been appended
+          versionEl.dataset.version = result.currentVersion;
         }
 
         if (result.success) {
@@ -2173,12 +2207,27 @@
           if (result.updateAvailable) {
             addStatusLog(`Update available: ${result.latestVersion}`, 'warning');
 
-            // Show update badge in status bar
+            // Store update info for the changelog modal banner
+            pendingUpdate = {
+              latestVersion: result.latestVersion,
+              downloadUrl: result.downloadUrl,
+              releaseNotes: result.releaseNotes,
+            };
+
+            // Show update badge in status bar — DOM construction (no innerHTML, no inline onclick)
             if (versionEl) {
-              versionEl.innerHTML = `${result.currentVersion} <span style="background:#f4c430;color:#111;font-size:0.6rem;padding:1px 5px;border-radius:3px;margin-left:4px;cursor:pointer;" onclick="showUpdateModal('${result.currentVersion}','${result.latestVersion}','${result.downloadUrl}','')">↑ ${result.latestVersion}</span>`;
+              const badge = document.createElement('span');
+              badge.style.cssText = 'background:#f4c430;color:#111;font-size:0.6rem;padding:1px 5px;border-radius:3px;margin-left:4px;cursor:pointer;vertical-align:middle;';
+              badge.textContent = `↑ ${result.latestVersion}`;
+              badge.title = 'Update available — click to view changelog';
+              badge.addEventListener('click', (e) => {
+                e.stopPropagation(); // prevent parent click listener firing twice
+                showChangelogModal();
+              });
+              versionEl.appendChild(badge);
             }
 
-            // Show update modal after a short delay to not interrupt initialization
+            // Auto-show update modal once on startup after a short delay
             setTimeout(() => {
               showUpdateModal(result.currentVersion, result.latestVersion, result.downloadUrl, result.releaseNotes);
             }, 2000);

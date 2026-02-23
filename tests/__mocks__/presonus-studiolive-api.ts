@@ -34,6 +34,7 @@ export class SimpleClient extends EventEmitter {
 
   // Internal methods used by MixerManager
   _sendPacket = jest.fn();
+  meterSubscribe = jest.fn().mockResolvedValue(undefined);
 
   constructor(_opts?: any) {
     super();

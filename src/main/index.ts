@@ -7,6 +7,7 @@ import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
 import { clampCount } from './ipc-validators';
+import { compareVersions, pickLatestVersion } from './update-checker';
 import type { DiscoveryType } from 'presonus-studiolive-api';
 
 /** Returns the platform-appropriate directory for storing profiles/presets. */
@@ -1105,102 +1106,72 @@ ipcMain.handle('get-changelog', async () => {
 });
 
 ipcMain.handle('check-for-updates', async () => {
-  try {
-    const https = require('https');
-    const currentVersion = require('../../package.json').version;
+  const https = require('https');
+  const currentVersion: string = require('../../package.json').version;
 
+  const MAX_RESPONSE_SIZE = 1_048_576; // 1 MB per request
+
+  /** Fetch a GitHub API path and return the parsed JSON, or null on any error. */
+  function fetchGitHubJson(apiPath: string): Promise<any> {
     return new Promise((resolve) => {
-      const options = {
-        hostname: 'api.github.com',
-        path: '/repos/sandinak/studiolive-midi-controller/releases/latest',
-        method: 'GET',
-        headers: {
-          'User-Agent': 'StudioLive-MIDI-Controller'
+      const req = https.request(
+        {
+          hostname: 'api.github.com',
+          path: apiPath,
+          method: 'GET',
+          headers: { 'User-Agent': 'StudioLive-MIDI-Controller' },
+        },
+        (res: any) => {
+          let data = '';
+          let aborted = false;
+
+          res.on('data', (chunk: any) => {
+            data += chunk;
+            if (data.length > MAX_RESPONSE_SIZE && !aborted) {
+              aborted = true;
+              req.destroy();
+              resolve(null);
+            }
+          });
+
+          res.on('end', () => {
+            if (aborted) return;
+            try { resolve(JSON.parse(data)); } catch { resolve(null); }
+          });
         }
-      };
+      );
 
-      const MAX_RESPONSE_SIZE = 1_048_576; // 1 MB — guard against runaway responses
-
-      const req = https.request(options, (res: any) => {
-        let data = '';
-        let aborted = false;
-
-        res.on('data', (chunk: any) => {
-          data += chunk;
-          if (data.length > MAX_RESPONSE_SIZE && !aborted) {
-            aborted = true;
-            req.destroy();
-            resolve({ success: false, currentVersion, error: 'Response too large' });
-          }
-        });
-
-        res.on('end', () => {
-          if (aborted) return;
-          try {
-            const release = JSON.parse(data);
-            const latestVersion = release.tag_name?.replace(/^v/, '') || currentVersion;
-            const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
-
-            resolve({
-              success: true,
-              currentVersion,
-              latestVersion,
-              updateAvailable,
-              downloadUrl: release.html_url,
-              releaseNotes: release.body
-            });
-          } catch (error) {
-            resolve({
-              success: false,
-              currentVersion,
-              error: 'Failed to parse release data'
-            });
-          }
-        });
-      });
-
-      req.on('error', (error: any) => {
-        resolve({
-          success: false,
-          currentVersion,
-          error: error.message
-        });
-      });
-
-      req.setTimeout(5000, () => {
-        req.destroy();
-        resolve({
-          success: false,
-          currentVersion,
-          error: 'Request timeout'
-        });
-      });
-
+      req.on('error', () => resolve(null));
+      req.setTimeout(5000, () => { req.destroy(); resolve(null); });
       req.end();
     });
+  }
+
+  try {
+    // Fetch releases/latest (for release notes + download URL) AND tags (catches
+    // versions pushed as git tags before a formal Release is published on GitHub)
+    const [releaseData, tagsData] = await Promise.all([
+      fetchGitHubJson('/repos/sandinak/studiolive-midi-controller/releases/latest'),
+      fetchGitHubJson('/repos/sandinak/studiolive-midi-controller/tags?per_page=5'),
+    ]);
+
+    const { latestVersion, downloadUrl, releaseNotes } = pickLatestVersion(releaseData, tagsData);
+    const updateAvailable = compareVersions(latestVersion, currentVersion) > 0;
+
+    return {
+      success: true,
+      currentVersion,
+      latestVersion,
+      updateAvailable,
+      downloadUrl,
+      releaseNotes,
+    };
   } catch (error) {
-    const currentVersion = require('../../package.json').version;
     return {
       success: false,
       currentVersion,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 });
-
-// Helper function to compare semantic versions
-function compareVersions(v1: string, v2: string): number {
-  const parts1 = v1.split('.').map(Number);
-  const parts2 = v2.split('.').map(Number);
-
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const part1 = parts1[i] || 0;
-    const part2 = parts2[i] || 0;
-
-    if (part1 > part2) return 1;
-    if (part1 < part2) return -1;
-  }
-
-  return 0;
-}
 
