@@ -1,6 +1,6 @@
 # StudioLive MIDI Controller
 
-MIDI control for PreSonus StudioLive III mixers. Map DAW faders and automation to your mixer's physical faders over the network — built on [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api) by Andrew Wong; and builds on the ideas in https://github.com/featherbear/presonus-studiolive-api-midi-integration.git to provide a visual interface for mapping and monitoring. This tool is not meant as a replacment for Fender Universal Connect, but more an adjunct to it to allow users to control the mixer from their DAW, control surfaces, or other MIDI controllers.  
+MIDI control for Fender(PreSonus) StudioLive III mixers. Map DAW faders and automation to your mixer's physical faders over the network — built on [presonus-studiolive-api](https://github.com/featherbear/presonus-studiolive-api) by Andrew Wong; and builds on the ideas in https://github.com/featherbear/presonus-studiolive-api-midi-integration.git to provide a visual interface for mapping and monitoring. This tool is not meant as a replacment for Universal Connect, but more an adjunct to it to allow users to control the mixer from their DAW, control surfaces, or other MIDI controllers.  
 
 ![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
@@ -46,7 +46,7 @@ Built on the excellent [presonus-studiolive-api](https://github.com/featherbear/
 
 ## Disclaimer
 
-Not affiliated with or endorsed by PreSonus. StudioLive is a trademark of PreSonus.
+Not affiliated with or endorsed by PreSonus or Fender. StudioLive is a trademark of PreSonus.
 
 ## License
 
