@@ -49,10 +49,21 @@ start: ## Start the application (requires prior build)
 
 dist: dist-mac ## Build distributable packages (default: macOS)
 
-dist-mac: build ## Build macOS packages (DMG and ZIP for x64 and arm64)
+dist-mac: build ## Build macOS DMG — loads .env for signing/notarization if present
 	@echo "Building macOS packages..."
-	npm run dist -- --mac
-	@echo "Restoring native modules for local arch after cross-compile..."
+	@echo "  Replacing file: symlink with real package dir for electron-builder..."
+	@rm -rf node_modules/presonus-studiolive-api
+	@mkdir -p node_modules/presonus-studiolive-api
+	@cp -r $(DEPS_DIR)/dist node_modules/presonus-studiolive-api/
+	@cp $(DEPS_DIR)/package.json node_modules/presonus-studiolive-api/
+	@if [ -f .env ]; then \
+		echo "  Loading Apple credentials from .env for notarization..."; \
+		set -a && . ./.env && set +a && NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac; \
+	else \
+		echo "  No .env found — building unsigned (create .env to enable notarization)"; \
+		NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac; \
+	fi
+	@echo "Restoring dev symlink and native modules..."
 	npm install --ignore-scripts=false
 
 dist-win: build ## Build Windows packages (NSIS installer and portable)
@@ -61,7 +72,11 @@ dist-win: build ## Build Windows packages (NSIS installer and portable)
 
 dist-all: build ## Build packages for all platforms
 	@echo "Building packages for all platforms..."
-	npm run dist -- --mac --win
+	@if [ -f .env ]; then \
+		set -a && . ./.env && set +a && NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac --win; \
+	else \
+		NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac --win; \
+	fi
 
 typecheck: ## Run TypeScript type checking without building
 	tsc -p tsconfig.main.json --noEmit

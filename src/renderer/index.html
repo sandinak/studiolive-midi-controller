@@ -1988,6 +1988,9 @@
     // Flag to prevent multiple simultaneous loadFaders calls
     let isLoadingFaders = false;
 
+    // TUIO multi-touch state: maps touch cursor ID → { type, channel } assigned on first contact
+    const tuioCursorMap = new Map();
+
     // Set of currently connected MIDI device names (updated on connect/disconnect events)
     let connectedMidiDevices = new Set();
 
@@ -4226,6 +4229,35 @@
       appendMixerToList(device);
     });
 
+    // TUIO multi-touch: map normalized (x,y) touch coordinates to fader volume
+    ipcRenderer.on('tuio-event', (data) => {
+      if (data.type === 'update') {
+        handleTuioCursor(data.id, data.x, data.y);
+      } else if (data.type === 'remove') {
+        tuioCursorMap.delete(data.id);
+      }
+    });
+
+    function handleTuioCursor(id, x, y) {
+      // On first contact assign this touch to the fader at the x position
+      if (!tuioCursorMap.has(id)) {
+        const fader = getTuioFaderAtX(x);
+        if (fader) tuioCursorMap.set(id, fader);
+      }
+      const fader = tuioCursorMap.get(id);
+      if (!fader) return;
+      // y: 0.0 = top (full volume), 1.0 = bottom (silence)
+      const volume = Math.max(0, Math.min(100, Math.round((1 - y) * 100)));
+      ipcRenderer.invoke('set-mixer-volume', fader.type, fader.channel, volume);
+    }
+
+    function getTuioFaderAtX(x) {
+      const order = window._tuioFaderOrder;
+      if (!order || order.length === 0) return null;
+      const idx = Math.min(Math.floor(x * order.length), order.length - 1);
+      return order[idx];
+    }
+
     // Scan for mixers
     async function scanForMixers() {
       const btn = document.getElementById('scan-btn');
@@ -6244,6 +6276,12 @@
           loadInitialMuteStates(allMappings);
           loadInitialSoloStates(allMappings);
           loadInitialMainAssignStates(allMappings);
+
+          // Expose ordered fader list for TUIO coordinate → channel mapping
+          window._tuioFaderOrder = [...sortedRegularMappings, ...sortedMainMappings].map(m => ({
+            type: m.mixer.channel.type,
+            channel: m.mixer.channel.channel,
+          }));
 
           // Update mute/solo button tooltips and mapped indicators
           updateMuteSoloMappingIndicators(allMappings);

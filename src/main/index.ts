@@ -8,6 +8,7 @@ import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
 import { clampCount } from './ipc-validators';
 import { compareVersions, pickLatestVersion } from './update-checker';
+import { TuioManager } from './tuio-manager';
 import type { DiscoveryType } from 'presonus-studiolive-api';
 
 /** Returns the platform-appropriate directory for storing profiles/presets. */
@@ -33,6 +34,7 @@ let mainWindow: BrowserWindow | null = null;
 const midiManager = new MidiManager();
 const mixerManager = new MixerManager();
 const mappingEngine = new MappingEngine();
+const tuioManager = new TuioManager();
 let currentPresetPath: string | null = null;
 
 // Skip DCA polling when no DCA channels are mapped (saves CPU)
@@ -104,6 +106,15 @@ function createWindow() {
 
 // Initialize the application
 async function initializeApp() {
+
+  // Start TUIO multi-touch UDP listener
+  tuioManager.start();
+  tuioManager.on('cursor-update', (cursor) => {
+    mainWindow?.webContents.send('tuio-event', { type: 'update', ...cursor });
+  });
+  tuioManager.on('cursor-remove', ({ id }: { id: number }) => {
+    mainWindow?.webContents.send('tuio-event', { type: 'remove', id });
+  });
 
   // Set up MIDI event handlers
   midiManager.on('disconnected', (deviceName: string) => {
@@ -270,23 +281,30 @@ async function initializeApp() {
     }
   });
 
-  // Load default preset: prefer user profiles dir, fall back to bundled preset
-  const userPresetPath = path.join(getProfilesDir(), 'logic-pro-default.json');
-  const bundledPresetPath = path.join(__dirname, '../../presets/logic-pro-default.json');
-  const presetPath = fs.existsSync(userPresetPath) ? userPresetPath : bundledPresetPath;
-  try {
-    mappingEngine.loadPreset(presetPath);
-    // Store the current preset path and notify renderer
-    currentPresetPath = presetPath;
-    if (mainWindow) {
-      const mtime = fs.statSync(presetPath).mtime.toISOString();
-      mainWindow.webContents.send('preset-loaded', {
-        name: path.basename(presetPath, '.json'),
-        path: presetPath,
-        mtime
-      });
+  // Auto-load default preset on startup if one exists in the profiles dir.
+  // Checks 'default.json' first, then 'logic-pro-default.json' for backward compat.
+  // No bundled fallback — starts fresh if no user preset is present.
+  const profilesDir = getProfilesDir();
+  const defaultPresetCandidates = [
+    path.join(profilesDir, 'default.json'),
+    path.join(profilesDir, 'logic-pro-default.json'),
+  ];
+  const autoLoadPath = defaultPresetCandidates.find(p => fs.existsSync(p));
+  if (autoLoadPath) {
+    try {
+      mappingEngine.loadPreset(autoLoadPath);
+      currentPresetPath = autoLoadPath;
+      if (mainWindow) {
+        const mtime = fs.statSync(autoLoadPath).mtime.toISOString();
+        mainWindow.webContents.send('preset-loaded', {
+          name: path.basename(autoLoadPath, '.json'),
+          path: autoLoadPath,
+          mtime
+        });
+      }
+    } catch (_error) {
+      // Start fresh if preset loading fails
     }
-  } catch (error) {
   }
 
   // Auto-connect to all preferred MIDI devices BEFORE mixer (mixer connect can block)
@@ -485,14 +503,17 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async (event) => {
+  event.preventDefault();
   if (midiScanCleanup) {
     midiScanCleanup();
     midiScanCleanup = null;
   }
   stopReconnectionLoop();
   midiManager.disconnectAll();
-  mixerManager.disconnect();
+  tuioManager.stop();
+  await mixerManager.disconnect();
+  app.exit(0);
 });
 
 app.on('activate', () => {
@@ -586,6 +607,8 @@ ipcMain.handle('get-connected-midi-devices', async () => {
   midiManager.isConnected(); // validates + evicts stale devices as a side effect
   return midiManager.getConnectedDevices();
 });
+
+ipcMain.handle('get-tuio-port', () => tuioManager.listenPort);
 
 ipcMain.handle('connect-midi-device', async (_event, deviceName: string) => {
   try {

@@ -27,6 +27,7 @@ const INVOKE_CHANNELS = new Set([
   'get-channel-names',
   'get-channel-solo',
   'get-connected-midi-devices',
+  'get-tuio-port',
   'get-app-version',
   'get-current-preset',
   'get-current-preset-path',
@@ -80,6 +81,7 @@ const ON_CHANNELS = new Set([
   'mixer-solo',
   'mixer-state-ready',
   'preset-loaded',
+  'tuio-event',
 ]);
 
 contextBridge.exposeInMainWorld('electronAPI', {
