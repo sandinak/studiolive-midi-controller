@@ -56,6 +56,9 @@ dist-mac: build ## Build macOS DMG — loads .env for signing/notarization if pr
 	@mkdir -p node_modules/presonus-studiolive-api
 	@cp -r $(DEPS_DIR)/dist node_modules/presonus-studiolive-api/
 	@cp $(DEPS_DIR)/package.json node_modules/presonus-studiolive-api/
+	@if [ -d $(DEPS_DIR)/node_modules ]; then \
+		cp -r $(DEPS_DIR)/node_modules node_modules/presonus-studiolive-api/; \
+	fi
 	@if [ -f .env ]; then \
 		echo "  Loading Apple credentials from .env for notarization..."; \
 		set -a && . ./.env && set +a && NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac; \
