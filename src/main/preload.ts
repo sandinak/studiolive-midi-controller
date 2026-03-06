@@ -50,6 +50,7 @@ const INVOKE_CHANNELS = new Set([
   'save-preset',
   'save-preset-dialog',
   'save-preset-to-path',
+  'send-transport',
   'set-channel-main-assign',
   'set-fader-filter',
   'set-level-visibility',

@@ -1060,6 +1060,11 @@ ipcMain.handle('set-midi-feedback-enabled', async (_event, enabled: boolean) => 
   return { success: true };
 });
 
+ipcMain.handle('send-transport', async (_event, action: 'start' | 'stop') => {
+  midiManager.sendTransport(action);
+  return { success: true };
+});
+
 ipcMain.handle('get-midi-device-colors', async () => {
   return mappingEngine.getMidiDeviceColors();
 });

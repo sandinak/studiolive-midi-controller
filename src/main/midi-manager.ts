@@ -221,6 +221,22 @@ export class MidiManager extends EventEmitter {
   }
 
   /**
+   * Send a MIDI real-time transport message (Start or Stop) to all outputs.
+   * Logic Pro responds to these when MMC / external sync is enabled.
+   */
+  sendTransport(action: 'start' | 'stop'): void {
+    for (const output of this.outputs.values()) {
+      try {
+        if (action === 'start') {
+          output.send('start');
+        } else {
+          output.send('stop');
+        }
+      } catch (_e) { /* silent fail */ }
+    }
+  }
+
+  /**
    * Check if any MIDI output is available
    */
   hasOutput(): boolean {

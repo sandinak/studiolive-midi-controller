@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2026-03-05
+
+### Added
+- **Run/Edit mode toggle** — header button switches between Edit mode (full access) and Run mode (mixing controls active, mapping/editing locked)
+  - In Run mode: faders and mute buttons work normally; solo buttons hidden with mute expanding to fill the gap; mute groups fully active; add/edit actions blocked
+  - New **Start in Run mode** preference to launch directly in Run mode
+- **Transport Play/Stop button** — visible in Run mode; sends MIDI real-time Start (`0xFA`) / Stop (`0xFC`) to all connected MIDI outputs for DAW transport control (Logic Pro and others)
+
+### Changed
+- **MAIN fader** now has a distinct dark green background and border, visually separating it from DCA/SUB/AUX channels in the main section
+- **Main-assign indicator** color updated from tan to muted green, consistent with the MAIN fader theme
+- Main section left border updated to green to reinforce the visual language
+
 ## [1.2.2] - 2026-02-22
 
 ### Added

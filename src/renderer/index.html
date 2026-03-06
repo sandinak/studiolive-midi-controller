@@ -447,9 +447,22 @@
       gap: 6px;
       align-items: stretch;
       padding-left: 12px;
-      border-left: 2px solid rgba(255, 255, 255, 0.1);
+      border-left: 2px solid rgba(76, 175, 80, 0.25);
       flex-shrink: 0;
       width: auto;
+    }
+
+    /* Highlight fader channels in the main container with a subtle tint */
+    #faders-main-container .fader-channel {
+      background: rgba(80, 80, 80, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    /* MAIN channel — dark green, consistent with main-assign color */
+    #faders-main-container .fader-channel[data-fader-id^="MAIN-"] {
+      background: rgba(15, 45, 20, 0.95);
+      border: 1px solid rgba(76, 175, 80, 0.35);
+      box-shadow: 0 0 8px rgba(76, 175, 80, 0.08);
     }
 
     .fader-channel {
@@ -523,8 +536,8 @@
     }
 
     .fader-indicator.main-assign.assigned {
-      background: rgba(210, 180, 140, 0.9); /* Tan */
-      color: #333;
+      background: rgba(40, 100, 45, 0.75); /* Muted green — consistent with MAIN fader */
+      color: #b8e0ba;
     }
 
     .fader-indicator.main-assign.unassigned {
@@ -1356,6 +1369,72 @@
       align-items: center;
       gap: 8px;
     }
+
+    /* Run/Edit mode toggle */
+    .mode-btn {
+      background: rgba(30, 30, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ccc;
+      cursor: pointer;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .mode-btn:hover {
+      background: rgba(50, 50, 50, 0.9);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    .mode-btn.run-active {
+      background: rgba(30, 100, 30, 0.85);
+      border-color: #4CAF50;
+      color: #8ddb8d;
+    }
+    .mode-btn.run-active:hover {
+      background: rgba(40, 120, 40, 0.9);
+    }
+
+    /* Transport play/stop button — only visible in Run mode */
+    .transport-btn {
+      display: none;
+      background: rgba(30, 30, 30, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #ccc;
+      cursor: pointer;
+      padding: 3px 14px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    body.app-run-mode .transport-btn {
+      display: inline-block;
+    }
+    .transport-btn:hover {
+      background: rgba(50, 50, 50, 0.9);
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+    .transport-btn.playing {
+      background: rgba(30, 100, 30, 0.85);
+      border-color: #4CAF50;
+      color: #8ddb8d;
+    }
+    .transport-btn.playing:hover {
+      background: rgba(40, 120, 40, 0.9);
+    }
+
+    /* Run mode — lock editing, keep mixing controls active */
+    body.app-run-mode .solo-btn {
+      display: none;
+    }
+    body.app-run-mode .mute-btn {
+      width: 60px; /* expand to fill space left by hidden solo button */
+    }
+    body.app-run-mode .faders-toolbar .btn:not(.mute-group-btn) {
+      pointer-events: none;
+      opacity: 0.4;
+    }
   </style>
 </head>
 <body>
@@ -1365,6 +1444,8 @@
         <h1><img src="../assets/icon.png" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;" /> StudioLive MIDI Controller</h1>
       </div>
       <div class="header-right">
+        <button class="transport-btn" id="transport-btn" onclick="toggleTransport()" title="Send MIDI Start/Stop to DAW">&#9654; Play</button>
+        <button class="mode-btn" id="mode-toggle-btn" onclick="toggleAppMode()" title="Switch between Run (locked) and Edit mode">EDIT</button>
         <button class="btn-small" onclick="showPreferences()" title="Preferences">⚙️</button>
         <button class="btn-small" onclick="showSavePreset()" title="Save Profile">💾 Save</button>
         <button class="btn-small" onclick="showLoadPreset()" title="Load Profile">📂 Load</button>
@@ -1761,6 +1842,15 @@
           <input type="checkbox" id="peak-hold-check" style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;" />
           <span>Peak hold</span>
         </label>
+      </div>
+      <div class="form-group" style="margin-top: 20px;">
+        <label style="display: flex; align-items: center; cursor: pointer;">
+          <input type="checkbox" id="start-in-run-mode" style="margin-right: 10px; width: 18px; height: 18px; cursor: pointer;" />
+          <span>Start in Run mode</span>
+        </label>
+        <small style="color: #888; display: block; margin-top: 5px;">
+          Launch directly in Run mode (controls active, editing locked)
+        </small>
       </div>
       <div class="modal-buttons">
         <button class="btn" onclick="savePreferences()">Save</button>
@@ -3748,6 +3838,9 @@
       }
       midiFeedbackCheckbox.checked = midiFeedbackEnabled;
 
+      const startInRunCheckbox = document.getElementById('start-in-run-mode');
+      startInRunCheckbox.checked = localStorage.getItem('startInRunMode') === 'true';
+
       modal.classList.add('show');
     }
 
@@ -4114,12 +4207,14 @@
     function savePreferences() {
       const smoothingInput = document.getElementById('fader-smoothing');
       const midiFeedbackCheckbox = document.getElementById('midi-feedback-enabled');
+      const startInRunCheckbox = document.getElementById('start-in-run-mode');
 
       faderSmoothingSpeed = parseInt(smoothingInput.value);
       midiFeedbackEnabled = midiFeedbackCheckbox.checked;
 
       localStorage.setItem('faderSmoothingSpeed', faderSmoothingSpeed);
       localStorage.setItem('midiFeedbackEnabled', midiFeedbackEnabled.toString());
+      localStorage.setItem('startInRunMode', startInRunCheckbox.checked.toString());
 
       // Send preference to main process
       ipcRenderer.invoke('set-midi-feedback-enabled', midiFeedbackEnabled);
@@ -6696,6 +6791,7 @@
 
         // Double click to edit
         channel.addEventListener('dblclick', (e) => {
+          if (window.appMode === 'run') return;
           const faderId = channel.getAttribute('data-fader-id');
           editFaderMapping(faderId);
           e.stopPropagation();
@@ -6703,6 +6799,7 @@
 
         // Right click for context menu on channel background
         channel.addEventListener('contextmenu', (e) => {
+          if (window.appMode === 'run') return;
           // Check if clicking on specific elements
           if (e.target.closest('.fader-container')) {
             // Right-click on fader slider - show fader volume menu
@@ -6953,6 +7050,11 @@
 
     // Load initial state
     async function loadInitialState() {
+      // Apply run mode if configured
+      if (localStorage.getItem('startInRunMode') === 'true') {
+        toggleAppMode();
+      }
+
       // Set real version immediately and kick off update check — both must run
       // regardless of which connection path (auto-connect / discovery / manual) is taken.
       ipcRenderer.invoke('get-app-version').then(v => {
@@ -7081,6 +7183,57 @@
         hideAllContextMenus();
       }
     });
+
+    // Run/Edit mode toggle
+    window.appMode = 'edit';
+
+    function toggleAppMode() {
+      const btn = document.getElementById('mode-toggle-btn');
+      if (window.appMode === 'edit') {
+        window.appMode = 'run';
+        document.body.classList.add('app-run-mode');
+        btn.textContent = 'RUN';
+        btn.classList.add('run-active');
+        btn.title = 'Currently in Run mode — click to switch to Edit mode';
+      } else {
+        // Stop transport before leaving Run mode
+        if (window.isPlaying) stopTransport();
+        window.appMode = 'edit';
+        document.body.classList.remove('app-run-mode');
+        btn.textContent = 'EDIT';
+        btn.classList.remove('run-active');
+        btn.title = 'Currently in Edit mode — click to switch to Run mode';
+      }
+    }
+
+    // Transport play/stop
+    window.isPlaying = false;
+
+    function stopTransport() {
+      window.isPlaying = false;
+      ipcRenderer.invoke('send-transport', 'stop').catch(() => {});
+      const btn = document.getElementById('transport-btn');
+      if (btn) {
+        btn.innerHTML = '&#9654; Play';
+        btn.classList.remove('playing');
+        btn.title = 'Send MIDI Start to DAW';
+      }
+    }
+
+    function toggleTransport() {
+      const btn = document.getElementById('transport-btn');
+      if (!window.isPlaying) {
+        window.isPlaying = true;
+        ipcRenderer.invoke('send-transport', 'start').catch(() => {});
+        if (btn) {
+          btn.innerHTML = '&#9646;&#9646; Stop';
+          btn.classList.add('playing');
+          btn.title = 'Send MIDI Stop to DAW';
+        }
+      } else {
+        stopTransport();
+      }
+    }
 
     // Cmd/Ctrl+S — quick save current preset
     document.addEventListener('keydown', async (e) => {
