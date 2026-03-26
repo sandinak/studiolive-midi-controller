@@ -11,6 +11,49 @@ import { compareVersions, pickLatestVersion } from './update-checker';
 import { TuioManager } from './tuio-manager';
 import type { DiscoveryType } from 'presonus-studiolive-api';
 
+// ---------------------------------------------------------------------------
+// Volume command throttle — coalesces rapid MIDI fader moves into fewer
+// mixer packets so the console isn't flooded (reduces UC latency).
+// ---------------------------------------------------------------------------
+const VOLUME_THROTTLE_MS = 25; // ms between packets per channel
+const pendingVolume = new Map<string, { channel: any; value: number; timer: ReturnType<typeof setTimeout> }>();
+
+function throttledSetVolume(mixerMgr: MixerManager, channel: any, value: number): void {
+  const key = `${channel.type}-${channel.channel}`;
+  const existing = pendingVolume.get(key);
+  if (existing) {
+    // Replace pending value — latest wins
+    existing.value = value;
+    return;
+  }
+  // First message for this channel — send immediately, then throttle further updates
+  mixerMgr.setVolume(channel, value);
+  const entry = { channel, value, timer: setTimeout(() => {
+    const e = pendingVolume.get(key);
+    pendingVolume.delete(key);
+    if (e && e.value !== value) {
+      // A newer value arrived while we were waiting — send it
+      mixerMgr.setVolume(e.channel, e.value);
+    }
+  }, VOLUME_THROTTLE_MS) };
+  pendingVolume.set(key, entry);
+}
+
+// ---------------------------------------------------------------------------
+// Toggle debounce — prevents multiple rapid MIDI messages from a single
+// button press from toggling mute/solo/mutegroup back and forth.
+// ---------------------------------------------------------------------------
+const TOGGLE_DEBOUNCE_MS = 150;
+const lastToggle = new Map<string, number>();
+
+function shouldToggle(key: string): boolean {
+  const now = Date.now();
+  const last = lastToggle.get(key) ?? 0;
+  if (now - last < TOGGLE_DEBOUNCE_MS) return false;
+  lastToggle.set(key, now);
+  return true;
+}
+
 /** Returns the platform-appropriate directory for storing profiles/presets. */
 function getProfilesDir(): string {
   if (process.platform === 'darwin') {
@@ -143,32 +186,39 @@ async function initializeApp() {
       // Execute mixer command
       try {
         switch (command.action) {
-          case 'volume':
-            if (command.value !== undefined && 'type' in command.channel && command.channel.channel !== undefined) {
-              mixerManager.setVolume(command.channel, command.value);
+          case 'volume': {
+            // Default channel to 1 for MAIN/TALKBACK (channel is optional in ChannelSelector)
+            const volChannel = { ...command.channel };
+            if (volChannel.channel === undefined && (volChannel.type === 'MAIN' || volChannel.type === 'TALKBACK')) {
+              volChannel.channel = 1;
+            }
+            if (command.value !== undefined && 'type' in volChannel && volChannel.channel !== undefined) {
+              throttledSetVolume(mixerManager, volChannel, command.value);
 
               // Check if this channel is stereo-linked and update the paired channel
               try {
-                const isLinked = mixerManager.getChannelLink(command.channel.type, command.channel.channel);
+                const isLinked = mixerManager.getChannelLink(volChannel.type, volChannel.channel);
                 if (isLinked) {
                   // This is the left channel of a stereo pair, also update the right channel
-                  const rightChannel = { type: command.channel.type, channel: command.channel.channel + 1 };
-                  mixerManager.setVolume(rightChannel, command.value);
-
+                  const rightChannel = { type: volChannel.type, channel: volChannel.channel + 1 };
+                  throttledSetVolume(mixerManager, rightChannel, command.value);
                 }
               } catch (err) {
                 // Silently ignore stereo link errors to avoid crashes
               }
             }
             break;
+          }
           case 'mute':
             if (command.toggle && 'type' in command.channel) {
-              mixerManager.toggleMute(command.channel);
+              const muteKey = `mute-${command.channel.type}-${command.channel.channel}`;
+              if (shouldToggle(muteKey)) mixerManager.toggleMute(command.channel);
             }
             break;
           case 'solo':
             if (command.toggle && 'type' in command.channel) {
-              mixerManager.toggleSolo(command.channel);
+              const soloKey = `solo-${command.channel.type}-${command.channel.channel}`;
+              if (shouldToggle(soloKey)) mixerManager.toggleSolo(command.channel);
             }
             break;
           case 'pan':
@@ -177,15 +227,14 @@ async function initializeApp() {
             }
             break;
           case 'mutegroup':
-            if (command.toggle !== undefined && 'channel' in command.channel && typeof command.channel.channel === 'number') {
-              // Handle mute group toggle
-              const muteGroupNum = command.channel.channel;
-              mixerManager.setMuteGroupState(muteGroupNum, command.toggle);
+            if (command.toggle && 'channel' in command.channel && typeof command.channel.channel === 'number') {
+              const mgKey = `mutegroup-${command.channel.channel}`;
+              if (shouldToggle(mgKey)) mixerManager.toggleMuteGroup(command.channel.channel);
             }
             break;
         }
       } catch (error) {
-        // Silently ignore command errors
+        console.error('Command failed:', command.action, error);
       }
     }
   });
@@ -1071,6 +1120,15 @@ ipcMain.handle('get-midi-device-colors', async () => {
 
 ipcMain.handle('set-midi-device-color', async (_event, device: string, color: string) => {
   mappingEngine.setMidiDeviceColor(device, color);
+  return { success: true };
+});
+
+ipcMain.handle('get-dca-colors', async () => {
+  return mappingEngine.getDcaColors();
+});
+
+ipcMain.handle('set-dca-color', async (_event, dcaNum: number, color: string) => {
+  mappingEngine.setDcaColor(dcaNum, color);
   return { success: true };
 });
 

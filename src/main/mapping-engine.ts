@@ -15,6 +15,7 @@ export class MappingEngine extends EventEmitter {
   private preferredMixerSerial: string | null = null;
   private preferredMidiDevices: string[] = [];
   private midiDeviceColors: Record<string, string> = {};
+  private dcaColors: Record<string, string> = {};
   private faderFilter: 'all' | 'added' | 'mapped' = 'all';
   private midiFeedbackEnabled: boolean = true;
   private levelVisibility: 'none' | 'indicator' | 'meter' = 'none';
@@ -122,6 +123,7 @@ export class MappingEngine extends EventEmitter {
       this.faderFilter = preset.faderFilter || 'all';
       this.midiFeedbackEnabled = preset.midiFeedbackEnabled !== undefined ? preset.midiFeedbackEnabled : true;
       this.midiDeviceColors = preset.midiDeviceColors || {};
+      this.dcaColors = preset.dcaColors || {};
       this.levelVisibility = preset.levelVisibility || 'none';
       this.peakHold = preset.peakHold || false;
 
@@ -147,6 +149,7 @@ export class MappingEngine extends EventEmitter {
       mixerSerial: this.preferredMixerSerial || undefined,
       midiDevices: this.preferredMidiDevices.length > 0 ? this.preferredMidiDevices : undefined,
       midiDeviceColors: Object.keys(this.midiDeviceColors).length > 0 ? this.midiDeviceColors : undefined,
+      dcaColors: Object.keys(this.dcaColors).length > 0 ? this.dcaColors : undefined,
       faderFilter: this.faderFilter,
       midiFeedbackEnabled: this.midiFeedbackEnabled,
       levelVisibility: this.levelVisibility !== 'none' ? this.levelVisibility : undefined,
@@ -314,7 +317,8 @@ export class MappingEngine extends EventEmitter {
         break;
       }
       case 'mute':
-      case 'solo': {
+      case 'solo':
+      case 'mutegroup': {
         let shouldActivate = false;
 
         if (mapping.midi.type === 'cc') {
@@ -421,6 +425,19 @@ export class MappingEngine extends EventEmitter {
       this.midiDeviceColors[device] = color;
     } else {
       delete this.midiDeviceColors[device];
+    }
+    this.autoSavePreset();
+  }
+
+  getDcaColors(): Record<string, string> {
+    return { ...this.dcaColors };
+  }
+
+  setDcaColor(dcaNum: number, color: string): void {
+    if (color) {
+      this.dcaColors[String(dcaNum)] = color;
+    } else {
+      delete this.dcaColors[String(dcaNum)];
     }
     this.autoSavePreset();
   }

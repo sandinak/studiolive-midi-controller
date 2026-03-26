@@ -48,6 +48,7 @@ export interface MappingPreset {
   midiDevice?: string;    // Legacy: single preferred MIDI device (backward compat)
   midiDevices?: string[]; // Preferred MIDI device names (multi-device)
   midiDeviceColors?: Record<string, string>;  // Per-device colors e.g. { "Launchkey 49": "#ff6600" }
+  dcaColors?: Record<string, string>;         // Per-DCA group colors e.g. { "1": "#dc5050" }
   faderFilter?: 'all' | 'added' | 'mapped';  // Fader filter state
   midiFeedbackEnabled?: boolean;  // MIDI feedback enabled state
   levelVisibility?: 'none' | 'indicator' | 'meter';  // Channel level display mode

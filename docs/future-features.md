@@ -80,19 +80,100 @@ faderElement.addEventListener('dragend', handleDragEnd);
 - Quick A/B comparison
 - Scene management for different songs/setups
 
-### MIDI Learn Mode
-- Click fader, move MIDI control to auto-assign
-- Visual feedback during learn mode
-- Timeout after X seconds
-
 ### Keyboard Shortcuts
 - Arrow keys to select faders
-- Space to mute/unmute
+- Space to mute/unmute selected channel
 - Number keys for quick channel selection
 
-### Multiple MIDI Devices
-- Connect to multiple MIDI devices
-- Device selection dropdown
-- Support for MIDI over USB and network
+---
 
+## FOH Mute Button
+
+**Description:**
+A single button that mutes every channel routed to the Main (L/R) mix without touching AUX send levels or monitor mixes. Useful for FOH engineers who need a hard cut between songs or during announcements without disrupting stage monitor or in-ear mixes.
+
+**Implementation Notes:**
+- Query `line.chN.lr` state to identify all Main-assigned channels
+- Store their pre-mute states so the button acts as a toggle (restore on release)
+- Optionally include AUX/FX channels that are assigned to Main
+- Surface as a persistent toolbar button with clear ACTIVE/INACTIVE styling
+- Map to a MIDI note/CC so a hardware button can trigger it
+- Consider an optional "duck" mode (lower by X dB instead of hard mute) for smoother transitions
+
+**Priority:** High
+**Complexity:** Low-Medium
+
+---
+
+## Submix Controls
+
+**Description:**
+View and control AUX send levels per input channel, AUX master faders, and FX bus send levels — currently only the Main mix fader view is exposed. Essential for monitor engineers and IEM mixes.
+
+**Implementation Notes:**
+- Add a "Send" panel alongside the fader strip showing per-channel AUX/FX send knobs or mini-faders
+- AUX master faders (aux.chN.volume) shown in the main fader area when an AUX mix is selected
+- Map MIDI CCs to individual AUX send levels (channel × AUX combination)
+- Send-on-fader mode: optionally scale all AUX sends proportionally when main fader moves
+- Preset stores send-level mappings separately from main-mix mappings
+- Read `line.chN.aux1`, `.aux2` … paths from mixer state for current send values
+
+**Priority:** High
+**Complexity:** High
+
+---
+
+## Mix View Selector
+
+**Description:**
+A toolbar dropdown or button bank to switch the fader panel between different mix perspectives — Main L/R, AUX 1, AUX 2 … AUX N, FX A–D — showing the appropriate send levels or master fader for the selected mix. Mirrors the "Mix" button on the physical console.
+
+**Implementation Notes:**
+- Toolbar control with options: Main, AUX 1–N, FX A–D
+- When an AUX mix is selected, fader positions reflect that AUX's send level for each channel
+- Mute/solo buttons switch meaning (mute-in-mix vs channel mute)
+- Selected mix stored in session state (not preset) — resets to Main on reload
+- MIDI mapping: assign a MIDI note to each mix view for hands-free switching
+- Visual indicator showing which mix is active (colored label / tab highlight)
+
+**Priority:** High
+**Complexity:** High
+
+---
+
+## Additional Ideas
+
+### Channel Strip Expanded View
+- Click/expand a fader to show preamp gain, gate, compressor ratio, EQ band values
+- Read-only initially (display from mixer state); make writable in a later iteration
+- Useful for quick checks without opening Universal Control
+
+### Fader Ganging / VCA-style Groups
+- User-defined fader groups (separate from mixer DCA groups)
+- Moving one fader in the group offsets all others by the same delta
+- Useful for ganging a stereo pair or a submix that isn't using a DCA
+
+### AUX Send Mapping (per-channel)
+- Map individual MIDI CCs to per-channel AUX send levels
+- Lets an IEM engineer use a single MIDI controller to manage one artist's mix
+
+### Talkback Control
+- Map a MIDI note to talkback activation (hold-to-talk or toggle)
+- Display talkback state in UI
+
+### Scene / Snapshot Recall
+- Trigger mixer scene recalls from the app UI or a MIDI button
+- Browse and recall projects/scenes stored on the mixer without leaving the app
+
+### Multi-Mixer Support
+- Connect to two mixers simultaneously (e.g., FOH console + monitor console or stage box)
+- Separate fader panels per mixer, switchable in the sidebar
+
+### Web / Tablet UI
+- Expose a local HTTP server so a tablet browser can show a simplified fader view
+- Useful for a quick-and-dirty second screen without a full Electron install
+
+### OSC Input / Output
+- Accept OSC messages as an alternative to MIDI (useful with TouchOSC, Lemur, etc.)
+- Emit OSC feedback for fader/mute/solo changes
 

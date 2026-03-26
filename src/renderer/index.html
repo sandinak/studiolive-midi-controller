@@ -625,13 +625,12 @@
       padding: 3px 5px;
       line-height: 1.2;
       width: 100%;
-      min-height: 18px; /* Fixed height ensures all faders stay same height */
+      min-height: 18px;
       background: rgba(0, 0, 0, 0.3);
       border-radius: 3px;
       opacity: 0.95;
       border: 1px solid transparent;
       transition: all 0.2s;
-      margin-top: 6px; /* Gap makes clear this is a mapping, not channel info */
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -655,6 +654,31 @@
       box-shadow: none !important;
       animation: missing-device-pulse 1.2s ease-in-out infinite;
     }
+
+    /* Fixed-height footer keeps all fader columns aligned at the bottom */
+    .fader-footer {
+      margin-top: auto;          /* push to bottom of flex column */
+      width: 100%;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    /* DCA membership badges on channel faders */
+    .dca-badges {
+      display: flex; gap: 2px; justify-content: center; flex-wrap: nowrap;
+      min-height: 14px; width: 100%; overflow: hidden;
+    }
+    .dca-badge {
+      font-size: 0.55rem; font-weight: 700; padding: 1px 4px;
+      border-radius: 3px; line-height: 1.2; white-space: nowrap;
+      /* background/color/border set inline via dcaGroupColors */
+    }
+    /* DCA member list on DCA fader cards */
+    .dca-members {
+      font-size: 0.58rem; color: #999; text-align: center;
+      line-height: 1.3; max-width: 100%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      min-height: 14px;
+    }
+    .dca-placeholder { min-height: 14px; }
 
     .mute-btn {
       width: 28px;
@@ -1039,6 +1063,7 @@
       display: flex;
       gap: 10px;
       margin-top: 20px;
+      justify-content: flex-end;
     }
 
     .mixer-list {
@@ -1336,6 +1361,27 @@
     .changelog-rendered a:hover { text-decoration: underline; }
     .changelog-rendered strong { color: #ddd; }
 
+    /* Help modal tabs */
+    .help-tab {
+      font-size: 0.72rem; padding: 3px 10px; width: auto;
+      background: #1e1e1e; border: 1px solid #333; color: #999;
+    }
+    .help-tab:hover { background: #2a2a2a; color: #ccc; }
+    .help-tab.active { background: #2a2a2a; color: #e0e0e0; border-color: #4a9b7f; }
+    #help-body h2 { font-size: 1rem; color: #e0e0e0; margin: 0 0 8px; }
+    #help-body h3 { font-size: 0.88rem; color: #ccc; margin: 12px 0 4px; border-bottom: 1px solid #2e2e2e; padding-bottom: 3px; }
+    #help-body p { margin: 4px 0; color: #b0b0b0; }
+    #help-body ul { margin: 4px 0 8px 16px; padding: 0; }
+    #help-body li { margin: 2px 0; color: #b0b0b0; }
+    #help-body kbd {
+      background: #2a2a2a; border: 1px solid #444; border-radius: 3px;
+      padding: 1px 5px; font-size: 0.78rem; color: #ddd; font-family: monospace;
+    }
+    #help-body .help-tip {
+      background: #1a2a1e; border-left: 3px solid #4a9b7f; padding: 6px 10px;
+      margin: 8px 0; border-radius: 0 4px 4px 0; font-size: 0.8rem; color: #8fc;
+    }
+
     /* Compact form layout for add-mapping modal to prevent scrolling */
     #add-mapping-modal .modal-content {
       padding: 15px;
@@ -1370,6 +1416,14 @@
       gap: 8px;
     }
 
+    /* Separator before mode toggle */
+    .header-separator {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 0 2px;
+    }
+
     /* Run/Edit mode toggle */
     .mode-btn {
       background: rgba(30, 30, 30, 0.8);
@@ -1394,6 +1448,24 @@
     }
     .mode-btn.run-active:hover {
       background: rgba(40, 120, 40, 0.9);
+    }
+
+    /* Edit mode visual indicator — accent border on header */
+    body:not(.app-run-mode) .header {
+      border-bottom: 2px solid rgba(255, 180, 50, 0.6);
+    }
+    body:not(.app-run-mode) .mode-btn {
+      background: rgba(80, 60, 20, 0.7);
+      border-color: rgba(255, 180, 50, 0.5);
+      color: #f0c050;
+    }
+    body:not(.app-run-mode) .mode-btn:hover {
+      background: rgba(100, 75, 25, 0.8);
+      border-color: rgba(255, 180, 50, 0.7);
+    }
+    /* Run mode — green accent on header */
+    body.app-run-mode .header {
+      border-bottom: 2px solid rgba(76, 175, 80, 0.6);
     }
 
     /* Transport play/stop button — only visible in Run mode */
@@ -1445,7 +1517,7 @@
       </div>
       <div class="header-right">
         <button class="transport-btn" id="transport-btn" onclick="toggleTransport()" title="Send MIDI Start/Stop to DAW">&#9654; Play</button>
-        <button class="mode-btn" id="mode-toggle-btn" onclick="toggleAppMode()" title="Switch between Run (locked) and Edit mode">EDIT</button>
+        <button class="btn-small" onclick="showHelp()" title="Help &amp; Documentation">❓</button>
         <button class="btn-small" onclick="showPreferences()" title="Preferences">⚙️</button>
         <button class="btn-small" onclick="showSavePreset()" title="Save Profile">💾 Save</button>
         <button class="btn-small" onclick="showLoadPreset()" title="Load Profile">📂 Load</button>
@@ -1461,6 +1533,8 @@
           <span id="mixer-status-short">Mixer</span>
           <div class="activity-indicator mixer" id="mixer-activity"></div>
         </div>
+        <div class="header-separator"></div>
+        <button class="mode-btn" id="mode-toggle-btn" onclick="toggleAppMode()" title="Switch between Run (locked) and Edit mode">EDIT</button>
       </div>
     </div>
 
@@ -1530,8 +1604,8 @@
         <input type="text" id="manual-ip" placeholder="Enter mixer IP (e.g., 192.168.1.100)" />
       </div>
       <div class="modal-buttons">
-        <button class="btn" onclick="connectManual()">Connect</button>
         <button class="btn" onclick="hideDiscovery()">Close</button>
+        <button class="btn" onclick="connectManual()">Connect</button>
       </div>
     </div>
   </div>
@@ -1768,9 +1842,9 @@
         <small style="color: #888; display: block; margin-top: 5px;">Click Learn, then send a MIDI signal to auto-detect type, channel, and CC/note</small>
       </div>
       <div class="modal-buttons">
-        <button class="btn" id="mapping-submit-btn" onclick="addMapping()">Add Mapping</button>
-        <button class="btn danger" id="mapping-clear-btn" onclick="clearCurrentMapping()" style="display:none;">Clear</button>
         <button class="btn" onclick="hideAddMapping()">Cancel</button>
+        <button class="btn danger" id="mapping-clear-btn" onclick="clearCurrentMapping()" style="display:none;">Clear</button>
+        <button class="btn" id="mapping-submit-btn" onclick="addMapping()">Add Mapping</button>
       </div>
     </div>
   </div>
@@ -1787,8 +1861,8 @@
         <input type="text" id="preset-description" placeholder="Description" />
       </div>
       <div class="modal-buttons">
-        <button class="btn" onclick="savePreset()">Save</button>
         <button class="btn" onclick="hideSavePreset()">Cancel</button>
+        <button class="btn" onclick="savePreset()">Save</button>
       </div>
     </div>
   </div>
@@ -1800,8 +1874,8 @@
         <div class="empty-state">Loading MIDI devices...</div>
       </div>
       <div class="modal-buttons">
-        <button class="btn" onclick="refreshMidiDevices()">🔄 Refresh</button>
         <button class="btn" onclick="hideMidiSelect()">Close</button>
+        <button class="btn" onclick="refreshMidiDevices()">🔄 Refresh</button>
       </div>
     </div>
   </div>
@@ -1853,8 +1927,8 @@
         </small>
       </div>
       <div class="modal-buttons">
-        <button class="btn" onclick="savePreferences()">Save</button>
         <button class="btn" onclick="hidePreferences()">Cancel</button>
+        <button class="btn" onclick="savePreferences()">Save</button>
       </div>
     </div>
   </div>
@@ -1868,7 +1942,7 @@
       </div>
       <div class="modal-buttons">
         <button class="btn danger" onclick="clearAllMappingsFromList()" style="margin-right: auto;">🧹 Clear All Mappings</button>
-        <button class="btn" onclick="hideMappingsList()">Close</button>
+        <button class="btn" onclick="hideMappingsList()" style="margin-left: auto;">Close</button>
       </div>
     </div>
   </div>
@@ -1915,6 +1989,18 @@
     <div class="context-menu-item" onclick="contextMenuClearMuteGroup()">🧹 Clear Mute Group Mapping</div>
   </div>
 
+  <!-- DCA Color Context Menu -->
+  <div id="dca-color-menu" class="context-menu" style="min-width:140px;">
+    <div class="context-menu-header">🎨 DCA Color</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px;" id="dca-color-swatches"></div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" id="dca-color-custom-item">
+      🎨 Custom color...
+      <input type="color" id="dca-color-custom-input" style="position:absolute;opacity:0;width:0;height:0;">
+    </div>
+    <div class="context-menu-item" onclick="resetDcaColor()">↩️ Reset to default</div>
+  </div>
+
   <!-- MIDI Log Window -->
   <div id="midi-log-window" class="midi-log-window">
     <div class="midi-log-header">
@@ -1937,8 +2023,8 @@
         <div id="status-log-content"></div>
       </div>
       <div class="modal-buttons">
-        <button class="btn" onclick="clearStatusLog()">Clear Log</button>
         <button class="btn" onclick="hideStatusLog()">Close</button>
+        <button class="btn" onclick="clearStatusLog()">Clear Log</button>
       </div>
     </div>
   </div>
@@ -1966,6 +2052,30 @@
       <div id="changelog-content" class="changelog-rendered"></div>
       <div class="modal-buttons">
         <button class="btn" onclick="hideChangelogModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div id="help-modal" class="modal">
+    <div class="modal-content" style="max-width: 720px; max-height: 85vh; display: flex; flex-direction: column;">
+      <h2 style="margin-bottom: 8px;">Help &amp; Documentation</h2>
+      <!-- Navigation tabs -->
+      <div id="help-tabs" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px;border-bottom:1px solid #333;padding-bottom:8px;">
+        <button class="btn help-tab active" onclick="showHelpSection('getting-started')">Getting Started</button>
+        <button class="btn help-tab" onclick="showHelpSection('mappings')">Mappings</button>
+        <button class="btn help-tab" onclick="showHelpSection('midi-learn')">MIDI Learn</button>
+        <button class="btn help-tab" onclick="showHelpSection('modes')">Edit &amp; Run Mode</button>
+        <button class="btn help-tab" onclick="showHelpSection('mute-groups')">Mute Groups</button>
+        <button class="btn help-tab" onclick="showHelpSection('presets')">Presets</button>
+        <button class="btn help-tab" onclick="showHelpSection('troubleshooting')">Troubleshooting</button>
+      </div>
+      <div id="help-body" class="changelog-rendered" style="flex:1;overflow-y:auto;">
+        <!-- Populated by JS -->
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" onclick="hideHelp()">Close</button>
+        <button class="btn" onclick="ipcRenderer.invoke('open-docs')" style="width:auto;">📖 Online Docs</button>
       </div>
     </div>
   </div>
@@ -1998,7 +2108,7 @@
       </div>
       <div class="modal-buttons">
         <button class="btn" onclick="hideUpdateModal()">Later</button>
-        <button class="btn" onclick="downloadUpdate()" style="background: #4CAF50;">Download Update</button>
+        <button class="btn" onclick="downloadUpdate()" style="background: #4CAF50; margin-left: auto;">Download Update</button>
       </div>
     </div>
   </div>
@@ -2006,6 +2116,17 @@
   <script>
     // Use contextBridge API exposed by preload.js (contextIsolation is enabled)
     const ipcRenderer = window.electronAPI;
+
+    // Resolve channel number from a ChannelSelector, defaulting MAIN/TALKBACK to 1
+    function resolveChannelNum(channel) {
+      if (typeof channel === 'number') return channel;
+      const num = channel.channel;
+      if (num !== undefined && num !== null) return num;
+      // MAIN and TALKBACK always have exactly 1 channel
+      const type = (channel.type || '').toUpperCase();
+      if (type === 'MAIN' || type === 'TALKBACK') return 1;
+      return channel;
+    }
 
     // Inline HTML sanitizer — escapes untrusted strings before DOM insertion
     function sanitizeHtml(str) {
@@ -2034,6 +2155,45 @@
     let currentLevelVisibility = 'none';
     let currentPeakHold = false;
     const midiDeviceColors = {};
+
+    // Default palette for DCA groups 1-8
+    const dcaDefaultColors = [
+      '#dc5050', // 1 red
+      '#3ca0dc', // 2 blue
+      '#50be78', // 3 green
+      '#dcb432', // 4 yellow
+      '#b464dc', // 5 purple
+      '#e6823c', // 6 orange
+      '#50c8c8', // 7 teal
+      '#dc64b4', // 8 pink
+    ];
+    // User-customizable DCA colors — loaded from preset, keyed by DCA number string
+    const customDcaColors = {};
+
+    // Build a color object (bg/fg/border) from a single hex color
+    function dcaColorFromHex(hex) {
+      // Parse hex to RGB for rgba() variants
+      const r = parseInt(hex.slice(1,3), 16), g = parseInt(hex.slice(3,5), 16), b = parseInt(hex.slice(5,7), 16);
+      // Lighten the color for badge text so it pops on the dark background
+      const lr = Math.min(255, Math.round(r + (255 - r) * 0.35));
+      const lg = Math.min(255, Math.round(g + (255 - g) * 0.35));
+      const lb = Math.min(255, Math.round(b + (255 - b) * 0.35));
+      const bright = `rgb(${lr},${lg},${lb})`;
+      return {
+        bg: `rgba(${r},${g},${b},0.40)`,
+        fg: hex,
+        bright: bright,
+        border: `rgba(${r},${g},${b},0.6)`,
+        hex: hex,
+      };
+    }
+
+    function getDcaColor(dcaNum) {
+      const custom = customDcaColors[String(dcaNum)];
+      const hex = custom || dcaDefaultColors[(dcaNum - 1) % dcaDefaultColors.length];
+      return dcaColorFromHex(hex);
+    }
+
     const peakData = {};
     const PEAK_HOLD_MS = 3000;
     const MG_INPUT = 0;  // MeterGroups.INPUT_SIGNAL
@@ -2066,6 +2226,8 @@
 
     // Channel data cache (shared across loadFaders and updateFilterDropdown)
     let channelDataCache = {};
+    // Reverse map: "LINE-3" → [{dca: 1, name: "Drums"}, ...] — built during loadFaders
+    let dcaMembershipMap = {};
 
     // Current mappings (shared across components)
     let currentMappings = [];
@@ -2273,6 +2435,233 @@
 
     function hideChangelogModal() {
       document.getElementById('changelog-modal').classList.remove('show');
+    }
+
+    // ── Help Modal ──────────────────────────────────────────────────
+
+    const helpSections = {
+      'getting-started': `
+        <h2>Getting Started</h2>
+        <p>StudioLive MIDI Controller bridges your MIDI hardware (keyboards, pad controllers, fader banks) with a PreSonus StudioLive mixer over your local network.</p>
+
+        <h3>1. Connect Your Mixer</h3>
+        <p>Click the <strong>Mixer</strong> status indicator in the top-right header. The app will scan your local network for StudioLive mixers. Select your mixer from the list, or enter its IP address manually.</p>
+        <div class="help-tip">Your computer and mixer must be on the same network. The mixer's IP is shown on its screen under <em>Settings → Network</em>.</div>
+
+        <h3>2. Connect a MIDI Device</h3>
+        <p>Click the <strong>MIDI</strong> status indicator to open the MIDI connection panel. Available MIDI input devices are listed automatically. Click a device to connect it. You can connect multiple devices at the same time.</p>
+        <p>Each connected device can be assigned a <strong>color</strong> for visual identification — its mapped faders and buttons will show that color.</p>
+
+        <h3>3. Create a Mapping</h3>
+        <p>Make sure you're in <strong>Edit</strong> mode (orange header bar). Right-click a channel fader, mute, or solo button and choose a <strong>Learn</strong> option from the context menu — then move a fader or press a button on your MIDI device. The mapping is created automatically.</p>
+        <p>Alternatively, click <strong>➕</strong> in the toolbar or open <strong>📋 Mappings</strong> to create mappings manually.</p>
+
+        <h3>4. Switch to Run Mode</h3>
+        <p>Click the <strong>EDIT</strong> button (far right of the header) to switch to <strong>Run</strong> mode. This locks the interface so you can perform without accidentally changing your configuration.</p>
+      `,
+      'mappings': `
+        <h2>MIDI Mappings</h2>
+        <p>A mapping connects a MIDI control (fader, knob, button, pad) to a mixer function (volume, mute, solo, pan, mute group).</p>
+
+        <h3>Mixer Actions</h3>
+        <ul>
+          <li><strong>Volume</strong> — Control a channel's fader level (0–100%)</li>
+          <li><strong>Mute</strong> — Toggle a channel's mute on/off</li>
+          <li><strong>Solo</strong> — Toggle a channel's solo on/off</li>
+          <li><strong>Pan</strong> — Control left/right panning</li>
+          <li><strong>Mute Group</strong> — Toggle one of the mixer's 8 mute groups</li>
+        </ul>
+
+        <h3>Channel Types</h3>
+        <ul>
+          <li><strong>LINE</strong> — Analog/digital input channels</li>
+          <li><strong>RETURN</strong> — Digital returns (Dante/network)</li>
+          <li><strong>FX RETURN</strong> — Effect return channels</li>
+          <li><strong>TALKBACK</strong> — Talkback microphone</li>
+          <li><strong>AUX</strong> — Auxiliary output buses</li>
+          <li><strong>FX</strong> — Effect buses</li>
+          <li><strong>SUB</strong> — Subgroups</li>
+          <li><strong>MAIN</strong> — Main stereo output</li>
+          <li><strong>DCA</strong> — DCA groups (virtual fader groups)</li>
+        </ul>
+
+        <h3>MIDI Types</h3>
+        <ul>
+          <li><strong>Control Change (CC)</strong> — Standard continuous controllers. CC values 0–127 map to fader range. For mute/solo, values above the threshold activate and below deactivate.</li>
+          <li><strong>Note (Trigger)</strong> — Note On toggles mute/solo. Useful for pad controllers.</li>
+          <li><strong>Note (Value Mode)</strong> — Note number maps to a fader value within a min/max range. Useful for step-based control.</li>
+          <li><strong>None</strong> — View-only channel with no MIDI control.</li>
+        </ul>
+
+        <h3>Device Filter</h3>
+        <p>Each mapping can optionally be locked to a specific MIDI device. When set, only signals from that device will trigger the mapping. Leave it as <strong>Any connected device</strong> to respond to all connected controllers.</p>
+        <div class="help-tip">When only one MIDI device is connected, its color is automatically applied to all mappings — even those set to "Any device".</div>
+
+        <h3>CC Threshold</h3>
+        <p>For mute and solo mappings using CC messages, the <strong>threshold</strong> (default 64) determines the on/off boundary. Values at or above the threshold activate; values below deactivate. Adjust this if your controller sends non-standard ranges.</p>
+      `,
+      'midi-learn': `
+        <h2>MIDI Learn</h2>
+        <p>MIDI Learn lets you create mappings by simply moving a control on your hardware — no manual CC/note entry needed.</p>
+
+        <h3>Quick Learn (Context Menu)</h3>
+        <p>The fastest way to map a control:</p>
+        <ul>
+          <li>Make sure you're in <strong>Edit</strong> mode</li>
+          <li>Right-click a channel's fader, mute button, or solo button</li>
+          <li>Select a <strong>Learn</strong> option (e.g. "Learn Volume Mapping")</li>
+          <li>Move the fader or press the button on your MIDI controller</li>
+          <li>The mapping is created and saved automatically</li>
+        </ul>
+
+        <h3>Manual Learn (Mapping Form)</h3>
+        <p>In the Add/Edit Mapping form, click the <strong>Learn</strong> button. The app listens on all MIDI ports and auto-fills the type, channel, CC/note number, and device when it receives a signal.</p>
+
+        <h3>Device Filtering During Learn</h3>
+        <p>If you select a specific device in the <strong>Device Filter</strong> dropdown before clicking Learn, the app will only listen for signals from that device and ignore all others. This is useful when you have multiple controllers connected and want to avoid accidental detection from the wrong one.</p>
+        <div class="help-tip">Leave the device filter on "Any connected device" to learn from whichever controller you touch first.</div>
+
+        <h3>Supported Signal Types</h3>
+        <ul>
+          <li><strong>CC messages</strong> — Auto-detected as Control Change mapping</li>
+          <li><strong>Note On</strong> — Auto-detected as Note mapping</li>
+          <li><strong>Pitch Bend</strong> — Not mappable; the app will prompt you to use a CC control instead and keep listening</li>
+        </ul>
+      `,
+      'modes': `
+        <h2>Edit &amp; Run Mode</h2>
+        <p>The app has two modes to separate configuration from performance.</p>
+
+        <h3>Edit Mode</h3>
+        <ul>
+          <li>Orange accent bar along the top of the window</li>
+          <li>Create, edit, and delete MIDI mappings</li>
+          <li>Right-click context menus available on faders and buttons</li>
+          <li>Full access to all configuration options</li>
+          <li>Toolbar buttons (➕ Add, filter, mute groups) are fully interactive</li>
+        </ul>
+
+        <h3>Run Mode</h3>
+        <ul>
+          <li>Green accent bar along the top of the window</li>
+          <li>Interface is locked — no accidental edits during a live performance</li>
+          <li>Faders and MIDI controls remain fully functional</li>
+          <li>Transport button (▶ Play / ⏸ Stop) becomes visible for DAW control</li>
+          <li>Toolbar buttons are dimmed to prevent accidental changes</li>
+        </ul>
+
+        <h3>Start in Run Mode</h3>
+        <p>In <strong>⚙️ Preferences</strong>, enable <strong>Start in Run Mode</strong> to launch the app directly into Run mode every time. Useful for dedicated performance setups.</p>
+
+        <h3>Transport Control</h3>
+        <p>The <strong>▶ Play</strong> button (visible in Run mode) sends MIDI Start/Stop messages to all connected MIDI outputs. This controls DAW transport in Logic Pro, Ableton, and other DAWs that respond to MIDI transport.</p>
+      `,
+      'mute-groups': `
+        <h2>Mute Groups</h2>
+        <p>Mute groups let you mute or unmute multiple mixer channels at once with a single button press.</p>
+
+        <h3>How They Work</h3>
+        <ul>
+          <li>The StudioLive mixer supports <strong>8 mute groups</strong>, configured on the mixer itself</li>
+          <li>Each group contains a set of channels that are muted/unmuted together</li>
+          <li>The numbered buttons (1–8) in the faders toolbar toggle each group</li>
+          <li>A <strong>red highlight</strong> on the button means the group is currently active (channels are muted)</li>
+        </ul>
+
+        <h3>Mapping MIDI to Mute Groups</h3>
+        <p>Right-click a mute group button and select <strong>Learn Mute Group Mapping</strong>, then press a button on your MIDI controller. You can also create the mapping manually from the Add Mapping form by selecting <strong>Mute Group</strong> as the action.</p>
+        <div class="help-tip">A green dot on a mute group button indicates it has a MIDI mapping assigned.</div>
+
+        <h3>Toggle Behavior</h3>
+        <p>Each press toggles the group — if it's off, it turns on (muting the channels); if it's on, it turns off (unmuting). The app debounces rapid button presses to prevent double-toggling.</p>
+      `,
+      'presets': `
+        <h2>Presets &amp; Profiles</h2>
+        <p>Presets save your entire configuration — all mappings, connections, device colors, and preferences — so you can quickly switch between setups.</p>
+
+        <h3>What's Saved</h3>
+        <ul>
+          <li>All MIDI mappings (channels, actions, CC/note assignments)</li>
+          <li>Preferred mixer connection (IP, name, model)</li>
+          <li>Connected MIDI devices and their color assignments</li>
+          <li>Display preferences (fader smoothing, level meters, MIDI feedback)</li>
+          <li>Fader filter state (All / Added / Mapped)</li>
+        </ul>
+
+        <h3>Saving a Preset</h3>
+        <p>Click <strong>💾 Save</strong> in the toolbar. Enter a name and optional description. The preset is saved as a JSON file in your app data folder.</p>
+
+        <h3>Loading a Preset</h3>
+        <p>Click <strong>📂 Load</strong> to see all saved presets. Select one to load it. All current mappings and settings will be replaced.</p>
+
+        <h3>Auto-Save &amp; Auto-Load</h3>
+        <p>When you modify mappings while a preset is loaded, changes are auto-saved. On startup, if a <strong>default.json</strong> preset exists, it loads automatically.</p>
+        <div class="help-tip">Create a preset named "default" to have your configuration load every time the app starts.</div>
+      `,
+      'troubleshooting': `
+        <h2>Troubleshooting</h2>
+
+        <h3>Mixer Not Found</h3>
+        <ul>
+          <li>Ensure your computer and mixer are on the <strong>same network</strong></li>
+          <li>Check the mixer's IP address under <em>Settings → Network</em> on the mixer screen</li>
+          <li>Try entering the IP manually in the connection panel</li>
+          <li>Ensure no firewall is blocking UDP port 53000</li>
+        </ul>
+
+        <h3>MIDI Device Not Appearing</h3>
+        <ul>
+          <li>Ensure the device is connected via USB and powered on</li>
+          <li>On macOS, check <strong>Audio MIDI Setup</strong> to confirm the device is recognized</li>
+          <li>Click the refresh button in the MIDI connection panel</li>
+          <li>Some devices need drivers — check the manufacturer's website</li>
+        </ul>
+
+        <h3>Fader Moves But Mixer Doesn't Respond</h3>
+        <ul>
+          <li>Check the <strong>Mixer</strong> status indicator — it should show a green dot</li>
+          <li>Open <strong>📊 MIDI Log</strong> to confirm MIDI messages are arriving</li>
+          <li>Verify the mapping's channel type and number match the mixer channel</li>
+        </ul>
+
+        <h3>MIDI Button Toggles On Then Immediately Off</h3>
+        <ul>
+          <li>Some controllers send multiple messages per button press</li>
+          <li>The app debounces toggles (150ms) automatically, but if your controller sends very slowly spaced duplicates, try adjusting your controller's settings</li>
+        </ul>
+
+        <h3>MIDI Learn Detects Wrong Device</h3>
+        <ul>
+          <li>Select the specific device in the <strong>Device Filter</strong> dropdown before clicking Learn</li>
+          <li>This filters out signals from other connected controllers</li>
+        </ul>
+
+        <h3>Latency on Fader Movement</h3>
+        <ul>
+          <li>Some latency is normal — the app throttles rapid updates to avoid flooding the mixer</li>
+          <li>For best results, use a wired network connection rather than Wi-Fi</li>
+          <li>Reduce <strong>Fader Smoothing</strong> in Preferences if visual animation feels slow</li>
+        </ul>
+
+        <h3>Initialization Log</h3>
+        <p>For advanced troubleshooting, check the initialization log by clicking the small status text at the bottom of the connection panel. This shows detailed startup and connection events.</p>
+      `
+    };
+
+    function showHelp(section) {
+      document.getElementById('help-modal').classList.add('show');
+      showHelpSection(section || 'getting-started');
+    }
+
+    function hideHelp() {
+      document.getElementById('help-modal').classList.remove('show');
+    }
+
+    function showHelpSection(sectionId) {
+      document.getElementById('help-body').innerHTML = helpSections[sectionId] || '';
+      document.querySelectorAll('#help-tabs .help-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('onclick').includes("'" + sectionId + "'"));
+      });
     }
 
     function downloadUpdate() {
@@ -2980,6 +3369,13 @@
       }
     });
 
+    // Load custom DCA colors
+    ipcRenderer.invoke('get-dca-colors').then(colors => {
+      if (colors) {
+        Object.assign(customDcaColors, colors);
+      }
+    }).catch(() => {});
+
     // Helper: flash mapping-list activity dots for a given device
     function flashMappingActivityForDevice(device, devColor) {
       currentMappings.forEach((m, idx) => {
@@ -3005,6 +3401,7 @@
 
       // MIDI learn: intercept and auto-fill form fields
       if (midiLearnActive && (midiMessage.type === 'cc' || midiMessage.type === 'note_on')) {
+        if (!midiLearnDeviceAllowed(midiMessage.device)) return;
         applyMidiLearnResult(midiMessage, midiMessage.device);
         return;
       }
@@ -3019,7 +3416,7 @@
         );
         if (mapping) {
           const channelType = mapping.mixer.channel.type || 'LINE';
-          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelNum = resolveChannelNum(mapping.mixer.channel);
           updateMidiIndicator(channelType, channelNum, midiMessage.value);
           indicateFaderChange(channelType, channelNum, 'midi');
         }
@@ -3033,7 +3430,7 @@
       // Update fader if it's a volume command
       if (mixerCommand.action === 'volume' && mixerCommand.value !== undefined && mixerCommand.channel) {
         const channelType = mixerCommand.channel.type || 'LINE';
-        const channelNum = mixerCommand.channel.channel;
+        const channelNum = resolveChannelNum(mixerCommand.channel);
         updateFaderByValue(channelType, channelNum, mixerCommand.value);
         indicateFaderChange(channelType, channelNum, 'midi');
       }
@@ -3045,11 +3442,12 @@
       // data.channel.type, data.channel.channel, data.level
       // Update fader for any channel type (LINE, MAIN, AUX, etc.)
       if (data.channel) {
-        updateFaderByValue(data.channel.type, data.channel.channel, data.level);
-        indicateFaderChange(data.channel.type, data.channel.channel, 'api');
+        const chNum = resolveChannelNum(data.channel);
+        updateFaderByValue(data.channel.type, chNum, data.level);
+        indicateFaderChange(data.channel.type, chNum, 'api');
 
         // Update MIDI indicator to match fader position when quiescent
-        updateMidiIndicatorToFader(data.channel.type, data.channel.channel, data.level);
+        updateMidiIndicatorToFader(data.channel.type, chNum, data.level);
       }
     });
 
@@ -3120,6 +3518,9 @@
     // Listen for mixer disconnection — update status bar warning immediately
     ipcRenderer.on('mixer-lost', () => {
       addStatusLog('Mixer disconnected — searching for reconnect', 'warning');
+      // Reset the dedup guard so the next mixer-state-ready event is processed
+      mixerStateReadyHandled = false;
+      mixerStateReadyTimestamp = 0;
       updateStatus();
     });
 
@@ -3220,6 +3621,12 @@
         } else if (data.type === 'mute') {
           // Channel mute state changed
           updateMuteButton(channelType, channelNum, data.value);
+        } else if (data.type === 'solo') {
+          // Channel solo state changed
+          updateSoloButton(channelType, channelNum, data.value);
+        } else if (data.type === 'color') {
+          // Channel color changed (e.g. from Universal Control)
+          updateChannelColor(channelType, channelNum, data.value);
         }
       }
 
@@ -3247,18 +3654,11 @@
           // So we set the visual state based on the mute group state, not the individual channel states.
           const assignments = await ipcRenderer.invoke('get-mute-group-assignments', groupNum);
 
+          // Set mute state directly from group state — individual channel states
+          // are stale immediately after a toggle. mixer-mute events will correct
+          // any channels that are individually muted.
           for (const assignment of assignments) {
-            // If mute group is active, show channels as muted
-            // If mute group is inactive, query the actual channel mute state
-            if (muteGroupActive) {
-              updateMuteButton(assignment.type, assignment.channel, true);
-            } else {
-              // Query the actual channel mute state
-              const muted = await ipcRenderer.invoke('get-channel-mute', assignment.type, assignment.channel);
-              if (muted !== null) {
-                updateMuteButton(assignment.type, assignment.channel, muted);
-              }
-            }
+            updateMuteButton(assignment.type, assignment.channel, muteGroupActive);
           }
         }
       }
@@ -3617,8 +4017,16 @@
     // Handle MIDI scan result (fires from any port, not just the connected one)
     ipcRenderer.on('midi-scan-captured', ({ deviceName, message }) => {
       if (!midiLearnActive) return;
+      if (!midiLearnDeviceAllowed(deviceName)) return;
       applyMidiLearnResult(message, deviceName);
     });
+
+    // Check if a MIDI device is allowed during learn mode based on the device filter dropdown.
+    // If a specific device is selected, only learn from that device; "Any" accepts all.
+    function midiLearnDeviceAllowed(deviceName) {
+      const filterValue = document.getElementById('midi-device-filter').value;
+      return !filterValue || filterValue === deviceName;
+    }
 
     async function applyMidiLearnResult(msg, deviceName) {
       const btn = document.getElementById('midi-listen-btn');
@@ -3943,7 +4351,7 @@
                     mixerChannel = `Mute Group ${m.mixer.channel.channel}`;
                   } else {
                     const channelType = m.mixer.channel.type || 'LINE';
-                    const channelNum = m.mixer.channel.channel || m.mixer.channel;
+                    const channelNum = resolveChannelNum(m.mixer.channel);
                     const typeLabel = {
                       'LINE': 'Input',
                       'AUX': 'Aux',
@@ -4013,7 +4421,7 @@
         } else if (m.mixer.action !== 'mutegroup' && mapping.mixer.action !== 'mutegroup') {
           return m.mixer.action === mapping.mixer.action &&
                  (m.mixer.channel.type || 'LINE') === (mapping.mixer.channel.type || 'LINE') &&
-                 (m.mixer.channel.channel || m.mixer.channel) == (mapping.mixer.channel.channel || mapping.mixer.channel);
+                 (resolveChannelNum(m.mixer.channel)) == (resolveChannelNum(mapping.mixer.channel));
         }
         return false;
       });
@@ -4080,7 +4488,7 @@
 
       // Update channel number options and then set the value
       await updateChannelNumberOptions();
-      document.getElementById('mixer-channel-num').value = mapping.mixer.channel.channel || mapping.mixer.channel;
+      document.getElementById('mixer-channel-num').value = resolveChannelNum(mapping.mixer.channel);
 
       // Clear the flag
       isEditingMapping = false;
@@ -4108,7 +4516,7 @@
         desc = `Mute Group ${mapping.mixer.channel.channel}`;
       } else {
         const channelType = mapping.mixer.channel.type || 'LINE';
-        const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+        const channelNum = resolveChannelNum(mapping.mixer.channel);
         const actionName = {
           'volume': 'Volume',
           'mute': 'Mute',
@@ -4131,7 +4539,7 @@
           } else if (m.mixer.action !== 'mutegroup' && mapping.mixer.action !== 'mutegroup') {
             return m.mixer.action === mapping.mixer.action &&
                    (m.mixer.channel.type || 'LINE') === (mapping.mixer.channel.type || 'LINE') &&
-                   (m.mixer.channel.channel || m.mixer.channel) == (mapping.mixer.channel.channel || mapping.mixer.channel);
+                   (resolveChannelNum(m.mixer.channel)) == (resolveChannelNum(mapping.mixer.channel));
           }
           return false;
         });
@@ -4238,6 +4646,26 @@
       if (!deviceName) return deviceName;
       // Shorten "Logic Pro Virtual Out" to "Logic Pro"
       return deviceName.replace(/Logic Pro Virtual Out/gi, 'Logic Pro');
+    }
+
+    // Pick an icon for a MIDI device based on its name.
+    // Returns an HTML string — either an inline SVG for known DAWs or an emoji fallback.
+    const _dawIcons = {
+      logic: '<svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:-2px"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2 8Q5 3,8 8Q11 13,14 8" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+      studioone: '<svg viewBox="0 0 16 16" width="14" height="14" style="vertical-align:-2px"><circle cx="7" cy="8" r="6" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="12" y="12" font-family="Arial,sans-serif" font-size="7" font-weight="bold" fill="currentColor">1</text></svg>',
+    };
+    function getMidiDeviceIcon(deviceName) {
+      if (!deviceName) return '🎛️';
+      const lower = deviceName.toLowerCase();
+      // DAWs with dedicated SVG icons
+      if (/logic|garageband|mainstage/i.test(lower)) return _dawIcons.logic;
+      if (/studio\s?one/i.test(lower)) return _dawIcons.studioone;
+      // Other DAW / software virtual ports
+      if (/ableton|pro\s?tools|cubase|reaper|reason|bitwig|fl\s?studio|iac\s?driver|virtual/i.test(lower)) return '🎹';
+      // Keyboards — includes "key" for Launchkey, Keylab, etc.
+      if (/key|piano|organ|synth|nord|korg|yamaha\s?(cp|ck|mx|motif|montage|modx)|roland\s?(rd|juno|jupiter|fantom)/i.test(lower)) return '🎹';
+      // Everything else is a hardware controller (pad, fader bank, etc.)
+      return '🎛️';
     }
 
     // Load preferences on startup
@@ -4438,7 +4866,7 @@
             return `
               <div class="mixer-item${isConnected ? ' connected-device' : ''}">
                 <div class="mixer-info">
-                  <div class="mixer-name">🎹 ${device}</div>
+                  <div class="mixer-name">${getMidiDeviceIcon(device)} ${device}</div>
                   ${isConnected ? '<div class="mixer-details" style="color: #4a9b7f; font-size: 0.8rem;">● Connected</div>' : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:3px">
@@ -4551,7 +4979,7 @@
           const mappingIndex = mappings.findIndex(m =>
             m.mixer.action === 'volume' &&
             (m.mixer.channel.type || 'LINE') === channelType &&
-            (m.mixer.channel.channel || m.mixer.channel) == channelNum
+            (resolveChannelNum(m.mixer.channel)) == channelNum
           );
 
           if (mappingIndex !== -1) {
@@ -4731,7 +5159,7 @@
           const mgDevColor = mapping.midi?.device ? (midiDeviceColors[mapping.midi.device] || '') : '';
           if (mgDevColor) {
             button.style.borderColor = mgDevColor;
-            button.style.boxShadow = `0 0 4px ${mgDevColor}66`;
+            button.style.boxShadow = `0 0 6px ${mgDevColor}aa`;
           }
         } else {
           button.title = `Mute Group ${group.group}: ${group.name}`;
@@ -4932,17 +5360,10 @@
           // Instead, drive visual state directly from the new group state.
           const assignments = await ipcRenderer.invoke('get-mute-group-assignments', groupNum);
 
+          // Set mute state directly — don't query individual states (stale after toggle).
+          // Any individually-muted channels will be corrected by mixer-mute events.
           for (const assignment of assignments) {
-            if (newState) {
-              // Group just activated → show all assigned channels as muted
-              updateMuteButton(assignment.type, assignment.channel, true);
-            } else {
-              // Group just deactivated → query the actual individual channel state
-              const muted = await ipcRenderer.invoke('get-channel-mute', assignment.type, assignment.channel);
-              if (muted !== null) {
-                updateMuteButton(assignment.type, assignment.channel, muted);
-              }
-            }
+            updateMuteButton(assignment.type, assignment.channel, newState);
           }
         } else {
           console.error(`[toggleMuteGroup] Failed to toggle mute group ${groupNum}:`, result.error);
@@ -4960,7 +5381,7 @@
         const mappingIndex = mappings.findIndex(m =>
           m.mixer.action === 'volume' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          resolveChannelNum(m.mixer.channel) == channelNum
         );
 
         if (mappingIndex === -1) {
@@ -4999,7 +5420,7 @@
 
         // Update channel number options and then set the value
         await updateChannelNumberOptions();
-        document.getElementById('mixer-channel-num').value = mapping.mixer.channel.channel || mapping.mixer.channel;
+        document.getElementById('mixer-channel-num').value = resolveChannelNum(mapping.mixer.channel);
 
         // Set MIDI settings (won't be overwritten now because of isEditingMapping flag)
         document.getElementById('midi-channel').value = mapping.midi.channel;
@@ -5042,8 +5463,84 @@
       document.getElementById('solo-context-menu')?.classList.remove('show');
       document.getElementById('channel-context-menu')?.classList.remove('show');
       document.getElementById('mutegroup-context-menu')?.classList.remove('show');
+      document.getElementById('dca-color-menu')?.classList.remove('show');
       currentContextMenuFaderId = null;
     }
+
+    // ── DCA Color Context Menu ──
+    let currentDcaColorNum = null;
+    const dcaSwatchColors = [
+      '#dc5050','#3ca0dc','#50be78','#dcb432',
+      '#b464dc','#e6823c','#50c8c8','#dc64b4',
+      '#ffffff','#8888cc','#cc8844','#44ccaa',
+    ];
+
+    function showDcaColorMenu(dcaNum, x, y) {
+      hideAllContextMenus();
+      currentDcaColorNum = dcaNum;
+      const menu = document.getElementById('dca-color-menu');
+      const swatchContainer = document.getElementById('dca-color-swatches');
+      swatchContainer.innerHTML = dcaSwatchColors.map(c =>
+        `<div class="dca-swatch" style="width:20px;height:20px;border-radius:3px;cursor:pointer;background:${c};border:2px solid ${c === (customDcaColors[String(dcaNum)] || getDcaColor(dcaNum).hex) ? '#fff' : 'transparent'};" onclick="pickDcaColor('${c}')"></div>`
+      ).join('');
+      positionContextMenu(menu, x, y);
+    }
+
+    function pickDcaColor(color) {
+      if (!currentDcaColorNum) return;
+      customDcaColors[String(currentDcaColorNum)] = color;
+      ipcRenderer.invoke('set-dca-color', currentDcaColorNum, color).catch(() => {});
+      hideAllContextMenus();
+      applyDcaColorToDOM(currentDcaColorNum);
+    }
+
+    function resetDcaColor() {
+      if (!currentDcaColorNum) return;
+      delete customDcaColors[String(currentDcaColorNum)];
+      ipcRenderer.invoke('set-dca-color', currentDcaColorNum, '').catch(() => {});
+      hideAllContextMenus();
+      applyDcaColorToDOM(currentDcaColorNum);
+    }
+
+    /** Update DCA color in the DOM without a full loadFaders() re-render */
+    function applyDcaColorToDOM(dcaNum) {
+      const c = getDcaColor(dcaNum);
+
+      // Update the DCA fader label background
+      const dcaFader = document.querySelector(`.fader-channel[data-fader-id="DCA-${dcaNum}"]`);
+      if (dcaFader) {
+        const label = dcaFader.querySelector('.fader-label');
+        if (label) {
+          label.style.background = c.fg;
+          label.style.color = getTextColorForBackground(c.fg);
+        }
+        // Update member count color
+        const members = dcaFader.querySelector('.dca-members');
+        if (members) members.style.color = c.bright;
+      }
+
+      // Update DCA badges on all LINE channels that belong to this DCA
+      document.querySelectorAll('.dca-badge').forEach(badge => {
+        if (badge.title && badge.title.startsWith(`DCA ${dcaNum}:`)) {
+          badge.style.background = c.bg;
+          badge.style.color = c.bright;
+          badge.style.borderColor = c.border;
+        }
+      });
+
+      // Update faderColors cache
+      faderColors.set(`DCA-${dcaNum}`, c.fg);
+    }
+
+    // Wire up custom color picker
+    document.getElementById('dca-color-custom-item')?.addEventListener('click', () => {
+      const input = document.getElementById('dca-color-custom-input');
+      input.value = customDcaColors[String(currentDcaColorNum)] || getDcaColor(currentDcaColorNum).hex;
+      input.click();
+    });
+    document.getElementById('dca-color-custom-input')?.addEventListener('change', (e) => {
+      pickDcaColor(e.target.value);
+    });
 
     // Fader volume context menu
     function showFaderVolumeContextMenu(faderId, x, y) {
@@ -5107,7 +5604,7 @@
         const mappingIndex = mappings.findIndex(m =>
           m.mixer.action === 'volume' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          resolveChannelNum(m.mixer.channel) == channelNum
         );
 
         if (mappingIndex !== -1) {
@@ -5143,7 +5640,7 @@
         const mappingIndex = mappings.findIndex(m =>
           m.mixer.action === 'mute' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          (resolveChannelNum(m.mixer.channel)) == channelNum
         );
 
         // Set flag to prevent auto-update during editing
@@ -5220,7 +5717,7 @@
         const mappingIndex = mappings.findIndex(m =>
           m.mixer.action === 'mute' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          (resolveChannelNum(m.mixer.channel)) == channelNum
         );
 
         if (mappingIndex !== -1) {
@@ -5256,7 +5753,7 @@
         const mappingIndex = mappings.findIndex(m =>
           m.mixer.action === 'solo' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          (resolveChannelNum(m.mixer.channel)) == channelNum
         );
 
         // Set flag to prevent auto-update during editing
@@ -5333,7 +5830,7 @@
         const mappingIndex = mappings.findIndex(m =>
           m.mixer.action === 'solo' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          (resolveChannelNum(m.mixer.channel)) == channelNum
         );
 
         if (mappingIndex !== -1) {
@@ -5396,7 +5893,7 @@
         const indicesToRemove = [];
         mappings.forEach((m, index) => {
           if ((m.mixer.channel.type || 'LINE') === channelType &&
-              (m.mixer.channel.channel || m.mixer.channel) == channelNum) {
+              (resolveChannelNum(m.mixer.channel)) == channelNum) {
             indicesToRemove.push(index);
           }
         });
@@ -5436,7 +5933,7 @@
         const indicesToRemove = [];
         mappings.forEach((m, index) => {
           if ((m.mixer.channel.type || 'LINE') === channelType &&
-              (m.mixer.channel.channel || m.mixer.channel) == channelNum) {
+              (resolveChannelNum(m.mixer.channel)) == channelNum) {
             indicesToRemove.push(index);
           }
         });
@@ -5560,7 +6057,7 @@
 
           if (midiConflictIndex !== -1) {
             const conflictMapping = existingMappings[midiConflictIndex];
-            const conflictChannel = `${conflictMapping.mixer.channel.type || 'LINE'} ${conflictMapping.mixer.channel.channel || conflictMapping.mixer.channel}`;
+            const conflictChannel = `${conflictMapping.mixer.channel.type || 'LINE'} ${resolveChannelNum(conflictMapping.mixer.channel)}`;
             const midiInfo = mapping.midi.type === 'cc'
               ? `CC${mapping.midi.controller} Ch${mapping.midi.channel}`
               : mapping.midi.type === 'note-value'
@@ -5582,7 +6079,7 @@
           const existingIndex = existingMappings.findIndex(m =>
             m.mixer.action === mixerAction &&
             (m.mixer.channel.type || 'LINE') === channelType &&
-            (m.mixer.channel.channel || m.mixer.channel) == channelNum
+            (resolveChannelNum(m.mixer.channel)) == channelNum
           );
 
           if (existingIndex !== -1) {
@@ -5708,7 +6205,7 @@
               : `Note ${mapping.midi.note} (Ch ${mapping.midi.channel})`;
 
             // Extract channel number and get name
-            const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+            const channelNum = resolveChannelNum(mapping.mixer.channel);
             const channelInfo = channelNames.find(c => c.channel === channelNum);
             const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
             const mixerDesc = `${mapping.mixer.action} - ${channelNum}: ${channelName}`;
@@ -5723,7 +6220,7 @@
               <div class="mapping-card">
                 <div class="mapping-activity" id="mapping-activity-${index}"></div>
                 <div class="mapping-info">
-                  <div class="mapping-source" style="${sourceStyle}">🎹 ${midiDesc}</div>
+                  <div class="mapping-source" style="${sourceStyle}">${getMidiDeviceIcon(m.midi?.device)} ${midiDesc}</div>
                   <div class="mapping-arrow">→</div>
                   <div class="mapping-target">🎛️ ${mixerDesc}</div>
                 </div>
@@ -5824,7 +6321,25 @@
             links.push({ channel: i, link });
           }
 
-          channelDataCache['dca'] = { names, colors, icons, links, inputSources };
+          // Fetch DCA group member assignments (which LINE channels belong to each DCA)
+          const members = {};
+          for (let i = 1; i <= 8; i++) {
+            const assigned = await ipcRenderer.invoke('get-dca-group-assignments', i);
+            if (assigned && assigned.length > 0) members[i] = assigned;
+          }
+
+          channelDataCache['dca'] = { names, colors, icons, links, inputSources, members };
+
+          // Build reverse map: which DCAs does each LINE channel belong to?
+          dcaMembershipMap = {};
+          for (const [dcaNum, chList] of Object.entries(members)) {
+            const dcaName = (names.find(n => n.channel === Number(dcaNum)) || {}).name || '';
+            for (const ch of chList) {
+              const key = `LINE-${ch}`;
+              if (!dcaMembershipMap[key]) dcaMembershipMap[key] = [];
+              dcaMembershipMap[key].push({ dca: Number(dcaNum), name: dcaName });
+            }
+          }
 
           // Update filter dropdown with DCA groups
           updateFilterDropdown();
@@ -5881,7 +6396,7 @@
 
             const existingMapping = volumeMappings.find(m =>
               (m.mixer.channel.type || 'LINE') === 'LINE' &&
-              (m.mixer.channel.channel || m.mixer.channel) === i
+              (resolveChannelNum(m.mixer.channel)) === i
             );
 
             if (existingMapping) {
@@ -5964,7 +6479,7 @@
 
             const existingMapping = volumeMappings.find(m =>
               (m.mixer.channel.type || 'LINE') === 'LINE' &&
-              (m.mixer.channel.channel || m.mixer.channel) === lineChannel
+              (resolveChannelNum(m.mixer.channel)) === lineChannel
             );
 
             if (existingMapping) {
@@ -6014,7 +6529,7 @@
 
             const existingMapping = volumeMappings.find(m =>
               (m.mixer.channel.type || 'LINE') === 'LINE' &&
-              (m.mixer.channel.channel || m.mixer.channel) === lineChannel
+              (resolveChannelNum(m.mixer.channel)) === lineChannel
             );
 
             if (existingMapping) {
@@ -6056,8 +6571,8 @@
 
         // Sort each group by channel number (numerically left to right)
         const sortByChannelNum = (a, b) => {
-          const aNum = a.mixer.channel.channel || 0;
-          const bNum = b.mixer.channel.channel || 0;
+          const aNum = resolveChannelNum(a.mixer.channel) || 0;
+          const bNum = resolveChannelNum(b.mixer.channel) || 0;
           return aNum - bNum;
         };
 
@@ -6086,8 +6601,8 @@
               return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.6" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.6" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.4" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.6" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.5" fill="rgba(0,0,0,0.6)" stroke="none"/></svg>`;
             case 1: // Network — hierarchy diagram
               return `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-label="Network"><rect x="5" y="1" width="6" height="3.5" rx="0.8"/><rect x="1" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="6" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="11" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="7.3" y="4.5" width="1.4" height="3" rx="0.3"/><rect x="1.5" y="8.8" width="13" height="1.4" rx="0.3"/><rect x="2.5" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="7.3" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="12.1" y="8.8" width="1.4" height="2.7" rx="0.3"/></svg>`;
-            case 2: // USB — USB trident symbol
-              return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="USB"><line x1="8" y1="2" x2="8" y2="10.5"/><line x1="5" y1="5.5" x2="11" y2="5.5"/><line x1="5" y1="3.5" x2="5" y2="5.5"/><rect x="3.5" y="1.8" width="3" height="2" rx="0.5" fill="currentColor" stroke="none"/><circle cx="5" cy="8.2" r="1.5" stroke="currentColor"/><rect x="9.5" y="5.5" width="3" height="2" rx="0.5" fill="currentColor" stroke="none"/><line x1="8" y1="10.5" x2="8" y2="12.5"/><rect x="5.5" y="12.5" width="5" height="3" rx="0.8" fill="currentColor" stroke="none"/></svg>`;
+            case 2: // USB — standard USB trident: arrow up, circle branch left, square branch right, solid dot bottom
+              return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="USB"><line x1="12" y1="4" x2="12" y2="20" fill="none"/><polygon points="12,1 9,5.5 15,5.5" stroke="none"/><circle cx="12" cy="21.5" r="2" stroke="none"/><path d="M12,15 Q6,15 6,9" fill="none"/><circle cx="6" cy="7" r="2" fill="none" stroke-width="2"/><path d="M12,11 Q18,11 18,6" fill="none"/><rect x="16.2" y="3.8" width="3.6" height="3.6" rx="0.5" stroke="none"/></svg>`;
             case 3: // SD Card
               return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="SD Card"><path d="M3 1.5h7l3.5 3.5V15H3V1.5z"/><line x1="5" y1="9" x2="5" y2="14" stroke-width="1"/><line x1="7.5" y1="9" x2="7.5" y2="14" stroke-width="1"/><line x1="10" y1="9" x2="10" y2="14" stroke-width="1"/></svg>`;
             default:
@@ -6123,7 +6638,7 @@
         const renderFader = (mapping) => {
             // Extract channel number from ChannelSelector object
             const channelType = mapping.mixer.channel.type || 'LINE';
-            const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+            const channelNum = resolveChannelNum(mapping.mixer.channel);
 
 
             // Get channel data for this type
@@ -6169,6 +6684,11 @@
             // Override color for FX channels to match Universal Control (light purple/pink)
             if (channelType === 'FX' || channelType === 'FXRETURN') {
               channelColor = '#d4a5d4'; // Light purple/pink color
+            }
+
+            // DCA faders — use palette color for label background only (not border, to avoid collisions with mapped/missing states)
+            if (channelType === 'DCA') {
+              channelColor = getDcaColor(channelNum).fg;
             }
 
             // Create unique ID that includes type and channel
@@ -6227,10 +6747,46 @@
 
             // Check if this channel has MIDI mapping
             const isMapped = mapping.midi.type !== 'none';
+            // Build tooltip showing MIDI info + device name
+            const faderDeviceName = mapping.midi.device ? shortenMidiDeviceName(mapping.midi.device) : '';
+            const faderTooltip = isMapped
+              ? (faderDeviceName ? `Volume: ${midiInfo}\nDevice: ${faderDeviceName}` : `Volume: ${midiInfo}`)
+              : '';
+
+            // DCA membership badges for LINE channels, or member list for DCA channels
+            let dcaHtml = '<div class="dca-placeholder"></div>';
+            if (channelType === 'LINE') {
+              const dcaGroups = dcaMembershipMap[`LINE-${channelNum}`] || [];
+              if (dcaGroups.length > 0) {
+                const badges = dcaGroups.map(g => {
+                  const c = getDcaColor(g.dca);
+                  return `<span class="dca-badge" title="DCA ${g.dca}: ${g.name || ''}" style="background:${c.bg};color:${c.bright};border:1px solid ${c.border};">${g.name || 'DCA ' + g.dca}</span>`;
+                }).join('');
+                dcaHtml = `<div class="dca-badges">${badges}</div>`;
+              }
+            } else if (channelType === 'DCA') {
+              // DCA fader: tooltip shows members, color is on the label
+              const dcaMembers = (channelDataCache['dca']?.members || {})[channelNum];
+              const dcaColor = getDcaColor(channelNum);
+              if (dcaMembers && dcaMembers.length > 0) {
+                const lineNames = channelDataCache['line']?.names || [];
+                const memberLabels = dcaMembers.map(ch => {
+                  const info = lineNames.find(n => n.channel === ch);
+                  return info ? info.name : `Ch ${ch}`;
+                });
+                const memberTitle = ('Members: ' + memberLabels.join(', ')).replace(/"/g, '&quot;');
+                dcaHtml = `<div class="dca-members" title="${memberTitle}" style="color:${dcaColor.bright};">${dcaMembers.length} ch</div>`;
+              }
+            }
 
             // Device color → background of the mapping label (not a badge dot)
-            const mappedDevice = mapping.midi.device || '';
-            const deviceMissing = isMapped && mappedDevice && !connectedMidiDevices.has(mappedDevice);
+            // If mapping targets a specific device, use that; otherwise infer from
+            // connected devices when there's only one (unambiguous).
+            let mappedDevice = mapping.midi.device || '';
+            if (!mappedDevice && connectedMidiDevices.size === 1) {
+              mappedDevice = [...connectedMidiDevices][0];
+            }
+            const deviceMissing = isMapped && mapping.midi.device && !connectedMidiDevices.has(mapping.midi.device);
             const deviceColor = mappedDevice ? (midiDeviceColors[mappedDevice] || '') : '';
             const midiLabelStyle = (!deviceMissing && deviceColor)
               ? `background:${deviceColor};color:${getTextColorForBackground(deviceColor)};border-color:${deviceColor};`
@@ -6238,7 +6794,7 @@
             const midiLabelClass = isMapped ? (deviceMissing ? 'mapped device-missing' : 'mapped') : '';
             // When mapped and has device color, override the default green border
             const containerMappedStyle = isMapped && deviceColor && !deviceMissing
-              ? `border-color:${deviceColor}; box-shadow: 0 0 4px ${deviceColor}66;`
+              ? `border-color:${deviceColor}; box-shadow: 0 0 6px ${deviceColor}aa;`
               : '';
             const containerMissingClass = deviceMissing ? ' device-missing' : '';
 
@@ -6249,6 +6805,9 @@
             // Determine if this channel type has input sources
             // LINE, FX (FX Bus), and FXRETURN (FX Return) channels have selectable input sources (LINE/USB/SD/AVB)
             const hasInputSource = ['LINE', 'FX', 'FXRETURN'].includes(channelType);
+
+            // MAIN and DCA channels don't have solo
+            const hasSolo = !['MAIN', 'DCA'].includes(channelType);
 
             // Render stereo channels as dual L/R faders
             if (isLinked) {
@@ -6261,7 +6820,7 @@
                   </div>
                   <div class="fader-controls">
                     <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})" title="">M</button>
-                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})" title="">S</button>
+                    ${hasSolo ? `<button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})" title="">S</button>` : '<button class="solo-btn" style="visibility:hidden;">S</button>'}
                   </div>
                   <div class="fader-value" id="fader-value-${faderId}">0%</div>
                   <div class="fader-wrapper">
@@ -6287,11 +6846,11 @@
                     </div>
                     <div class="fader-container-wrapper">
                       <div style="display: flex; gap: 2px;">
-                        <div class="fader-container stereo${isMapped ? ' mapped' : ''}${containerMissingClass}" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}" title="${isMapped ? 'Volume: ' + midiInfo : ''}"${containerMappedStyle ? ` style="${containerMappedStyle}"` : ''}>
+                        <div class="fader-container stereo${isMapped ? ' mapped' : ''}${containerMissingClass}" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}" title="${faderTooltip}"${containerMappedStyle ? ` style="${containerMappedStyle}"` : ''}>
                           <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
                           <div class="fader-midi-indicator" id="fader-midi-${faderId}" style="bottom: 0%; display: none;"></div>
                         </div>
-                        <div class="fader-container stereo${isMapped ? ' mapped' : ''}${containerMissingClass}" data-channel="${channelNum + 1}" data-type="${channelType}" data-fader-id="${faderIdR}" title="${isMapped ? 'Volume: ' + midiInfo : ''}"${containerMappedStyle ? ` style="${containerMappedStyle}"` : ''}>
+                        <div class="fader-container stereo${isMapped ? ' mapped' : ''}${containerMissingClass}" data-channel="${channelNum + 1}" data-type="${channelType}" data-fader-id="${faderIdR}" title="${faderTooltip}"${containerMappedStyle ? ` style="${containerMappedStyle}"` : ''}>
                           <div class="fader-fill" id="fader-fill-${faderIdR}" style="height: 0%"></div>
                           <div class="fader-midi-indicator" id="fader-midi-${faderIdR}" style="bottom: 0%; display: none;"></div>
                         </div>
@@ -6301,7 +6860,10 @@
                   <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number"><span class="fader-indicator-dot" id="fader-dot-${faderId}"></span>${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
-                  ${isMapped ? `<div class="fader-mapping-info ${midiLabelClass}" title="Volume: ${midiInfo}" style="${midiLabelStyle}">${midiInfo}</div>` : '<div class="fader-mapping-info" style="visibility:hidden;"></div>'}
+                  ${dcaHtml}
+                  <div class="fader-footer">
+                    ${isMapped ? `<div class="fader-mapping-info ${midiLabelClass}" title="${faderTooltip}" style="${midiLabelStyle}">${midiInfo}</div>` : '<div class="fader-mapping-info" style="visibility:hidden;"></div>'}
+                  </div>
                 </div>
               `;
             } else {
@@ -6314,7 +6876,7 @@
                   </div>
                   <div class="fader-controls">
                     <button class="mute-btn" id="mute-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleMute('${channelType}', ${channelNum})" title="">M</button>
-                    <button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})" title="">S</button>
+                    ${hasSolo ? `<button class="solo-btn" id="solo-btn-${faderId}" data-channel="${channelNum}" data-type="${channelType}" onclick="toggleSolo('${channelType}', ${channelNum})" title="">S</button>` : '<button class="solo-btn" style="visibility:hidden;">S</button>'}
                   </div>
                   <div class="fader-value" id="fader-value-${faderId}">0%</div>
                   <div class="fader-wrapper">
@@ -6339,7 +6901,7 @@
                       </div>
                     </div>
                     <div class="fader-container-wrapper">
-                      <div class="fader-container${isMapped ? ' mapped' : ''}${containerMissingClass}" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}" title="${isMapped ? 'Volume: ' + midiInfo : ''}"${containerMappedStyle ? ` style="${containerMappedStyle}"` : ''}>
+                      <div class="fader-container${isMapped ? ' mapped' : ''}${containerMissingClass}" data-channel="${channelNum}" data-type="${channelType}" data-fader-id="${faderId}" title="${faderTooltip}"${containerMappedStyle ? ` style="${containerMappedStyle}"` : ''}>
                         <div class="fader-fill" id="fader-fill-${faderId}" style="height: 0%"></div>
                         <div class="fader-midi-indicator" id="fader-midi-${faderId}" style="bottom: 0%; display: none;"></div>
                       </div>
@@ -6348,7 +6910,10 @@
                   <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number"><span class="fader-indicator-dot" id="fader-dot-${faderId}"></span>${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
-                  ${isMapped ? `<div class="fader-mapping-info ${midiLabelClass}" title="Volume: ${midiInfo}" style="${midiLabelStyle}">${midiInfo}</div>` : '<div class="fader-mapping-info" style="visibility:hidden;"></div>'}
+                  ${dcaHtml}
+                  <div class="fader-footer">
+                    ${isMapped ? `<div class="fader-mapping-info ${midiLabelClass}" title="${faderTooltip}" style="${midiLabelStyle}">${midiInfo}</div>` : '<div class="fader-mapping-info" style="visibility:hidden;"></div>'}
+                  </div>
                 </div>
               `;
             }
@@ -6359,8 +6924,9 @@
           container.innerHTML = '<div class="empty-state">No volume mappings yet. Add some mappings to see faders here.</div>';
           mainContainer.innerHTML = '';
         } else {
-          container.innerHTML = sortedRegularMappings.map(renderFader).join('');
-          mainContainer.innerHTML = sortedMainMappings.map(renderFader).join('');
+          const safeFader = (m) => { try { return renderFader(m); } catch(e) { console.error('[renderFader] Error:', e, m); return ''; } };
+          container.innerHTML = sortedRegularMappings.map(safeFader).join('');
+          mainContainer.innerHTML = sortedMainMappings.map(safeFader).join('');
 
           // Add mouse interaction to faders
           setupFaderInteraction();
@@ -6403,7 +6969,7 @@
     async function loadInitialFaderPositions(volumeMappings) {
       for (const mapping of volumeMappings) {
         try {
-          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelNum = resolveChannelNum(mapping.mixer.channel);
           const channelType = mapping.mixer.channel.type || 'LINE';
           const level = await ipcRenderer.invoke('get-mixer-level', channelType, channelNum);
           if (level !== null) {
@@ -6443,7 +7009,7 @@
     async function loadInitialMuteStates(volumeMappings) {
       for (const mapping of volumeMappings) {
         try {
-          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelNum = resolveChannelNum(mapping.mixer.channel);
           const channelType = mapping.mixer.channel.type || 'LINE';
           const muted = await ipcRenderer.invoke('get-channel-mute', channelType, channelNum);
           if (muted !== null) {
@@ -6459,7 +7025,7 @@
     async function loadInitialSoloStates(volumeMappings) {
       for (const mapping of volumeMappings) {
         try {
-          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelNum = resolveChannelNum(mapping.mixer.channel);
           const channelType = mapping.mixer.channel.type || 'LINE';
           const soloed = await ipcRenderer.invoke('get-channel-solo', channelType, channelNum);
           if (soloed !== null) {
@@ -6474,7 +7040,7 @@
     // Update mute and solo button tooltips and mapped classes based on MIDI mappings
     function updateMuteSoloMappingIndicators(volumeMappings) {
       for (const mapping of volumeMappings) {
-        const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+        const channelNum = resolveChannelNum(mapping.mixer.channel);
         const channelType = mapping.mixer.channel.type || 'LINE';
         const faderId = `${channelType}-${channelNum}`;
 
@@ -6482,14 +7048,14 @@
         const muteMapping = currentMappings.find(m =>
           m.mixer.action === 'mute' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          (resolveChannelNum(m.mixer.channel)) == channelNum
         );
 
         // Check for solo mapping
         const soloMapping = currentMappings.find(m =>
           m.mixer.action === 'solo' &&
           (m.mixer.channel.type || 'LINE') === channelType &&
-          (m.mixer.channel.channel || m.mixer.channel) == channelNum
+          (resolveChannelNum(m.mixer.channel)) == channelNum
         );
 
         // Update mute button
@@ -6500,10 +7066,13 @@
             const midiInfo = muteMapping.midi.type === 'cc'
               ? `CC${muteMapping.midi.controller} Ch${muteMapping.midi.channel}`
               : `Note ${muteMapping.midi.note} Ch${muteMapping.midi.channel}`;
-            muteBtn.title = `Mute: ${midiInfo}`;
-            const muteDevColor = muteMapping.midi?.device ? (midiDeviceColors[muteMapping.midi.device] || '') : '';
+            const muteDevLabel = muteMapping.midi.device ? `\nDevice: ${shortenMidiDeviceName(muteMapping.midi.device)}` : '';
+            muteBtn.title = `Mute: ${midiInfo}${muteDevLabel}`;
+            let muteDevName = muteMapping.midi?.device || '';
+            if (!muteDevName && connectedMidiDevices.size === 1) muteDevName = [...connectedMidiDevices][0];
+            const muteDevColor = muteDevName ? (midiDeviceColors[muteDevName] || '') : '';
             muteBtn.style.borderColor = muteDevColor || '';
-            muteBtn.style.boxShadow = muteDevColor ? `0 0 4px ${muteDevColor}66` : '';
+            muteBtn.style.boxShadow = muteDevColor ? `0 0 6px ${muteDevColor}aa` : '';
           } else {
             muteBtn.classList.remove('mapped');
             muteBtn.title = '';
@@ -6517,13 +7086,16 @@
         if (soloBtn) {
           if (soloMapping) {
             soloBtn.classList.add('mapped');
-            const midiInfo = soloMapping.midi.type === 'cc'
+            const soloMidiInfo = soloMapping.midi.type === 'cc'
               ? `CC${soloMapping.midi.controller} Ch${soloMapping.midi.channel}`
               : `Note ${soloMapping.midi.note} Ch${soloMapping.midi.channel}`;
-            soloBtn.title = `Solo: ${midiInfo}`;
-            const soloDevColor = soloMapping.midi?.device ? (midiDeviceColors[soloMapping.midi.device] || '') : '';
+            const soloDevLabel = soloMapping.midi.device ? `\nDevice: ${shortenMidiDeviceName(soloMapping.midi.device)}` : '';
+            soloBtn.title = `Solo: ${soloMidiInfo}${soloDevLabel}`;
+            let soloDevName = soloMapping.midi?.device || '';
+            if (!soloDevName && connectedMidiDevices.size === 1) soloDevName = [...connectedMidiDevices][0];
+            const soloDevColor = soloDevName ? (midiDeviceColors[soloDevName] || '') : '';
             soloBtn.style.borderColor = soloDevColor || '';
-            soloBtn.style.boxShadow = soloDevColor ? `0 0 4px ${soloDevColor}66` : '';
+            soloBtn.style.boxShadow = soloDevColor ? `0 0 6px ${soloDevColor}aa` : '';
           } else {
             soloBtn.classList.remove('mapped');
             soloBtn.title = '';
@@ -6538,7 +7110,7 @@
     async function loadInitialMainAssignStates(volumeMappings) {
       for (const mapping of volumeMappings) {
         try {
-          const channelNum = mapping.mixer.channel.channel || mapping.mixer.channel;
+          const channelNum = resolveChannelNum(mapping.mixer.channel);
           const channelType = mapping.mixer.channel.type || 'LINE';
           const mainAssigned = await ipcRenderer.invoke('get-channel-main-assign', channelType, channelNum);
           if (mainAssigned !== null) {
@@ -6621,6 +7193,33 @@
       const labelElement = document.querySelector(`[data-fader-id="${faderId}"] .fader-label`);
       if (labelElement) {
         labelElement.textContent = name || '';
+      }
+    }
+
+    // Update channel color (from Universal Control changes)
+    function updateChannelColor(channelType, channelNum, rawColor) {
+      const faderId = `${channelType}-${channelNum}`;
+      const labelElement = document.querySelector(`[data-fader-id="${faderId}"] .fader-label`);
+      if (!labelElement) return;
+
+      let color = rawColor;
+      if (typeof color === 'number') {
+        color = color.toString(16).padStart(8, '0');
+      }
+      if (typeof color === 'string' && !color.startsWith('#') && color.length >= 6) {
+        color = '#' + color.substring(0, 6);
+      }
+      if (!color || typeof color !== 'string') return;
+
+      labelElement.style.background = color;
+      labelElement.style.color = getTextColorForBackground(color);
+      faderColors.set(faderId, color);
+
+      // Update the channel data cache so subsequent renders use the new color
+      const cacheKey = channelType.toLowerCase();
+      if (channelDataCache[cacheKey]?.colors) {
+        const entry = channelDataCache[cacheKey].colors.find(c => c.channel === channelNum);
+        if (entry) entry.color = color;
       }
     }
 
@@ -6807,6 +7406,17 @@
             const faderId = channel.getAttribute('data-fader-id');
             showFaderVolumeContextMenu(faderId, e.clientX, e.clientY);
             return;
+          }
+
+          // Right-click on DCA label or DCA member info — show DCA color menu
+          if (e.target.closest('.fader-label') || e.target.closest('.dca-members')) {
+            const faderId = channel.getAttribute('data-fader-id');
+            if (faderId && faderId.startsWith('DCA-')) {
+              e.preventDefault();
+              const dcaNum = parseInt(faderId.split('-')[1]);
+              showDcaColorMenu(dcaNum, e.clientX, e.clientY);
+              return;
+            }
           }
 
           if (e.target.closest('.mute-btn')) {
@@ -7083,13 +7693,26 @@
           if (prefStatus.connected) {
             await updateStatusInitWithDelay(`Connected to ${displayLabel}`);
             updateStatus();
-            // mixer-state-ready will arrive soon from the startup connection; if it already
-            // fired (and was handled), load faders directly.
             if (mixerStateReadyHandled) {
+              // mixer-state-ready already fired — load directly
               await loadMappings();
               await loadFaders();
+            } else {
+              // mixer-state-ready hasn't fired yet — wait up to 5s, then load anyway
+              // (state-ready may have been lost in a race with page load)
+              const waitStart = Date.now();
+              const waitForReady = () => {
+                if (mixerStateReadyHandled) return; // handler fired, it will load faders
+                if (Date.now() - waitStart > 5000) {
+                  // Timed out waiting — load faders directly
+                  addStatusLog('Timed out waiting for mixer state — loading anyway', 'warning');
+                  loadMappings().then(() => loadFaders());
+                  return;
+                }
+                setTimeout(waitForReady, 250);
+              };
+              setTimeout(waitForReady, 250);
             }
-            // else: wait for the incoming mixer-state-ready event to trigger loadFaders
             return;
           }
 
@@ -7178,6 +7801,7 @@
         document.getElementById('solo-context-menu'),
         document.getElementById('channel-context-menu'),
         document.getElementById('mutegroup-context-menu'),
+        document.getElementById('dca-color-menu'),
       ];
       if (menus.every(m => !m || !m.contains(e.target))) {
         hideAllContextMenus();
@@ -7244,12 +7868,14 @@
           const result = await ipcRenderer.invoke('save-preset-to-path', currentPath);
           if (result.success) {
             addStatusLog('Preset saved', 'success');
+            updateStatusLastSaved(Date.now());
           }
         } else {
           // No current path — open save dialog
           const result = await ipcRenderer.invoke('save-preset-dialog');
           if (result && result.success) {
             addStatusLog('Preset saved', 'success');
+            updateStatusLastSaved(Date.now());
           }
         }
       }

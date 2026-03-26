@@ -51,11 +51,32 @@ export class MixerManager extends EventEmitter {
         this.emit('solo', data);
       });
 
-      // Listen for property changes (main assignment, input source, etc.)
-      this.client.on('propertyChange', (data: any) => {
-        // Forward property changes to the renderer
-        this.emit('propertyChange', data);
-      });
+      // Listen for PV/PS/PC packets to detect property changes from the mixer
+      // (e.g. color, name, icon, mute changes made in Universal Control)
+      const pvHandler = (data: any) => {
+        if (!data || !data.name) return;
+        const path = String(data.name); // e.g. "line/ch1/color"
+        const match = path.match(/^(\w+)\/ch(\d+)\/(\w+)$/);
+        if (!match) return;
+        const [, rawType, chStr, prop] = match;
+        const channelType = rawType.toUpperCase();
+        const channel = parseInt(chStr, 10);
+        const value = data.value;
+
+        // Map known property names to our event types
+        const propMap: Record<string, string> = {
+          color: 'color', username: 'name', mute: 'mute',
+          solo: 'solo', icon: 'icon', lr: 'lr',
+          inputsrc: 'inputsrc', link: 'link',
+        };
+        const type = propMap[prop];
+        if (type) {
+          this.emit('propertyChange', { channel: { type: channelType, channel }, type, value, path });
+        }
+      };
+      (this.client as any).on('PV', pvHandler);
+      (this.client as any).on('PS', pvHandler);
+      (this.client as any).on('PC', pvHandler);
 
       // Event is 'closed' not 'close'
       this.client.on('closed', () => {
@@ -759,8 +780,8 @@ export class MixerManager extends EventEmitter {
       return false;
     }
     try {
-      // Use the same path format as when setting (with slash)
-      const path = `mutegroup/mutegroup${groupNum}`;
+      // State map uses dot-separated paths
+      const path = `mutegroup.mutegroup${groupNum}`;
       let state = (this.client as any).state?.get(path);
 
       // State can be either a number or a Buffer
