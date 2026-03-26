@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-26
+
+### Fixed
+- **App stuck on "Initializing"** — race condition between `mixer-state-ready` event and renderer initialization; added 5-second fallback timer
+- **Reconnection failure** — 15-second dedup guard on `mixer-state-ready` not reset on disconnect; fixed by resetting in `mixer-lost` handler
+- **DCA color picker not applying** — global `mousedown` handler intercepted color swatch clicks; fixed by protecting `dca-color-menu` from `hideAllContextMenus()`
+- **Mute group toggle not updating channel mute buttons** — `getMuteGroupState()` used slash path but state map uses dot path; also fixed stale state reads by setting mute state directly from group state
+- **Solo button visible on MAIN/DCA faders** — hidden with alignment-preserving placeholder
+
+### Added
+- **Real-time property sync from Universal Control** — color, name, icon, mute, solo, and link changes from the mixer console or Universal Control now update the app in real-time via PV/PS/PC packet listeners
+- **Brighter DCA badge text** — badge text colors lightened 35% toward white for improved readability on dark backgrounds
+- **Cmd+S status bar update** — saving now updates the "last saved" timestamp in the status bar
+
+### Changed
+- Removed debug `console.log` noise from mute group and discovery code
+
 ## [1.2.4] - 2026-03-05
 
 ### Added
@@ -138,6 +155,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.3.0]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.3.0
+[1.2.4]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.4
 [1.2.2]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.2
 [1.2.1]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.1
 [1.2.0]: https://github.com/sandinak/studiolive-midi-controller/releases/tag/v1.2.0

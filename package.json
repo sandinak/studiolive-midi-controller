@@ -95,7 +95,8 @@
       "!**/*.ts",
       "!**/.env",
       "!**/Makefile",
-      "!**/.git/**"
+      "!**/.git/**",
+      "!**/.*"
     ],
     "directories": {
       "output": "release"
