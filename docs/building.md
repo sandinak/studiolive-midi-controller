@@ -73,10 +73,10 @@ All packages are created in the `release/` directory:
 
 ```
 release/
-├── StudioLive MIDI Controller-0.9.0.dmg              # macOS DMG (universal)
-├── StudioLive MIDI Controller-0.9.0-mac.zip          # macOS ZIP (universal)
-├── StudioLive MIDI Controller Setup 0.9.0.exe        # Windows installer
-└── StudioLive MIDI Controller 0.9.0.exe              # Windows portable
+├── StudioLive MIDI Controller-1.2.2.dmg              # macOS DMG (universal)
+├── StudioLive MIDI Controller-1.2.2-mac.zip          # macOS ZIP (universal)
+├── StudioLive MIDI Controller Setup 1.2.2.exe        # Windows installer
+└── StudioLive MIDI Controller 1.2.2.exe              # Windows portable
 ```
 
 ## Build Process

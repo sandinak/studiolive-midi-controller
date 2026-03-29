@@ -80,7 +80,7 @@ faderElement.addEventListener('dragend', handleDragEnd);
 - Quick A/B comparison
 - Scene management for different songs/setups
 
-### Keyboard Shortcuts
+### Additional Keyboard Shortcuts
 - Arrow keys to select faders
 - Space to mute/unmute selected channel
 - Number keys for quick channel selection
@@ -176,4 +176,3 @@ A toolbar dropdown or button bank to switch the fader panel between different mi
 ### OSC Input / Output
 - Accept OSC messages as an alternative to MIDI (useful with TouchOSC, Lemur, etc.)
 - Emit OSC feedback for fader/mute/solo changes
-
