@@ -1,0 +1,121 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Clone and build presonus-studiolive-api
+        run: |
+          cd "$GITHUB_WORKSPACE/.."
+          git clone https://github.com/featherbear/presonus-studiolive-api.git
+          cd presonus-studiolive-api && npm install
+
+      - name: Install app dependencies
+        run: npm install
+
+      - name: Build application
+        run: npm run build
+
+      - name: Prepare dependency for electron-builder
+        run: |
+          DEPS_DIR="$GITHUB_WORKSPACE/../presonus-studiolive-api"
+          rm -rf node_modules/presonus-studiolive-api
+          mkdir -p node_modules/presonus-studiolive-api
+          cp -r "$DEPS_DIR/dist" node_modules/presonus-studiolive-api/
+          cp "$DEPS_DIR/package.json" node_modules/presonus-studiolive-api/
+          [ -d "$DEPS_DIR/node_modules" ] && cp -r "$DEPS_DIR/node_modules" node_modules/presonus-studiolive-api/ || true
+
+      - name: Build macOS packages
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: |
+          if [ -n "$CSC_LINK" ]; then
+            NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac
+          else
+            echo "No signing credentials — building unsigned"
+            CSC_IDENTITY_AUTO_DISCOVERY=false NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac
+          fi
+
+      - name: Upload macOS release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            release/*.dmg
+            release/*-mac.zip
+
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Clone and build presonus-studiolive-api
+        shell: bash
+        run: |
+          cd "$GITHUB_WORKSPACE/.."
+          git clone https://github.com/featherbear/presonus-studiolive-api.git
+          cd presonus-studiolive-api && npm install
+
+      - name: Install app dependencies
+        run: npm install
+
+      # npm scripts use Unix shell commands so we bypass npm run build
+      # and replicate the steps directly through bash
+      - name: Build TypeScript
+        shell: bash
+        run: npx tsc -p tsconfig.main.json
+
+      - name: Copy assets
+        shell: bash
+        run: |
+          mkdir -p dist/renderer
+          cp src/renderer/index.html dist/renderer/
+          node -e "const fs=require('fs'),p='dist/renderer/index.html',v=require('./package.json').version;fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace(/id=\"status-version\">[^<]*/,'id=\"status-version\">'+v))"
+          mkdir -p dist/renderer/icons
+          cp assets/icons/*.svg assets/icons/*.png dist/renderer/icons/ 2>/dev/null || true
+          mkdir -p dist/assets
+          cp assets/icon.icns assets/icon.png dist/assets/ 2>/dev/null || true
+
+      - name: Prepare dependency for electron-builder
+        shell: bash
+        run: |
+          DEPS_DIR="$GITHUB_WORKSPACE/../presonus-studiolive-api"
+          rm -rf node_modules/presonus-studiolive-api
+          mkdir -p node_modules/presonus-studiolive-api
+          cp -r "$DEPS_DIR/dist" node_modules/presonus-studiolive-api/
+          cp "$DEPS_DIR/package.json" node_modules/presonus-studiolive-api/
+          [ -d "$DEPS_DIR/node_modules" ] && cp -r "$DEPS_DIR/node_modules" node_modules/presonus-studiolive-api/ || true
+
+      - name: Build Windows packages
+        run: npx electron-builder --win
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Upload Windows release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            release/*.exe
