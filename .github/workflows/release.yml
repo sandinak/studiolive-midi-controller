@@ -22,7 +22,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/.."
           git clone https://github.com/featherbear/presonus-studiolive-api.git
-          cd presonus-studiolive-api && npm install
+          cd presonus-studiolive-api && npm install && npm run build
 
       - name: Install app dependencies
         run: npm install
@@ -76,7 +76,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/.."
           git clone https://github.com/featherbear/presonus-studiolive-api.git
-          cd presonus-studiolive-api && npm install
+          cd presonus-studiolive-api && npm install && npm run build
 
       - name: Install app dependencies
         run: npm install
