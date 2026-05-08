@@ -20,6 +20,7 @@ export class MappingEngine extends EventEmitter {
   private midiFeedbackEnabled: boolean = true;
   private levelVisibility: 'none' | 'indicator' | 'meter' = 'none';
   private peakHold: boolean = false;
+  private faderStacking: boolean = false;
 
   // O(1) lookup structures — rebuilt on every mappings mutation
   private midiLookup: Map<string, MidiMapping> = new Map();
@@ -126,6 +127,7 @@ export class MappingEngine extends EventEmitter {
       this.dcaColors = preset.dcaColors || {};
       this.levelVisibility = preset.levelVisibility || 'none';
       this.peakHold = preset.peakHold || false;
+      this.faderStacking = preset.faderStacking || false;
 
       this.rebuildLookup();
       this.emit('preset-loaded', preset);
@@ -154,6 +156,7 @@ export class MappingEngine extends EventEmitter {
       midiFeedbackEnabled: this.midiFeedbackEnabled,
       levelVisibility: this.levelVisibility !== 'none' ? this.levelVisibility : undefined,
       peakHold: this.peakHold || undefined,
+      faderStacking: this.faderStacking || undefined,
       mappings: this.mappings
     };
 
@@ -370,6 +373,71 @@ export class MappingEngine extends EventEmitter {
     this.autoSavePreset();
   }
 
+  /**
+   * Switch to a fresh preset for a different mixer. Clears mappings and
+   * per-mixer state (DCA colors), writes a new preset file, and makes it the
+   * active preset. The previous preset file on disk is left untouched.
+   * MIDI-controller state (devices, colors, feedback prefs, display prefs)
+   * carries over since those belong to the user's setup, not the mixer.
+   */
+  createPresetForMixer(
+    presetPath: string,
+    name: string,
+    ip: string,
+    model: string | null,
+    deviceName: string | null,
+    serial: string | null,
+  ): void {
+    this.mappings = [];
+    this.rebuildLookup();
+    this.dcaColors = {};
+    // Point at the new mixer WITHOUT auto-saving to the previous preset path.
+    this.preferredMixerIp = ip;
+    this.preferredMixerModel = model;
+    this.preferredMixerDeviceName = deviceName;
+    this.preferredMixerSerial = serial;
+    // savePreset updates currentPreset + currentPresetPath so subsequent
+    // auto-saves land in the new file.
+    this.savePreset(presetPath, name);
+    this.emit('preset-loaded', { name, mappings: [] });
+  }
+
+  /**
+   * Check if a mixer matches the preset's stored mixer identity.
+   * Returns null if no mixer is stored in the preset (first use).
+   * Matches on serial number (unique per device) when available,
+   * falls back to model + IP comparison.
+   */
+  checkMixerMatch(serial: string | null, model: string | null, ip: string): { match: boolean; presetMixer: { serial?: string; model?: string; ip?: string; deviceName?: string } } | null {
+    // No mixer stored in preset — this is the first connection
+    if (!this.preferredMixerSerial && !this.preferredMixerIp) return null;
+
+    const presetMixer = {
+      serial: this.preferredMixerSerial || undefined,
+      model: this.preferredMixerModel || undefined,
+      ip: this.preferredMixerIp || undefined,
+      deviceName: this.preferredMixerDeviceName || undefined,
+    };
+
+    // Serial is the authoritative identifier if both sides have it
+    if (serial && this.preferredMixerSerial) {
+      return { match: serial === this.preferredMixerSerial, presetMixer };
+    }
+
+    // Fallback: match on model (different models have incompatible channel layouts)
+    if (model && this.preferredMixerModel && model !== this.preferredMixerModel) {
+      return { match: false, presetMixer };
+    }
+
+    // Same model (or no model info) and same IP — assume match
+    if (ip === this.preferredMixerIp) {
+      return { match: true, presetMixer };
+    }
+
+    // Same model, different IP — might be same device with new IP
+    return { match: false, presetMixer };
+  }
+
   getPreferredMidiDevices(): string[] {
     return [...this.preferredMidiDevices];
   }
@@ -457,6 +525,15 @@ export class MappingEngine extends EventEmitter {
 
   setPeakHold(v: boolean): void {
     this.peakHold = v;
+    this.autoSavePreset();
+  }
+
+  getFaderStacking(): boolean {
+    return this.faderStacking;
+  }
+
+  setFaderStacking(v: boolean): void {
+    this.faderStacking = v;
     this.autoSavePreset();
   }
 }

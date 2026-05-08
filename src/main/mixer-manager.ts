@@ -8,12 +8,22 @@ import * as os from 'os';
 
 export class MixerManager extends EventEmitter {
   private client: StudioLiveClient | null = null;
+  // True only after `client.connect()` resolves — the TCP handshake completed.
+  // Guards against isConnected() lying while a connect attempt is mid-flight
+  // (long TCP timeout to an offline mixer) or after the remote side drops us.
+  private handshakeComplete: boolean = false;
   private mixerIp: string | null = null;
   private mixerModel: string | null = null;
   private mixerDeviceName: string | null = null;
   private mixerSerial: string | null = null;
   private muteGroupPollInterval: NodeJS.Timeout | null = null;
   private lastMuteGroupStates: boolean[] = [false, false, false, false, false, false, false, false];
+  // What we most recently *commanded* each mute group to — used by
+  // toggleMuteGroup() so we always alternate. Reading state before toggling
+  // proved unreliable on some mixer firmware (state-tree echo is missing or
+  // delayed), which was making every click send "set on" and the group
+  // appeared to "turn on but never off".
+  private commandedMuteGroupStates: boolean[] = [false, false, false, false, false, false, false, false];
   private dcaLevelPollInterval: NodeJS.Timeout | null = null;
   private lastDcaLevels: (number | null)[] = [null, null, null, null, null, null, null, null];
   private hasDcaMappingsCallback: (() => boolean) | null = null;
@@ -30,6 +40,8 @@ export class MixerManager extends EventEmitter {
       await this.disconnect();
     }
 
+    this.handshakeComplete = false;
+
     try {
       // Constructor takes an object with host and port
       this.client = new StudioLiveClient({ host: ipAddress, port: 53000 });
@@ -38,17 +50,28 @@ export class MixerManager extends EventEmitter {
       this.mixerDeviceName = deviceName || null;
       this.mixerSerial = serial || null;
 
+      // Normalize a mute/solo/lr/link value into a boolean. The library's
+      // value transformer usually converts the raw Buffer for us, but can
+      // silently pass the Buffer through for byte patterns it doesn't
+      // recognize — which then reaches the renderer as truthy-always.
+      const normalizeBoolish = (value: any): boolean => {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'number') return value > 0;
+        if (value instanceof Buffer && value.length >= 4) return value.readFloatLE(0) > 0;
+        return !!value;
+      };
+
       // Set up event listeners
       this.client.on('level', (data) => {
         this.emit('level', data);
       });
 
       this.client.on('mute', (data) => {
-        this.emit('mute', data);
+        this.emit('mute', { ...data, status: normalizeBoolish(data?.status) });
       });
 
       this.client.on('solo', (data) => {
-        this.emit('solo', data);
+        this.emit('solo', { ...data, status: normalizeBoolish(data?.status) });
       });
 
       // Listen for PV/PS/PC packets to detect property changes from the mixer
@@ -56,12 +79,38 @@ export class MixerManager extends EventEmitter {
       const pvHandler = (data: any) => {
         if (!data || !data.name) return;
         const path = String(data.name); // e.g. "line/ch1/color"
+
+        // Mute-group state changes — handle directly from PV instead of
+        // relying on the 200ms poll, which depends on a sometimes-unreliable
+        // `state.get('mutegroup.mutegroupN')`. Path format: `mutegroup/mutegroupN`.
+        const mgMatch = path.match(/^mutegroup\/mutegroup(\d+)$/);
+        if (mgMatch) {
+          const groupNum = parseInt(mgMatch[1], 10);
+          if (groupNum >= 1 && groupNum <= 8) {
+            const state = normalizeBoolish(data.value);
+            // Keep our caches in sync so the poll doesn't fire a duplicate emit.
+            this.lastMuteGroupStates[groupNum - 1] = state;
+            this.commandedMuteGroupStates[groupNum - 1] = state;
+            this.emit('propertyChange', {
+              path: `mutegroup/mutegroup${groupNum}`,
+              value: state ? 1.0 : 0.0,
+            });
+          }
+          return;
+        }
+
         const match = path.match(/^(\w+)\/ch(\d+)\/(\w+)$/);
         if (!match) return;
         const [, rawType, chStr, prop] = match;
         const channelType = rawType.toUpperCase();
         const channel = parseInt(chStr, 10);
-        const value = data.value;
+        let value = data.value;
+
+        // Defensive: boolean properties must arrive as booleans at the renderer,
+        // otherwise a pass-through Buffer reads as always-truthy.
+        if (prop === 'mute' || prop === 'solo' || prop === 'lr' || prop === 'link') {
+          value = normalizeBoolish(value);
+        }
 
         // Map known property names to our event types
         const propMap: Record<string, string> = {
@@ -78,9 +127,23 @@ export class MixerManager extends EventEmitter {
       (this.client as any).on('PS', pvHandler);
       (this.client as any).on('PC', pvHandler);
 
-      // Event is 'closed' not 'close'
+      // Event is 'closed' not 'close'.
+      // When the remote side drops the TCP connection (mixer powered off,
+      // network loss), tear down our state so isConnected() returns false and
+      // the reconnect loop can take over. `disconnect()` nulls `this.client`
+      // before calling close(), so the early-return prevents a double emit.
       this.client.on('closed', () => {
-        this.emit('disconnected');
+        if (!this.client) return;
+        this.handshakeComplete = false;
+        this.stopMuteGroupPolling();
+        this.stopDCALevelPolling();
+        const ip = this.mixerIp;
+        this.client = null;
+        this.mixerIp = null;
+        this.mixerModel = null;
+        this.mixerDeviceName = null;
+        this.mixerSerial = null;
+        this.emit('disconnected', ip);
       });
 
       // Listen for connected event to know when state is ready
@@ -123,6 +186,8 @@ export class MixerManager extends EventEmitter {
       });
 
       await this.client.connect();
+      // TCP handshake completed — isConnected() may now report true.
+      this.handshakeComplete = true;
 
       // Subscribe to real-time audio meter data in background — must NOT block connect
       const clientRef = this.client;
@@ -152,6 +217,22 @@ export class MixerManager extends EventEmitter {
 
       this.emit('connected', ipAddress);
     } catch (error) {
+      // Connection failed after `this.client` was assigned — tear down the
+      // partial client so isConnected() reports false and the reconnect loop
+      // can keep trying. Without this, the UI shows a green dot for a mixer
+      // that never actually handshook, and the reconnect guard stays latched.
+      this.handshakeComplete = false;
+      if (this.client) {
+        this.stopMuteGroupPolling();
+        this.stopDCALevelPolling();
+        try { (this.client as any).removeAllListeners?.(); } catch (_e) {}
+        try { await this.client.close(); } catch (_e) {}
+        this.client = null;
+      }
+      this.mixerIp = null;
+      this.mixerModel = null;
+      this.mixerDeviceName = null;
+      this.mixerSerial = null;
       this.emit('error', error);
       throw new Error(`Failed to connect to mixer: ${error}`);
     }
@@ -169,9 +250,13 @@ export class MixerManager extends EventEmitter {
       // Unsubscribe from meter data before closing
       try { (this.client as any).meterUnsubscribe(); } catch (_e) {}
 
-      // Method is 'close' not 'disconnect'
-      await this.client.close();
+      // Null `this.client` BEFORE close() so the 'closed' event handler
+      // bails early and we don't double-emit 'disconnected'.
+      const client = this.client;
       this.client = null;
+      this.handshakeComplete = false;
+      // Method is 'close' not 'disconnect'
+      await client.close();
       const ip = this.mixerIp;
       this.mixerIp = null;
       this.mixerModel = null;
@@ -251,7 +336,7 @@ export class MixerManager extends EventEmitter {
    * Check if connected
    */
   isConnected(): boolean {
-    return this.client !== null;
+    return this.client !== null && this.handshakeComplete;
   }
 
   /**
@@ -416,6 +501,14 @@ export class MixerManager extends EventEmitter {
    * @param count Number of channels to fetch (default: 16)
    * @returns Array of channel info with channel number and name
    */
+  /**
+   * Get channel counts from the connected mixer
+   */
+  getChannelCounts(): Record<string, number> | null {
+    if (!this.client) return null;
+    return (this.client as any).channelCounts || null;
+  }
+
   getAllChannelNames(type: string = 'line', count: number = 16): { channel: number; name: string }[] {
     const names = [];
     for (let i = 1; i <= count; i++) {
@@ -667,6 +760,39 @@ export class MixerManager extends EventEmitter {
   }
 
   /**
+   * Set channel input source on the mixer
+   * @param type Channel type (e.g., 'line', 'fxreturn')
+   * @param channel Channel number (1-based)
+   * @param source Input source number: 0=Analog, 1=Network, 2=USB, 3=SD Card
+   */
+  setChannelInputSource(type: string, channel: number, source: number): void {
+    if (!this.client) {
+      throw new Error('Not connected to mixer');
+    }
+    if (source < 0 || source > 3) {
+      throw new Error(`Invalid input source: ${source}`);
+    }
+
+    const floatValues = [0.0, 0.333333, 0.666667, 1.0];
+    const value = floatValues[source];
+    const path = `${type.toLowerCase()}.ch${channel}.inputsrc`;
+
+    const toFloat = (v: number) => {
+      const buffer = Buffer.allocUnsafe(4);
+      buffer.writeFloatLE(v, 0);
+      return buffer;
+    };
+
+    (this.client as any)._sendPacket(
+      'PV',
+      Buffer.concat([Buffer.from(`${path}\x00\x00\x00`), toFloat(value)])
+    );
+
+    // Update local state immediately
+    (this.client as any).state?.set(path, value);
+  }
+
+  /**
    * Get all channel input sources for a given type
    * @param type Channel type (default: 'line')
    * @param count Number of channels to fetch (default: 16)
@@ -831,12 +957,19 @@ export class MixerManager extends EventEmitter {
   }
 
   /**
-   * Toggle mute group state
-   * @param groupNum Mute group number (1-8)
+   * Toggle mute group state.
+   * Flips our locally-tracked "commanded" state rather than re-reading the
+   * mixer's state, because that state path is sometimes null/stale on real
+   * mixers — which would make every call decide "set on" and the group
+   * never turns off. Polling syncs `commandedMuteGroupStates` when the
+   * mixer itself reports a change (external source of truth).
    */
   toggleMuteGroup(groupNum: number): void {
-    const currentState = this.getMuteGroupState(groupNum);
-    this.setMuteGroupState(groupNum, !currentState);
+    if (groupNum < 1 || groupNum > 8) return;
+    const next = !this.commandedMuteGroupStates[groupNum - 1];
+    this.setMuteGroupState(groupNum, next);
+    this.commandedMuteGroupStates[groupNum - 1] = next;
+    this.lastMuteGroupStates[groupNum - 1] = next;
   }
 
   /**
@@ -920,9 +1053,11 @@ export class MixerManager extends EventEmitter {
   private startMuteGroupPolling(): void {
     this.stopMuteGroupPolling();
 
-    // Initialize last states
+    // Initialize last + commanded states from whatever the mixer reports now.
     for (let groupNum = 1; groupNum <= 8; groupNum++) {
-      this.lastMuteGroupStates[groupNum - 1] = this.getMuteGroupState(groupNum);
+      const s = this.getMuteGroupState(groupNum);
+      this.lastMuteGroupStates[groupNum - 1] = s;
+      this.commandedMuteGroupStates[groupNum - 1] = s;
     }
 
     // Poll every 200ms (5 times per second)
@@ -938,6 +1073,9 @@ export class MixerManager extends EventEmitter {
 
         if (currentState !== lastState) {
           this.lastMuteGroupStates[groupNum - 1] = currentState;
+          // Mixer itself reported a real change (physical button, UC, etc.) —
+          // sync commanded state so the next toggle flips from the right base.
+          this.commandedMuteGroupStates[groupNum - 1] = currentState;
           this.emit('propertyChange', {
             path: `mutegroup/mutegroup${groupNum}`,
             value: currentState ? 1.0 : 0.0

@@ -7,11 +7,16 @@ import { EventEmitter } from 'events';
 export class MockState {
   private store = new Map<string, any>();
 
-  get = jest.fn((path: string) => this.store.get(path) ?? null);
-  set = jest.fn((path: string, value: any) => { this.store.set(path, value); });
+  // Normalize paths so '.' and '/' are interchangeable (matches real KVTree behavior)
+  private normalizePath(path: string): string {
+    return path.includes('/') ? path.replace(/\//g, '.') : path;
+  }
+
+  get = jest.fn((path: string) => this.store.get(this.normalizePath(path)) ?? null);
+  set = jest.fn((path: string, value: any) => { this.store.set(this.normalizePath(path), value); });
 
   __set(path: string, value: any) {
-    this.store.set(path, value);
+    this.store.set(this.normalizePath(path), value);
   }
   __clear() {
     this.store.clear();

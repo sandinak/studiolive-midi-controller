@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-08
+
+### Added
+- **Active TCP subnet sweep discovery** — UDP broadcast (port 47809) gets blocked by PreSonus Universal Control on macOS, so discovery now also TCP-probes every host on local /22-or-smaller subnets for port 53000. Probes are prioritized to interfaces containing the saved mixer IP first; bare TCP hits are then enriched by a brief SimpleClient connect to read model/name/serial.
+- **Manual mixer probe** — new `probe-mixer-ip` and `identify-mixer-ip` IPC handlers let the Find Mixer dialog directly check a typed-in or saved IP without waiting for broadcast discovery.
+- **Per-mixer presets** — on connect, the app compares the connected mixer to the one the preset was built for (serial first, then model + IP fallback). On mismatch, you can spin up a fresh preset for the new mixer (`check-mixer-match` + `create-preset-for-mixer`).
+- **Fader stacking** — preset option to wrap faders into 2 compact rows when channel count exceeds 16.
+- **Per-channel input source** — select Analog / Network / USB / SD Card per channel via `set-channel-input-source`.
+- **Channel counts query** — `get-channel-counts` exposes the mixer's actual channel layout to the renderer.
+- **`make release` pipeline** — single command runs pre-flight checks (`.env` signing credentials, clean working tree), typecheck, tests, signed `dist-mac`, codesign verification, tag, and push.
+- **Five new test suites** — channel-routing, fader-stacking, mixer-match, preload-allowlist, plus a `tests/integration/` framework with `midi-to-mixer.test.ts`.
+
+### Fixed
+- **`isConnected()` could lie** during an in-flight TCP timeout or after the remote dropped us — now gated on a `handshakeComplete` flag that flips true only after `client.connect()` resolves.
+- **Failed `connect()` left a partial client** behind (stuck "connected" UI, latched reconnect guard) — now fully torn down on error.
+- **Remote-side disconnect** (mixer powered off, network loss) now tears down state and emits `disconnected` with the IP, letting the reconnect loop take over.
+- **mute / solo / lr / link could arrive as a raw Buffer** from the API and read as always-truthy in the renderer — normalized via `normalizeBoolish()` on both event emit and PV/PS/PC packet paths.
+- **Mute group toggle always sent "on"** because the state read it relied on was sometimes stale or null on real firmware — now tracks commanded state locally and alternates correctly. Polling and PV packets sync the commanded cache when external sources (mixer console, Universal Control) change the group.
+- **Mute group changes from external sources** now arrive instantly via PV packets instead of waiting on the 200ms poll.
+
+### Changed
+- Test mock for `presonus-studiolive-api` now normalizes `/` → `.` paths (matches real KVTree behavior) — caught a real `getMuteGroupState()` path-format bug.
+- `make dist-mac` warns more loudly when no `.env` is present, since unsigned builds shouldn't be distributed.
+
 ## [1.3.0] - 2026-03-26
 
 ### Fixed

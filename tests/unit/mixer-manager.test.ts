@@ -525,20 +525,27 @@ describe('MixerManager', () => {
 
   // ---- toggleMuteGroup ----
   describe('toggleMuteGroup', () => {
-    it('toggles an inactive group to active', async () => {
+    it('first toggle from inactive activates the group', async () => {
       await manager.connect('10.0.0.1');
       const client = (manager as any).client as SimpleClient;
-      client.state.__set('mutegroup/mutegroup1', 0.0);
       manager.toggleMuteGroup(1);
       expect(client.state.set).toHaveBeenLastCalledWith('mutegroup/mutegroup1', 1.0);
     });
 
-    it('toggles an active group to inactive', async () => {
+    it('alternates ON→OFF→ON across consecutive calls (even if mixer state is unreliable)', async () => {
+      // Simulates the real-world bug: mixer state stays null/0 even after a
+      // write is accepted. Tracking commanded state guarantees alternation.
       await manager.connect('10.0.0.1');
       const client = (manager as any).client as SimpleClient;
-      client.state.__set('mutegroup/mutegroup1', 1.0);
+
+      manager.toggleMuteGroup(1);
+      expect(client.state.set).toHaveBeenLastCalledWith('mutegroup/mutegroup1', 1.0);
+
       manager.toggleMuteGroup(1);
       expect(client.state.set).toHaveBeenLastCalledWith('mutegroup/mutegroup1', 0.0);
+
+      manager.toggleMuteGroup(1);
+      expect(client.state.set).toHaveBeenLastCalledWith('mutegroup/mutegroup1', 1.0);
     });
   });
 

@@ -420,16 +420,15 @@
       overflow-y: hidden;
       padding-bottom: 10px;
       position: relative;
+      min-height: 0;
     }
 
     .faders-scrollable {
       display: flex;
       gap: 6px;
       align-items: stretch;
-      flex: 1 1 0;
-      overflow-x: auto;
-      overflow-y: hidden;
-      min-width: 0;
+      flex-shrink: 0;
+      overflow: visible;
       flex-wrap: nowrap;
       justify-content: flex-end;
     }
@@ -440,6 +439,90 @@
       display: block;
       flex: 1 1 0;
       min-width: 0;
+    }
+
+    /* Stacked fader layout — wraps faders into compact rows */
+    .faders-scrollable.stacked {
+      display: flex;
+      flex: 1 1 0;
+      flex-wrap: wrap;
+      gap: 3px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      justify-content: flex-start;
+      align-items: flex-start;
+      align-content: flex-start;
+    }
+
+    .faders-scrollable.stacked::before {
+      display: none;
+    }
+
+    .faders-scrollable.stacked .fader-channel {
+      /* Grow to fill available width, 16 per row */
+      flex: 1 1 0;
+      /* Each row takes half the available height */
+      height: calc((100% - 3px) / 2); /* 2 rows, 1 gap */
+      min-width: 40px;
+      max-width: calc(100% / 14); /* cap so ≤16 channels always fit */
+      box-sizing: border-box;
+      padding: 3px 2px;
+      gap: 1px;
+      font-size: 0.75rem;
+      overflow: hidden;
+    }
+
+    /* Compact elements in stacked mode */
+    .faders-scrollable.stacked .fader-indicators {
+      margin-bottom: 1px !important;
+      gap: 1px !important;
+    }
+    .faders-scrollable.stacked .fader-indicator {
+      font-size: 0.6rem;
+      padding: 1px 3px;
+    }
+    .faders-scrollable.stacked .fader-controls {
+      gap: 2px;
+    }
+    .faders-scrollable.stacked .mute-btn,
+    .faders-scrollable.stacked .solo-btn {
+      font-size: 0.6rem;
+      padding: 1px 4px;
+      min-width: 18px;
+    }
+    .faders-scrollable.stacked .fader-value {
+      font-size: 0.65rem;
+    }
+    .faders-scrollable.stacked .level-labels {
+      display: none;
+    }
+    .faders-scrollable.stacked .fader-levels {
+      min-height: 0;
+      min-width: 0;
+    }
+    .faders-scrollable.stacked .fader-wrapper {
+      flex: 1;
+      min-height: 0;
+    }
+    .faders-scrollable.stacked .fader-container {
+      min-height: 0;
+    }
+    .faders-scrollable.stacked .fader-icon {
+      font-size: 0.7rem;
+    }
+    .faders-scrollable.stacked .fader-channel-number {
+      font-size: 0.7rem;
+    }
+    .faders-scrollable.stacked .fader-label {
+      font-size: 0.6rem;
+    }
+    .faders-scrollable.stacked .fader-footer {
+      display: none;
+    }
+    .fader-row-break {
+      flex-basis: 100%;
+      height: 0;
+      overflow: hidden;
     }
 
     .faders-main {
@@ -582,6 +665,45 @@
     .fader-indicator.input-source.source-sdcard {
       background: rgba(255, 152, 0, 0.35);
       color: #fff;
+    }
+
+    /* Input source context menu */
+    .input-source-menu {
+      position: fixed;
+      background: rgba(30, 30, 30, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      padding: 4px 0;
+      z-index: 10000;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(8px);
+    }
+
+    .input-source-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #e0e0e0;
+      transition: background 0.15s;
+    }
+
+    .input-source-menu-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .input-source-menu-item.active {
+      background: rgba(91, 155, 213, 0.3);
+      color: #fff;
+    }
+
+    .input-source-menu-item svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
     }
 
     .fader-icon {
@@ -1113,6 +1235,19 @@
       background: rgba(74, 155, 127, 0.1);
     }
 
+    /* Saved-in-config but not yet seen on the current scan */
+    .mixer-item.unverified {
+      border-style: dashed;
+      border-color: rgba(255, 255, 255, 0.25);
+      opacity: 0.7;
+    }
+    .mixer-item.unverified .mixer-name { color: #aaa; }
+    .mixer-item.unverified.offline {
+      border-color: rgba(200, 80, 80, 0.45);
+      background: rgba(120, 40, 40, 0.12);
+    }
+    .mixer-item.unverified.offline .mixer-details { color: #d88; }
+
     .btn.listening {
       background: #ff9800;
       color: #000;
@@ -1122,6 +1257,54 @@
     @keyframes pulse-orange {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.6; }
+    }
+
+    /* Scan progress indicator */
+    .scan-progress {
+      padding: 18px 20px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    .scan-progress-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      color: #cfcfcf;
+    }
+    .scan-progress-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      border-top-color: #4a9b7f;
+      border-radius: 50%;
+      animation: scan-spin 0.9s linear infinite;
+      flex: 0 0 auto;
+    }
+    @keyframes scan-spin { to { transform: rotate(360deg); } }
+    .scan-progress-label { flex: 1; }
+    .scan-progress-found {
+      color: #4a9b7f;
+      font-variant-numeric: tabular-nums;
+    }
+    .scan-progress-bar {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .scan-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #4a9b7f, #6dc8a7);
+      animation: scan-progress-anim var(--scan-duration, 10s) linear forwards;
+    }
+    @keyframes scan-progress-anim {
+      from { width: 0%; }
+      to { width: 100%; }
     }
 
     .mixer-details {
@@ -1503,7 +1686,7 @@
     body.app-run-mode .mute-btn {
       width: 60px; /* expand to fill space left by hidden solo button */
     }
-    body.app-run-mode .faders-toolbar .btn:not(.mute-group-btn) {
+    body.app-run-mode .faders-toolbar .btn:not(.mute-group-btn):not(#filter-select) {
       pointer-events: none;
       opacity: 0.4;
     }
@@ -1544,10 +1727,13 @@
         <div id="faders-view" class="tab-content active">
           <div class="faders-toolbar">
             <button class="btn" onclick="showAddMapping()" title="Add Channel">➕</button>
-            <select class="btn" id="filter-select" onchange="onFilterChange()" style="min-width: 150px;">
-              <option value="all">🔍 View: All</option>
-              <option value="added">🔍 View: Added</option>
-              <option value="mapped">🔍 View: Mapped</option>
+            <select class="btn" id="filter-select" onchange="onFilterChange()" style="min-width: 180px;">
+              <option value="all">View: All</option>
+              <option value="all-stacked">View: All (Stacked)</option>
+              <option value="added">View: Added</option>
+              <option value="added-stacked">View: Added (Stacked)</option>
+              <option value="mapped">View: Mapped</option>
+              <option value="mapped-stacked">View: Mapped (Stacked)</option>
             </select>
             <!-- Spacer to push mute groups to the right -->
             <div class="toolbar-spacer"></div>
@@ -2109,6 +2295,48 @@
       <div class="modal-buttons">
         <button class="btn" onclick="hideUpdateModal()">Later</button>
         <button class="btn" onclick="downloadUpdate()" style="background: #4CAF50; margin-left: auto;">Download Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mixer mismatch confirmation dialog -->
+  <div id="mixer-mismatch-modal" class="modal">
+    <div class="modal-content" style="max-width: 520px;">
+      <h2>Different Mixer Detected</h2>
+      <p style="color: #ccc; margin-bottom: 12px;">
+        The current preset was created for a different mixer:
+      </p>
+      <div style="background: #1a1a1a; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="color: #888;">Preset mixer:</span>
+          <span id="mismatch-preset-mixer" style="font-weight: bold; color: #e8a653;">-</span>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: #888;">Connecting to:</span>
+          <span id="mismatch-new-mixer" style="font-weight: bold; color: #5b9bd5;">-</span>
+        </div>
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display:flex; align-items:flex-start; gap:10px; padding:10px; border:1px solid rgba(255,255,255,0.12); border-radius:4px; margin-bottom:8px; cursor:pointer;">
+          <input type="radio" name="mismatch-action" value="current" checked style="margin-top:3px;">
+          <div>
+            <div style="font-weight:600;">Apply current preset to this mixer</div>
+            <div style="color:#888; font-size:0.85rem;">Keep existing mappings. The preset now tracks this mixer.</div>
+          </div>
+        </label>
+        <label style="display:flex; align-items:flex-start; gap:10px; padding:10px; border:1px solid rgba(255,255,255,0.12); border-radius:4px; cursor:pointer;">
+          <input type="radio" name="mismatch-action" value="new" style="margin-top:3px;">
+          <div style="flex:1;">
+            <div style="font-weight:600;">Create new preset for this mixer</div>
+            <div style="color:#888; font-size:0.85rem; margin-bottom:6px;">Start fresh with no mappings. The current preset file is left as-is.</div>
+            <input id="mismatch-new-name" type="text" placeholder="Preset name"
+              style="width:100%; padding:6px 8px; background:rgba(30,30,30,0.9); color:#fff; border:1px solid rgba(255,255,255,0.2); border-radius:3px; font-size:0.9rem;">
+          </div>
+        </label>
+      </div>
+      <div class="modal-buttons">
+        <button class="btn" id="mismatch-cancel-btn">Cancel</button>
+        <button class="btn" id="mismatch-apply-btn" style="background: rgba(91, 155, 213, 0.4);">Connect</button>
       </div>
     </div>
   </div>
@@ -3345,11 +3573,9 @@
         const filter = await ipcRenderer.invoke('get-fader-filter');
         if (filter) {
           faderFilter = filter;
-          const filterSelect = document.getElementById('filter-select');
-          if (filterSelect) {
-            filterSelect.value = faderFilter;
-          }
         }
+        // Sync dropdown with filter + stacking state
+        updateFilterSelectOptions();
       }
     });
 
@@ -3787,43 +4013,62 @@
         const listEl = document.getElementById('mixer-list');
         const prefIp = mixerStatus.preferredIp;
         if (prefIp && listEl && !listEl.querySelector('.mixer-item')) {
-          // Use live data if connected, otherwise use remembered metadata
-          const displayIp = mixerStatus.ip || prefIp;
-          const displayModel = mixerStatus.model || mixerStatus.preferredModel || '';
-          const displayDeviceName = mixerStatus.deviceName || mixerStatus.preferredDeviceName || '';
-          const displaySerial = mixerStatus.serial || mixerStatus.preferredSerial || '';
-
-          listEl.innerHTML = '';
-          const div = document.createElement('div');
-          div.className = 'mixer-item' + (mixerStatus.connected ? ' connected-device' : '');
-          div.setAttribute('data-ip', displayIp);
-          div.title = `IP: ${displayIp}\nModel: ${displayModel}${displayDeviceName ? '\nDevice Name: ' + displayDeviceName : ''}\nSerial: ${displaySerial}${mixerStatus.connected ? '\n✓ Currently connected' : ''}`;
-
-          const infoDiv = document.createElement('div');
-          infoDiv.className = 'mixer-info';
-
-          const nameDiv = document.createElement('div');
-          nameDiv.className = 'mixer-name';
-          nameDiv.textContent = displayIp + (displayModel ? ' — ' + displayModel : '') + (displayDeviceName ? ' ' + displayDeviceName : '');
-
-          const detailDiv = document.createElement('div');
-          detailDiv.className = 'mixer-details';
-          detailDiv.textContent = (displaySerial ? 'Serial: ' + displaySerial : '') + (mixerStatus.connected ? ' ✓ Connected' : ' (remembered — scan to verify)');
-
-          const btn = document.createElement('button');
-          btn.className = 'btn';
-          btn.textContent = mixerStatus.connected ? 'Reconnect' : 'Connect';
-          btn.addEventListener('click', () => connectToMixer(displayIp, displayModel, displayDeviceName, displaySerial));
-
-          infoDiv.appendChild(nameDiv);
-          infoDiv.appendChild(detailDiv);
-          div.appendChild(infoDiv);
-          div.appendChild(btn);
-          listEl.appendChild(div);
+          renderSavedMixer(mixerStatus);
+          // Kick a network scan to verify whether the saved mixer is actually
+          // reachable. The scan upgrades the saved row in-place if it's found,
+          // or marks it offline if not.
+          if (!mixerStatus.connected) {
+            scanForMixers({ preserveSaved: true });
+          }
         }
       } catch (error) {
         console.error('Error getting mixer status:', error);
       }
+    }
+
+    // Render the saved-in-config mixer as the first list entry. Marked
+    // `.unverified` until a scan confirms it's on the network; if the app is
+    // already connected to it, marked `.connected-device` instead.
+    function renderSavedMixer(mixerStatus) {
+      const listEl = document.getElementById('mixer-list');
+      if (!listEl) return;
+
+      const displayIp = mixerStatus.ip || mixerStatus.preferredIp || '';
+      const displayModel = mixerStatus.model || mixerStatus.preferredModel || '';
+      const displayDeviceName = mixerStatus.deviceName || mixerStatus.preferredDeviceName || '';
+      const displaySerial = mixerStatus.serial || mixerStatus.preferredSerial || '';
+      const isConnected = !!mixerStatus.connected;
+
+      listEl.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'mixer-item saved-mixer' + (isConnected ? ' connected-device' : ' unverified');
+      div.setAttribute('data-ip', displayIp);
+      if (displaySerial) div.setAttribute('data-serial', displaySerial);
+      div.title = `IP: ${displayIp}\nModel: ${displayModel}${displayDeviceName ? '\nDevice Name: ' + displayDeviceName : ''}\nSerial: ${displaySerial}` +
+        (isConnected ? '\n✓ Currently connected' : '\nFrom saved config — scanning network to verify');
+
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'mixer-info';
+
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'mixer-name';
+      nameDiv.textContent = displayIp + (displayModel ? ' — ' + displayModel : '') + (displayDeviceName ? ' ' + displayDeviceName : '');
+
+      const detailDiv = document.createElement('div');
+      detailDiv.className = 'mixer-details';
+      const serialText = displaySerial ? 'Serial: ' + displaySerial + ' · ' : '';
+      detailDiv.textContent = serialText + (isConnected ? '✓ Connected' : 'saved in config · checking network…');
+
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = isConnected ? 'Reconnect' : 'Connect';
+      btn.addEventListener('click', () => connectToMixer(displayIp, displayModel, displayDeviceName, displaySerial));
+
+      infoDiv.appendChild(nameDiv);
+      infoDiv.appendChild(detailDiv);
+      div.appendChild(infoDiv);
+      div.appendChild(btn);
+      listEl.appendChild(div);
     }
 
     function hideDiscovery() {
@@ -4189,11 +4434,9 @@
           const filter = await ipcRenderer.invoke('get-fader-filter');
           if (filter) {
             faderFilter = filter;
-            const filterSelect = document.getElementById('filter-select');
-            if (filterSelect) {
-              filterSelect.value = faderFilter;
-            }
           }
+          // Sync dropdown with filter + stacking state
+          updateFilterSelectOptions();
 
           // Reload mappings and faders
           await loadMappings();
@@ -4682,6 +4925,9 @@
 
       // Send preference to main process
       ipcRenderer.invoke('set-midi-feedback-enabled', midiFeedbackEnabled);
+
+      // Initialize fader stacking from saved preset
+      initFaderStacking();
     });
 
     // MIDI type change handler
@@ -4718,9 +4964,58 @@
       const deviceName = mixer.deviceName || '';
       const serial = mixer.serial || '';
 
+      // If this matches the saved-in-config entry, upgrade it in-place (if
+      // still unverified) or just skip — never append a duplicate of a
+      // saved-mixer row. Match on IP or serial regardless of verification
+      // state so a later sweep/identify callback for the same IP doesn't
+      // create a sibling row once the renderer's probe path has already
+      // cleared the `.unverified` marker.
+      const saved = listEl.querySelector('.saved-mixer');
+      if (saved) {
+        const savedIp = saved.getAttribute('data-ip');
+        const savedSerial = saved.getAttribute('data-serial');
+        const matches = (savedSerial && serial && savedSerial === serial)
+          || (savedIp && ip && savedIp === ip);
+        if (matches) {
+          if (saved.classList.contains('unverified')) {
+            saved.classList.remove('unverified');
+            saved.classList.remove('offline');
+            const details = saved.querySelector('.mixer-details');
+            if (details) {
+              const serialText = serial ? 'Serial: ' + serial + ' · ' : '';
+              details.textContent = serialText + 'saved in config · ✓ found on network';
+            }
+            const savedBtn = saved.querySelector('.btn');
+            if (savedBtn) savedBtn.textContent = 'Connect';
+            saved.title = `IP: ${ip}\nModel: ${modelName}${deviceName ? '\nDevice Name: ' + deviceName : ''}\nSerial: ${serial}\n✓ Found on network`;
+          }
+          return;
+        }
+      }
+
+      // If an entry for this IP already exists (e.g. TCP probe surfaced it first,
+      // now UDP broadcast is delivering richer metadata), upgrade in place.
+      if (ip) {
+        const existing = listEl.querySelector('.mixer-item:not(.saved-mixer)[data-ip="' + ip.replace(/"/g, '') + '"]');
+        if (existing) {
+          const hadMeta = existing.hasAttribute('data-has-meta');
+          // Only upgrade if this event is richer (carries serial or model).
+          if (!hadMeta && (serial || modelName)) {
+            existing.setAttribute('data-has-meta', '1');
+            const nameEl = existing.querySelector('.mixer-name');
+            if (nameEl) nameEl.textContent = ip + (modelName ? ' — ' + modelName : '') + (deviceName ? ' ' + deviceName : '');
+            const detailsEl = existing.querySelector('.mixer-details');
+            if (detailsEl) detailsEl.textContent = serial ? 'Serial: ' + serial : '';
+            existing.title = `IP: ${ip}\nModel: ${modelName}${deviceName ? '\nDevice Name: ' + deviceName : ''}\nSerial: ${serial}`;
+          }
+          return;
+        }
+      }
+
       const div = document.createElement('div');
       div.className = 'mixer-item';
       div.setAttribute('data-ip', ip);
+      if (serial || modelName) div.setAttribute('data-has-meta', '1');
       div.title = `IP: ${ip}\nModel: ${modelName}${deviceName ? '\nDevice Name: ' + deviceName : ''}\nSerial: ${serial}`;
 
       const infoDiv = document.createElement('div');
@@ -4728,11 +5023,11 @@
 
       const nameDiv = document.createElement('div');
       nameDiv.className = 'mixer-name';
-      nameDiv.textContent = ip + ' ' + modelName + (deviceName ? ' ' + deviceName : '');
+      nameDiv.textContent = ip + (modelName ? ' — ' + modelName : '') + (deviceName ? ' ' + deviceName : '');
 
       const detailDiv = document.createElement('div');
       detailDiv.className = 'mixer-details';
-      detailDiv.textContent = 'Serial: ' + serial;
+      detailDiv.textContent = serial ? 'Serial: ' + serial : 'TCP reachable · connect to identify';
 
       const connectBtn = document.createElement('button');
       connectBtn.className = 'btn';
@@ -4781,34 +5076,155 @@
       return order[idx];
     }
 
-    // Scan for mixers
-    async function scanForMixers() {
+    // Scan duration in the main process (MixerManager.discoverProgressive).
+    // Kept in sync so the progress bar animation matches the actual scan.
+    const SCAN_DURATION_MS = 10000;
+
+    // Render the progress indicator (spinner + animated bar + "N found" counter).
+    // Returns a setter `(n) => void` that updates the found count.
+    function renderScanProgress(listEl) {
+      const prog = document.createElement('div');
+      prog.className = 'scan-progress scan-status-placeholder';
+      prog.style.setProperty('--scan-duration', `${SCAN_DURATION_MS}ms`);
+      prog.innerHTML = `
+        <div class="scan-progress-row">
+          <div class="scan-progress-spinner"></div>
+          <div class="scan-progress-label">Scanning network for mixers…</div>
+          <div class="scan-progress-found" data-found="0">0 found</div>
+        </div>
+        <div class="scan-progress-bar"><div class="scan-progress-fill"></div></div>
+      `;
+      listEl.appendChild(prog);
+      const foundEl = prog.querySelector('.scan-progress-found');
+      return (n) => {
+        if (!foundEl) return;
+        foundEl.setAttribute('data-found', String(n));
+        foundEl.textContent = `${n} found`;
+      };
+    }
+
+    // Count entries the user should think of as "discovered on this scan"
+    // (excludes the saved-config entry until it's been verified).
+    function countDiscovered(listEl) {
+      return listEl.querySelectorAll('.mixer-item:not(.saved-mixer), .saved-mixer:not(.unverified)').length;
+    }
+
+    // Scan for mixers. When `preserveSaved: true`, the saved-in-config entry
+    // rendered by renderSavedMixer() is kept in place — matching discoveries
+    // upgrade it in-place, and if the scan ends with it still unverified we
+    // flip it to an explicit offline state.
+    //
+    // We run TWO discovery paths in parallel:
+    //   1. UDP broadcast listen (existing) — finds mixers on the local subnet.
+    //   2. Active TCP probe of candidate IPs (saved config IP + manual-entry IP) —
+    //      finds mixers reachable via routing/VPN where broadcasts don't cross.
+    async function scanForMixers(opts = {}) {
+      const preserveSaved = !!(opts && opts.preserveSaved);
       const btn = document.getElementById('scan-btn');
       const listEl = document.getElementById('mixer-list');
 
       btn.disabled = true;
       btn.textContent = 'Scanning...';
-      listEl.innerHTML = '<div class="empty-state scan-status-placeholder">Scanning network...</div>';
+
+      // Clear prior results but keep the saved entry when requested.
+      if (preserveSaved) {
+        listEl.querySelectorAll('.mixer-item:not(.saved-mixer), .empty-state, .scan-status-placeholder')
+          .forEach(el => el.remove());
+      } else {
+        listEl.innerHTML = '';
+      }
+
+      const updateFound = renderScanProgress(listEl);
+      // Keep the counter in sync as discovery-result events append items.
+      const foundTicker = setInterval(() => updateFound(countDiscovered(listEl)), 200);
+
+      // Gather candidate IPs to actively probe (in addition to UDP broadcast).
+      const candidateIps = new Set();
+      const savedEl = listEl.querySelector('.saved-mixer');
+      const savedIp = savedEl && savedEl.getAttribute('data-ip');
+      if (savedIp) candidateIps.add(savedIp);
+      const manualInput = document.getElementById('manual-ip');
+      const manualIp = manualInput && manualInput.value && manualInput.value.trim();
+      if (manualIp) candidateIps.add(manualIp);
 
       discoveryInProgress = true;
       try {
-        await ipcRenderer.invoke('discover-mixers');
-        // Results were shown progressively via discovery-result events
-        const items = listEl.querySelectorAll('.mixer-item');
-        if (items.length === 0) {
+        const udpScan = ipcRenderer.invoke('discover-mixers');
+
+        // Active TCP probes run in parallel; each success either upgrades the
+        // saved entry or appends a new "TCP reachable" entry, then kicks a
+        // brief identify probe to enrich with model / serial / device name.
+        const tcpProbes = [...candidateIps].map(async (ip) => {
+          try {
+            const res = await ipcRenderer.invoke('probe-mixer-ip', ip, 2500);
+            if (!res || !res.reachable) return;
+            // If the saved entry matches this IP, upgrade it in-place.
+            const saved = listEl.querySelector('.saved-mixer[data-ip="' + ip.replace(/"/g, '') + '"]');
+            if (saved && saved.classList.contains('unverified')) {
+              saved.classList.remove('unverified');
+              saved.classList.remove('offline');
+              const details = saved.querySelector('.mixer-details');
+              if (details) {
+                const serial = saved.getAttribute('data-serial');
+                const serialText = serial ? 'Serial: ' + serial + ' · ' : '';
+                details.textContent = serialText + 'saved in config · ✓ reachable (TCP probe)';
+              }
+              const sBtn = saved.querySelector('.btn');
+              if (sBtn) sBtn.textContent = 'Connect';
+              return;
+            }
+            // Skip if the UDP scan already surfaced this IP.
+            if (listEl.querySelector('.mixer-item[data-ip="' + ip.replace(/"/g, '') + '"]')) return;
+            // Append a minimal entry first, then enrich with identity.
+            appendMixerToList({ ip, model: '', deviceName: '', serial: '' });
+            try {
+              const info = await ipcRenderer.invoke('identify-mixer-ip', ip, 4000);
+              if (info && (info.model || info.serial || info.deviceName)) {
+                appendMixerToList({
+                  ip,
+                  model: info.model || '',
+                  deviceName: info.deviceName || '',
+                  serial: info.serial || '',
+                });
+              }
+            } catch (_e) { /* identify failure keeps minimal entry */ }
+          } catch (_e) {
+            // Probe failure is a non-event.
+          }
+        });
+
+        await Promise.all([udpScan, ...tcpProbes]);
+
+        const hasItems = listEl.querySelector('.mixer-item');
+        if (!hasItems) {
           listEl.innerHTML = '<div class="empty-state">No mixers found. Try manual connection below.</div>';
+        } else {
+          // Saved entry still unverified? Mark it offline so the user knows
+          // it's shown because it's in the config, not because it's reachable.
+          const stillUnverified = listEl.querySelector('.saved-mixer.unverified');
+          if (stillUnverified) {
+            stillUnverified.classList.add('offline');
+            const details = stillUnverified.querySelector('.mixer-details');
+            if (details) {
+              const serial = stillUnverified.getAttribute('data-serial');
+              const serialText = serial ? 'Serial: ' + serial + ' · ' : '';
+              details.textContent = serialText + 'saved in config · ⚠ not found on network';
+            }
+            const savedBtn = stillUnverified.querySelector('.btn');
+            if (savedBtn) savedBtn.textContent = 'Connect anyway';
+          }
         }
       } catch (error) {
         const errDiv = document.createElement('div');
         errDiv.className = 'empty-state';
         errDiv.textContent = 'Error: ' + (error.message || String(error));
-        listEl.innerHTML = '';
+        if (!preserveSaved) listEl.innerHTML = '';
         listEl.appendChild(errDiv);
       } finally {
+        clearInterval(foundTicker);
         discoveryInProgress = false;
         btn.disabled = false;
         btn.textContent = 'Scan Network';
-        // Clean up placeholder if no results came in
         const placeholder = listEl.querySelector('.scan-status-placeholder');
         if (placeholder) placeholder.remove();
       }
@@ -4817,6 +5233,29 @@
     // Connect to mixer
     async function connectToMixer(ip, model, deviceName, serial) {
       try {
+        // Check if this mixer matches the preset's stored mixer
+        const matchResult = await ipcRenderer.invoke('check-mixer-match', serial || null, model || null, ip);
+        if (matchResult && !matchResult.match) {
+          const decision = await showMixerMismatchDialog(matchResult.presetMixer, { ip, model, deviceName });
+          if (decision.action === 'cancel') return;
+          if (decision.action === 'new') {
+            const createRes = await ipcRenderer.invoke(
+              'create-preset-for-mixer',
+              decision.name, ip, model || null, deviceName || null, serial || null,
+            );
+            if (!createRes || !createRes.success) {
+              const msg = `Failed to create preset: ${(createRes && createRes.error) || 'unknown error'}`;
+              updateStatusInit(msg);
+              addStatusLog(msg, 'error');
+              alert(msg);
+              return;
+            }
+            addStatusLog(`Created new preset "${createRes.name}"`, 'success');
+          }
+          // For 'current', fall through — connect-mixer will update the
+          // current preset's preferred mixer info via setPreferredMixerInfo.
+        }
+
         await updateStatusInitWithDelay(`Connecting to ${model || 'mixer'} at ${ip}...`);
         const result = await ipcRenderer.invoke('connect-mixer', ip, model, deviceName, serial);
         if (result.success) {
@@ -4827,14 +5266,72 @@
           const errorMsg = `Connection failed: ${result.error}`;
           updateStatusInit(errorMsg);
           addStatusLog(errorMsg, 'error');
-          alert(`✗ Failed to connect: ${result.error}`);
+          alert(`Failed to connect: ${result.error}`);
         }
       } catch (error) {
         const errorMsg = `Error: ${error.message}`;
         updateStatusInit(errorMsg);
         addStatusLog(errorMsg, 'error');
-        alert(`✗ Error: ${error.message}`);
+        alert(`Error: ${error.message}`);
       }
+    }
+
+    // Resolves to { action: 'cancel' | 'current' | 'new', name?: string }.
+    function showMixerMismatchDialog(presetMixer, newMixer) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('mixer-mismatch-modal');
+        const presetLabel = document.getElementById('mismatch-preset-mixer');
+        const newLabel = document.getElementById('mismatch-new-mixer');
+        const cancelBtn = document.getElementById('mismatch-cancel-btn');
+        const applyBtn = document.getElementById('mismatch-apply-btn');
+        const nameInput = document.getElementById('mismatch-new-name');
+
+        presetLabel.textContent = `${presetMixer.model || 'Unknown'} ${presetMixer.deviceName ? '"' + presetMixer.deviceName + '"' : ''} (${presetMixer.ip || '?'})`;
+        newLabel.textContent = `${newMixer.model || 'Unknown'} ${newMixer.deviceName ? '"' + newMixer.deviceName + '"' : ''} (${newMixer.ip})`;
+
+        // Suggest a preset name from mixer metadata.
+        const lastOctet = (newMixer.ip || '').split('.').pop();
+        const suggestion = (newMixer.deviceName || newMixer.model || (lastOctet ? `Mixer ${lastOctet}` : 'New Mixer')).trim();
+        nameInput.value = suggestion;
+
+        // Reset radio selection to default each open.
+        const currentRadio = document.querySelector('input[name=mismatch-action][value=current]');
+        if (currentRadio) currentRadio.checked = true;
+
+        function cleanup() {
+          modal.classList.remove('show');
+          cancelBtn.removeEventListener('click', onCancel);
+          applyBtn.removeEventListener('click', onApply);
+          nameInput.removeEventListener('focus', selectNew);
+        }
+        function onCancel() { cleanup(); resolve({ action: 'cancel' }); }
+        function onApply() {
+          const checked = document.querySelector('input[name=mismatch-action]:checked');
+          const action = checked ? checked.value : 'current';
+          if (action === 'new') {
+            const name = nameInput.value.trim();
+            if (!name) {
+              nameInput.focus();
+              return;
+            }
+            cleanup();
+            resolve({ action: 'new', name });
+          } else {
+            cleanup();
+            resolve({ action: 'current' });
+          }
+        }
+        // If the user clicks into the name field, flip the radio to "new".
+        function selectNew() {
+          const newRadio = document.querySelector('input[name=mismatch-action][value=new]');
+          if (newRadio) newRadio.checked = true;
+        }
+
+        cancelBtn.addEventListener('click', onCancel);
+        applyBtn.addEventListener('click', onApply);
+        nameInput.addEventListener('focus', selectNew);
+        modal.classList.add('show');
+      });
     }
 
     // Connect manually
@@ -5030,7 +5527,18 @@
     // Handle filter dropdown change
     async function onFilterChange() {
       const filterSelect = document.getElementById('filter-select');
-      faderFilter = filterSelect.value;
+      const raw = filterSelect.value;
+
+      // Parse stacking suffix: "all-stacked" → filter="all", stacked=true
+      const isStacked = raw.endsWith('-stacked');
+      faderFilter = isStacked ? raw.replace('-stacked', '') : raw;
+
+      // Update stacking state
+      if (faderStackingEnabled !== isStacked) {
+        faderStackingEnabled = isStacked;
+        await ipcRenderer.invoke('set-fader-stacking', faderStackingEnabled);
+      }
+      applyFaderStacking();
 
       // Save filter state to mapping engine
       await ipcRenderer.invoke('set-fader-filter', faderFilter);
@@ -5099,10 +5607,13 @@
       } catch (error) {
       }
 
-      // Restore previous selection (or use faderFilter global)
-      const valueToRestore = currentValue || faderFilter;
+      // Restore previous selection (or use faderFilter global + stacking)
+      const baseFilter = currentValue?.replace('-stacked', '') || faderFilter;
+      const valueToRestore = faderStackingEnabled ? baseFilter + '-stacked' : baseFilter;
       if (valueToRestore && filterSelect.querySelector(`option[value="${valueToRestore}"]`)) {
         filterSelect.value = valueToRestore;
+      } else if (filterSelect.querySelector(`option[value="${baseFilter}"]`)) {
+        filterSelect.value = baseFilter;
       }
 
     }
@@ -6253,25 +6764,26 @@
         // Reset channel data cache
         channelDataCache = {};
 
-        // Always fetch LINE channel data
-        await updateStatusInitWithDelay('Fetching LINE channel data...');
-        try {
-          const names = await ipcRenderer.invoke('get-channel-names', 'line', 16);
-          const colors = await ipcRenderer.invoke('get-channel-colors', 'line', 16);
-          const icons = await ipcRenderer.invoke('get-channel-icons', 'line', 16);
-          const inputSources = await ipcRenderer.invoke('get-channel-input-sources', 'line', 16);
+        // Fetch channel counts from the mixer to know how many channels to display
+        const channelCounts = await ipcRenderer.invoke('get-channel-counts') || {};
+        const lineCount = channelCounts.LINE || 16;
 
-          // Debug logging for input sources
+        // Always fetch LINE channel data
+        await updateStatusInitWithDelay(`Fetching LINE channel data (${lineCount} channels)...`);
+        try {
+          const names = await ipcRenderer.invoke('get-channel-names', 'line', lineCount);
+          const colors = await ipcRenderer.invoke('get-channel-colors', 'line', lineCount);
+          const icons = await ipcRenderer.invoke('get-channel-icons', 'line', lineCount);
+          const inputSources = await ipcRenderer.invoke('get-channel-input-sources', 'line', lineCount);
 
           // Fetch stereo link status for each channel
           const links = [];
-          for (let i = 1; i <= 16; i++) {
+          for (let i = 1; i <= lineCount; i++) {
             const link = await ipcRenderer.invoke('get-channel-link', 'line', i);
             links.push({ channel: i, link });
           }
 
-
-          channelDataCache['line'] = { names, colors, icons, links, inputSources };
+          channelDataCache['line'] = { names, colors, icons, links, inputSources, count: lineCount };
         } catch (error) {
           console.error('[Renderer] Error fetching LINE channel data:', error);
           const errorMsg = `Error fetching LINE channels: ${error.message || error}`;
@@ -6380,10 +6892,11 @@
         let fadersToRender = [];
 
         if (faderFilter === 'all') {
-          // Show all LINE channels 1-16, but skip second channel of stereo pairs
+          // Show all LINE channels, but skip second channel of stereo pairs
           const lineData = channelDataCache['line'] || { names: [], colors: [], icons: [], links: [], inputSources: [] };
+          const lineChannelCount = lineData.count || 16;
 
-          for (let i = 1; i <= 16; i++) {
+          for (let i = 1; i <= lineChannelCount; i++) {
             // Check if this channel is the RIGHT side of a stereo pair
             // A channel is the right side if it's even AND the previous (odd) channel is linked
             if (i % 2 === 0) {
@@ -6925,11 +7438,28 @@
           mainContainer.innerHTML = '';
         } else {
           const safeFader = (m) => { try { return renderFader(m); } catch(e) { console.error('[renderFader] Error:', e, m); return ''; } };
-          container.innerHTML = sortedRegularMappings.map(safeFader).join('');
+          // In stacked mode, insert row breaks every 16 channels (by channel number, not fader count)
+          let regularHtml = '';
+          if (faderStackingEnabled) {
+            let channelIndex = 0;
+            for (const m of sortedRegularMappings) {
+              const chNum = resolveChannelNum(m.mixer.channel) || 0;
+              // Insert a row break before channel 17, 33, 49, etc.
+              if (chNum > 1 && (chNum - 1) % 16 === 0) {
+                regularHtml += '<div class="fader-row-break"></div>';
+              }
+              regularHtml += safeFader(m);
+              channelIndex++;
+            }
+          } else {
+            regularHtml = sortedRegularMappings.map(safeFader).join('');
+          }
+          container.innerHTML = regularHtml;
           mainContainer.innerHTML = sortedMainMappings.map(safeFader).join('');
 
           // Add mouse interaction to faders
           setupFaderInteraction();
+          applyFaderStacking();
 
           // Load initial fader positions, mute states, solo states, and main assign states from mixer
           const allMappings = [...sortedRegularMappings, ...sortedMainMappings];
@@ -7171,6 +7701,164 @@
       }
     }
 
+    // ---- Horizontal scroll for faders (non-stacked mode) ----
+    // Mouse wheel over faders area → horizontal scroll.
+    // Horizontal scroll: mouse wheel converts vertical → horizontal on the faders-grid.
+    // faders-grid is the overflow-x: auto scroll container.
+    (function setupGridScroll() {
+      let dragScrolling = false;
+      let dragStartX = 0;
+      let scrollStartX = 0;
+
+      function getGrid() {
+        return document.querySelector('.faders-grid');
+      }
+
+      document.addEventListener('wheel', (e) => {
+        if (faderStackingEnabled) return;
+        const grid = e.target.closest('.faders-grid');
+        if (!grid) return;
+        // Convert vertical wheel to horizontal scroll
+        if (e.deltaY !== 0) {
+          e.preventDefault();
+          grid.scrollLeft += e.deltaY;
+        }
+      }, { passive: false });
+
+      document.addEventListener('mousedown', (e) => {
+        if (faderStackingEnabled) return;
+        if (e.target.closest('.fader-container, button, select, input')) return;
+        const grid = e.target.closest('.faders-grid');
+        if (!grid) return;
+        dragScrolling = true;
+        dragStartX = e.clientX;
+        scrollStartX = grid.scrollLeft;
+        document.body.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!dragScrolling) return;
+        const grid = getGrid();
+        if (grid) grid.scrollLeft = scrollStartX - (e.clientX - dragStartX);
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (dragScrolling) {
+          dragScrolling = false;
+          document.body.style.cursor = '';
+        }
+      });
+    })();
+
+    // ---- Fader stacking ----
+    let faderStackingEnabled = false;
+
+    async function initFaderStacking() {
+      faderStackingEnabled = await ipcRenderer.invoke('get-fader-stacking');
+      applyFaderStacking();
+    }
+
+    function applyFaderStacking() {
+      const container = document.getElementById('faders-container');
+      const grid = container?.closest('.faders-grid');
+      if (container) {
+        container.classList.toggle('stacked', faderStackingEnabled);
+      }
+      if (grid) {
+        if (faderStackingEnabled) {
+          // Stacked: no horizontal scroll, grid clips, child handles vertical scroll
+          grid.style.overflowX = 'hidden';
+          grid.style.overflowY = 'hidden';
+        } else {
+          // Non-stacked: grid scrolls horizontally
+          grid.style.overflowX = 'auto';
+          grid.style.overflowY = 'hidden';
+        }
+      }
+      // Update the view dropdown to reflect current state
+      const filterSelect = document.getElementById('filter-select');
+      if (filterSelect) {
+        updateFilterSelectOptions();
+      }
+    }
+
+    function updateFilterSelectOptions() {
+      const filterSelect = document.getElementById('filter-select');
+      if (!filterSelect) return;
+      // Set dropdown to match current filter + stacking state
+      const targetValue = faderStackingEnabled ? faderFilter + '-stacked' : faderFilter;
+      if (filterSelect.querySelector(`option[value="${targetValue}"]`)) {
+        filterSelect.value = targetValue;
+      }
+    }
+
+    // ---- Input source right-click context menu ----
+    let activeInputSourceMenu = null;
+
+    function closeInputSourceMenu() {
+      if (activeInputSourceMenu) {
+        activeInputSourceMenu.remove();
+        activeInputSourceMenu = null;
+      }
+    }
+
+    function showInputSourceMenu(event, channelType, channelNum, currentSource) {
+      event.preventDefault();
+      event.stopPropagation();
+      closeInputSourceMenu();
+
+      const sources = [
+        { id: 0, label: 'Analog (XLR)', cls: 'source-analog' },
+        { id: 1, label: 'Network', cls: 'source-network' },
+        { id: 2, label: 'USB', cls: 'source-usb' },
+        { id: 3, label: 'SD Card', cls: 'source-sdcard' },
+      ];
+
+      const menu = document.createElement('div');
+      menu.className = 'input-source-menu';
+
+      for (const src of sources) {
+        const item = document.createElement('div');
+        item.className = 'input-source-menu-item' + (src.id === currentSource ? ' active' : '');
+        item.innerHTML = getInputSourceLabelGlobal(src.id) + `<span>${src.label}</span>`;
+        item.addEventListener('click', async () => {
+          closeInputSourceMenu();
+          const result = await ipcRenderer.invoke('set-channel-input-source', channelType, channelNum, src.id);
+          if (result.success) {
+            updateInputSourceIndicator(channelType, channelNum, src.id);
+          }
+        });
+        menu.appendChild(item);
+      }
+
+      document.body.appendChild(menu);
+      activeInputSourceMenu = menu;
+
+      // Position near click, clamped to viewport
+      const x = Math.min(event.clientX, window.innerWidth - 160);
+      const y = Math.min(event.clientY, window.innerHeight - menu.offsetHeight - 10);
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+
+      // Close on click outside
+      setTimeout(() => {
+        document.addEventListener('click', closeInputSourceMenu, { once: true });
+      }, 0);
+    }
+
+    // Global version of getInputSourceLabel (same SVGs as in loadFaders)
+    function getInputSourceLabelGlobal(inputsrc) {
+      const src = (inputsrc === null || inputsrc === undefined) ? 0 : inputsrc;
+      switch (src) {
+        case 0: return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" aria-label="Analog (XLR)"><circle cx="8" cy="8" r="6.5" stroke-width="1.5" stroke-dasharray="28.63 4 8.21"/><rect x="5.5" y="0.2" width="5" height="2.2" rx="0.4" fill="currentColor" stroke="none"/><circle cx="11.6" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="11.6" r="1.0" fill="currentColor" stroke="none"/><circle cx="4.4" cy="8" r="1.0" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="3.6" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.5" fill="rgba(0,0,0,0.6)" stroke="none"/></svg>`;
+        case 1: return `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-label="Network"><rect x="5" y="1" width="6" height="3.5" rx="0.8"/><rect x="1" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="6" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="11" y="11.5" width="4" height="3.5" rx="0.8"/><rect x="7.3" y="4.5" width="1.4" height="3" rx="0.3"/><rect x="1.5" y="8.8" width="13" height="1.4" rx="0.3"/><rect x="2.5" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="7.3" y="8.8" width="1.4" height="2.7" rx="0.3"/><rect x="12.1" y="8.8" width="1.4" height="2.7" rx="0.3"/></svg>`;
+        case 2: return `<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="USB"><line x1="12" y1="4" x2="12" y2="20" fill="none"/><polygon points="12,1 9,5.5 15,5.5" stroke="none"/><circle cx="12" cy="21.5" r="2" stroke="none"/><path d="M12,15 Q6,15 6,9" fill="none"/><circle cx="6" cy="7" r="2" fill="none" stroke-width="2"/><path d="M12,11 Q18,11 18,6" fill="none"/><rect x="16.2" y="3.8" width="3.6" height="3.6" rx="0.5" stroke="none"/></svg>`;
+        case 3: return `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" aria-label="SD Card"><path d="M3 1.5h7l3.5 3.5V15H3V1.5z"/><line x1="5" y1="9" x2="5" y2="14" stroke-width="1"/><line x1="7.5" y1="9" x2="7.5" y2="14" stroke-width="1"/><line x1="10" y1="9" x2="10" y2="14" stroke-width="1"/></svg>`;
+        default: return getInputSourceLabelGlobal(0);
+      }
+    }
+
     // Update channel icon
     function updateChannelIcon(channelType, channelNum, iconId) {
       const faderId = `${channelType}-${channelNum}`;
@@ -7243,13 +7931,30 @@
     function updateMuteButton(channelType, channelNum, muted) {
       const faderId = `${channelType}-${channelNum}`;
       const muteBtn = document.getElementById(`mute-btn-${faderId}`);
-      if (muteBtn) {
-        if (muted) {
-          muteBtn.classList.add('active');
+      if (!muteBtn) return;
+      if (muted === null || muted === undefined) return;
+      // Normalize: booleans pass through; numbers compare to 0; IPC-serialized
+      // Buffers come across as { type: 'Buffer', data: [byte…] } or Uint8Array.
+      // Without this, a pass-through Buffer reads truthy even when it holds
+      // the 4-byte LE float 0.0 — so "unmute" never clears the active class.
+      let isMuted;
+      if (typeof muted === 'boolean') isMuted = muted;
+      else if (typeof muted === 'number') isMuted = muted > 0;
+      else if (muted && typeof muted === 'object') {
+        const bytes = muted instanceof Uint8Array
+          ? muted
+          : (Array.isArray(muted.data) ? muted.data : null);
+        if (bytes && bytes.length >= 4) {
+          // IEEE 754 LE float: exponent byte at idx 3. 1.0 = [0,0,128,63], 0.0 = [0,0,0,0]
+          isMuted = !(bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0);
         } else {
-          muteBtn.classList.remove('active');
+          isMuted = Boolean(muted);
         }
+      } else {
+        isMuted = Boolean(muted);
       }
+      if (isMuted) muteBtn.classList.add('active');
+      else muteBtn.classList.remove('active');
     }
 
     // Toggle solo for a channel
@@ -7272,13 +7977,26 @@
     function updateSoloButton(channelType, channelNum, soloed) {
       const faderId = `${channelType}-${channelNum}`;
       const soloBtn = document.getElementById(`solo-btn-${faderId}`);
-      if (soloBtn) {
-        if (soloed) {
-          soloBtn.classList.add('active');
+      if (!soloBtn) return;
+      if (soloed === null || soloed === undefined) return;
+      // Same Buffer-safe normalization as updateMuteButton.
+      let isSoloed;
+      if (typeof soloed === 'boolean') isSoloed = soloed;
+      else if (typeof soloed === 'number') isSoloed = soloed > 0;
+      else if (soloed && typeof soloed === 'object') {
+        const bytes = soloed instanceof Uint8Array
+          ? soloed
+          : (Array.isArray(soloed.data) ? soloed.data : null);
+        if (bytes && bytes.length >= 4) {
+          isSoloed = !(bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 0);
         } else {
-          soloBtn.classList.remove('active');
+          isSoloed = Boolean(soloed);
         }
+      } else {
+        isSoloed = Boolean(soloed);
       }
+      if (isSoloed) soloBtn.classList.add('active');
+      else soloBtn.classList.remove('active');
     }
 
     // Setup fader mouse interaction
@@ -7399,6 +8117,23 @@
         // Right click for context menu on channel background
         channel.addEventListener('contextmenu', (e) => {
           if (window.appMode === 'run') return;
+
+          // Right-click on input source indicator — show source selection menu
+          if (e.target.closest('.input-source')) {
+            const faderId = channel.getAttribute('data-fader-id');
+            if (faderId) {
+              const [chType, chNumStr] = faderId.split('-');
+              const chNum = parseInt(chNumStr);
+              if (['LINE', 'FX', 'FXRETURN'].includes(chType)) {
+                const indicator = e.target.closest('.input-source');
+                const currentCls = ['source-analog','source-network','source-usb','source-sdcard'].find(c => indicator.classList.contains(c));
+                const currentSource = currentCls === 'source-network' ? 1 : currentCls === 'source-usb' ? 2 : currentCls === 'source-sdcard' ? 3 : 0;
+                showInputSourceMenu(e, chType, chNum, currentSource);
+                return;
+              }
+            }
+          }
+
           // Check if clicking on specific elements
           if (e.target.closest('.fader-container')) {
             // Right-click on fader slider - show fader volume menu

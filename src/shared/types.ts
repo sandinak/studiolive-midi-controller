@@ -53,6 +53,7 @@ export interface MappingPreset {
   midiFeedbackEnabled?: boolean;  // MIDI feedback enabled state
   levelVisibility?: 'none' | 'indicator' | 'meter';  // Channel level display mode
   peakHold?: boolean;  // Peak hold for meter mode
+  faderStacking?: boolean;  // Stack faders in rows when >16 channels
   mappings: MidiMapping[];
 }
 

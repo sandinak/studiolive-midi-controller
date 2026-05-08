@@ -6,3 +6,4 @@ release/
 .env
 .vscode/
 .idea/
+.claude/

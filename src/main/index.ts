@@ -3,6 +3,8 @@
 import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as net from 'net';
+import * as os from 'os';
 import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
@@ -581,15 +583,323 @@ ipcMain.handle('get-preferred-mixer-ip', async () => {
   return mappingEngine.getPreferredMixerIp();
 });
 
+// ---------------------------------------------------------------------------
+// Active subnet sweep — TCP-probes every host on each local IPv4 interface's
+// subnet for port 53000. This is needed because PreSonus Universal Control
+// (which commonly runs alongside this app) binds UDP/47809 without
+// SO_REUSEPORT, blocking us from receiving discovery broadcasts on macOS.
+// ---------------------------------------------------------------------------
+
+function ipToNum(ip: string): number {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4 || parts.some(p => Number.isNaN(p) || p < 0 || p > 255)) return -1;
+  return (((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0);
+}
+
+function numToIp(n: number): string {
+  return [(n >>> 24) & 0xFF, (n >>> 16) & 0xFF, (n >>> 8) & 0xFF, n & 0xFF].join('.');
+}
+
+function netmaskToCidr(mask: string): number {
+  const parts = mask.split('.').map(Number);
+  if (parts.length !== 4) return 0;
+  let cidr = 0;
+  let done = false;
+  for (const p of parts) {
+    for (let i = 7; i >= 0; i--) {
+      const bit = (p >>> i) & 1;
+      if (done && bit) return 0; // Non-contiguous — malformed mask
+      if (bit) cidr++;
+      else done = true;
+    }
+  }
+  return cidr;
+}
+
+function probeTcp(ip: string, port: number, timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    let settled = false;
+    const done = (r: boolean) => {
+      if (settled) return;
+      settled = true;
+      try { socket.destroy(); } catch {}
+      resolve(r);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => done(true));
+    socket.once('error', () => done(false));
+    socket.once('timeout', () => done(false));
+    try { socket.connect(port, ip); } catch { done(false); }
+  });
+}
+
+/**
+ * Sweep every host on each local IPv4 /22-or-smaller subnet. Calls `onFound`
+ * for each responder. Skips the machine's own IPs and the network/broadcast
+ * addresses. Concurrency-limited to avoid exhausting fd limits.
+ * `priorityIps` places their containing interfaces first in the target list
+ * so likely candidates get probed early even when the sweep is large.
+ */
+async function sweepLocalSubnets(
+  onFound: (ip: string) => void,
+  opts: { timeoutMs?: number; concurrency?: number; maxHostsPerIface?: number; priorityIps?: string[] } = {},
+): Promise<void> {
+  const timeoutMs = opts.timeoutMs ?? 600;
+  const concurrency = opts.concurrency ?? 128;
+  const maxHostsPerIface = opts.maxHostsPerIface ?? 1024; // /22 safety cap
+  const priorityIpNums = (opts.priorityIps ?? [])
+    .map(ipToNum)
+    .filter(n => n >= 0);
+
+  const seen = new Set<string>();
+  const localIps = new Set<string>();
+
+  // Per-interface host lists, then sorted so interfaces containing a priority
+  // IP get probed first. This ensures the user's known candidate mixers are
+  // reached within the first second or two of the scan.
+  type IfaceBucket = { priority: number; hosts: string[] };
+  const buckets: IfaceBucket[] = [];
+
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const iface of list ?? []) {
+      if (iface.family !== 'IPv4' || iface.internal) continue;
+      localIps.add(iface.address);
+    }
+  }
+
+  for (const list of Object.values(os.networkInterfaces())) {
+    for (const iface of list ?? []) {
+      if (iface.family !== 'IPv4' || iface.internal) continue;
+      const cidr = netmaskToCidr(iface.netmask);
+      if (cidr < 22 || cidr > 30) continue;
+      const ipNum = ipToNum(iface.address);
+      if (ipNum < 0) continue;
+      const mask = cidr === 32 ? 0xFFFFFFFF : ((0xFFFFFFFF << (32 - cidr)) >>> 0);
+      const network = (ipNum & mask) >>> 0;
+      const broadcast = (network | ((~mask) >>> 0)) >>> 0;
+      const hostCount = broadcast - network - 1;
+      if (hostCount <= 0 || hostCount > maxHostsPerIface) continue;
+      const hosts: string[] = [];
+      for (let i = network + 1; i < broadcast; i++) {
+        const host = numToIp(i);
+        if (localIps.has(host) || seen.has(host)) continue;
+        seen.add(host);
+        hosts.push(host);
+      }
+      // Interface is high-priority if any candidate IP falls in its range.
+      const isPriority = priorityIpNums.some(n => n >= network && n <= broadcast);
+      buckets.push({ priority: isPriority ? 0 : 1, hosts });
+    }
+  }
+
+  buckets.sort((a, b) => a.priority - b.priority);
+  const targets = buckets.flatMap(b => b.hosts);
+
+  let idx = 0;
+  const workers: Promise<void>[] = [];
+  for (let w = 0; w < concurrency; w++) {
+    workers.push((async () => {
+      while (idx < targets.length) {
+        const ip = targets[idx++];
+        if (await probeTcp(ip, 53000, timeoutMs)) {
+          onFound(ip);
+        }
+      }
+    })());
+  }
+  await Promise.all(workers);
+}
+
+/**
+ * Open a short-lived SimpleClient connection purely to read the mixer's
+ * identity (user-assigned name, model, serial) from its state tree, then
+ * close. Used to enrich TCP-probed entries that the UDP broadcast path
+ * didn't supply metadata for — so the user sees real names in the Find
+ * Mixer list without committing to a full "use this mixer" connection.
+ */
+async function identifyMixer(
+  ip: string,
+  timeoutMs: number = 4000,
+): Promise<{ model?: string; deviceName?: string; serial?: string } | null> {
+  // Lazy-require so tests that stub 'presonus-studiolive-api/simple' still work.
+  const { SimpleClient } = require('presonus-studiolive-api/simple');
+  const client = new SimpleClient({ host: ip, port: 53000 });
+  // Swallow error events so an unreachable or protocol-mismatch host doesn't
+  // bubble an unhandled-error event to the app.
+  try { client.on('error', () => {}); } catch {}
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result: { model?: string; deviceName?: string; serial?: string } | null) => {
+      if (settled) return;
+      settled = true;
+      try { client.close(); } catch {}
+      resolve(result);
+    };
+    const overallTimeout = setTimeout(() => finish(null), timeoutMs);
+    client.connect().then(() => {
+      // State populates in the first ~500-800ms after handshake; sample then.
+      setTimeout(() => {
+        if (settled) return;
+        const state = (client as any).state;
+        const pick = (...paths: string[]): string | undefined => {
+          for (const p of paths) {
+            const v = state && state.get ? state.get(p) : null;
+            if (typeof v === 'string' && v.trim()) return v.trim();
+          }
+          return undefined;
+        };
+        const deviceName = pick('global.devicename', 'global.name', 'device.name');
+        const model = pick('global.mixer_name', 'device.model');
+        const serial = pick('global.mixer_serial', 'device.serial');
+        clearTimeout(overallTimeout);
+        finish({ model, deviceName, serial });
+      }, 800);
+    }).catch(() => {
+      clearTimeout(overallTimeout);
+      finish(null);
+    });
+  });
+}
+
+// Renderer-facing identify: brief connect to read identity without committing
+// to "use this mixer". Used by the Find Mixer dialog's manual/saved probes.
+ipcMain.handle('identify-mixer-ip', async (_event, ip: string, timeoutMs: number = 4000) => {
+  if (typeof ip !== 'string' || !ip) return null;
+  return identifyMixer(ip, Math.max(500, Math.min(10000, timeoutMs)));
+});
+
 ipcMain.handle('discover-mixers', async (event) => {
   discoveredMixers = [];
-  const result = await MixerManager.discoverProgressive(10000, (device) => {
-    discoveredMixers.push(device);
-    // Stream each device to the renderer as it's found
-    event.sender.send('discovery-result', device);
+  // Track IPs we've already surfaced so UDP and TCP paths don't double-emit.
+  // Entries with a real `serial` are "rich" and win over minimal ones.
+  const emitted = new Map<string, DiscoveryType>();
+  const identifyPromises: Promise<void>[] = [];
+
+  const emitRich = (rich: DiscoveryType) => {
+    const prev = emitted.get(rich.ip);
+    if (prev && prev.serial) return; // already have a rich entry for this IP
+    emitted.set(rich.ip, rich);
+    const idx = discoveredMixers.findIndex(d => d.ip === rich.ip);
+    if (idx >= 0) discoveredMixers[idx] = rich; else discoveredMixers.push(rich);
+    event.sender.send('discovery-result', rich);
+  };
+
+  const udpPromise = MixerManager.discoverProgressive(10000, (device) => {
+    emitRich(device);
   });
-  discoveredMixers = result;
+
+  // Prioritize the interface that hosts the user's saved mixer IP — that's
+  // where the next mixer is most likely to appear too.
+  const savedIp = mappingEngine.getPreferredMixerIp();
+  const priorityIps = savedIp ? [savedIp] : [];
+
+  const sweepPromise = sweepLocalSubnets((ip) => {
+    if (emitted.has(ip)) return; // UDP got there first with richer data
+    const minimal = {
+      name: '', model: '', serial: '', ip, port: 53000, timestamp: new Date(),
+    } as unknown as DiscoveryType;
+    emitted.set(ip, minimal);
+    discoveredMixers.push(minimal);
+    event.sender.send('discovery-result', minimal);
+
+    // Enrich the entry by briefly connecting to read identity from state.
+    identifyPromises.push(
+      identifyMixer(ip, 4000).then((info) => {
+        if (!info) return;
+        if (!info.model && !info.serial && !info.deviceName) return;
+        emitRich({
+          name: info.model || '',
+          model: info.model || '',
+          deviceName: info.deviceName,
+          serial: info.serial || '',
+          ip,
+          port: 53000,
+          timestamp: new Date(),
+        } as unknown as DiscoveryType);
+      }).catch(() => {}),
+    );
+  }, { priorityIps });
+
+  await Promise.all([udpPromise, sweepPromise]);
+  await Promise.all(identifyPromises);
   return discoveredMixers;
+});
+
+ipcMain.handle('check-mixer-match', async (_event, serial: string | null, model: string | null, ip: string) => {
+  return mappingEngine.checkMixerMatch(serial, model, ip);
+});
+
+// Create a fresh preset for a newly-encountered mixer. Leaves the current
+// preset file on disk untouched — the new preset becomes the active one.
+ipcMain.handle('create-preset-for-mixer', async (_event, name: string, ip: string, model?: string, deviceName?: string, serial?: string) => {
+  try {
+    if (typeof name !== 'string' || !name.trim()) {
+      return { success: false, error: 'Preset name is required' };
+    }
+    if (typeof ip !== 'string' || !ip) {
+      return { success: false, error: 'Mixer IP is required' };
+    }
+    const presetsDir = ensureProfilesDir();
+    const safeSlug = name.trim().toLowerCase().replace(/[^a-z0-9\- _]/g, '').replace(/\s+/g, '-');
+    if (!safeSlug) {
+      return { success: false, error: 'Invalid preset name' };
+    }
+    const presetPath = path.join(presetsDir, `${safeSlug}.json`);
+    if (fs.existsSync(presetPath)) {
+      return { success: false, error: `A preset named "${safeSlug}" already exists` };
+    }
+    mappingEngine.createPresetForMixer(
+      presetPath,
+      name.trim(),
+      ip,
+      model || null,
+      deviceName || null,
+      serial || null,
+    );
+    currentPresetPath = presetPath;
+    if (mainWindow) {
+      const mtime = fs.statSync(presetPath).mtime.toISOString();
+      mainWindow.webContents.send('preset-loaded', {
+        name: name.trim(),
+        path: presetPath,
+        mtime,
+      });
+    }
+    return { success: true, path: presetPath, name: name.trim() };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+});
+
+// Active TCP probe of a mixer IP. UDP broadcast discovery is confined to the
+// local broadcast domain, so it misses mixers reachable via routing/VPN. This
+// lets the renderer supplement discovery by directly probing port 53000.
+ipcMain.handle('probe-mixer-ip', async (_event, ip: string, timeoutMs: number = 1500) => {
+  if (typeof ip !== 'string' || !ip) return { reachable: false };
+  return new Promise((resolve) => {
+    const net = require('net');
+    const socket = new net.Socket();
+    let settled = false;
+    const done = (reachable: boolean) => {
+      if (settled) return;
+      settled = true;
+      try { socket.destroy(); } catch {}
+      resolve({ reachable });
+    };
+    socket.setTimeout(Math.max(250, Math.min(10000, timeoutMs)));
+    socket.once('connect', () => done(true));
+    socket.once('error', () => done(false));
+    socket.once('timeout', () => done(false));
+    try {
+      socket.connect(53000, ip);
+    } catch {
+      done(false);
+    }
+  });
 });
 
 ipcMain.handle('connect-mixer', async (_event, ip: string, model?: string, deviceName?: string, serial?: string) => {
@@ -750,6 +1060,15 @@ ipcMain.handle('set-mixer-volume', async (_event, type: string, channel: number,
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return { success: false, error: errorMessage };
+  }
+});
+
+ipcMain.handle('get-channel-counts', async () => {
+  try {
+    if (!mixerManager.isConnected()) return null;
+    return mixerManager.getChannelCounts();
+  } catch (error) {
+    return null;
   }
 });
 
@@ -1147,6 +1466,28 @@ ipcMain.handle('set-level-visibility', async (_event, v: string) => {
 ipcMain.handle('set-peak-hold', async (_event, v: boolean) => {
   mappingEngine.setPeakHold(v);
   return { success: true };
+});
+
+ipcMain.handle('get-fader-stacking', async () => {
+  return mappingEngine.getFaderStacking();
+});
+
+ipcMain.handle('set-fader-stacking', async (_event, v: boolean) => {
+  mappingEngine.setFaderStacking(v);
+  return { success: true };
+});
+
+ipcMain.handle('set-channel-input-source', async (_event, type: string, channel: number, source: number) => {
+  try {
+    if (!mixerManager.isConnected()) {
+      return { success: false, error: 'Not connected to mixer' };
+    }
+    mixerManager.setChannelInputSource(type, channel, source);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return { success: false, error: errorMessage };
+  }
 });
 
 ipcMain.handle('open-docs', async () => {

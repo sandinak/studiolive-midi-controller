@@ -1,6 +1,6 @@
 # Makefile for StudioLive MIDI Controller
 
-.PHONY: help build clean dev start dist dist-mac dist-win dist-all install setup typecheck copy-assets rebuild install-deps build-deps test
+.PHONY: help build clean dev start dist dist-mac dist-win dist-all install setup typecheck copy-assets rebuild install-deps build-deps test release
 
 # Paths
 DEPS_DIR  = ../presonus-studiolive-api
@@ -79,7 +79,8 @@ dist-mac: build ## Build macOS DMG — loads .env for signing/notarization if pr
 		echo "  Loading Apple credentials from .env for notarization..."; \
 		set -a && . ./.env && set +a && NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac; \
 	else \
-		echo "  No .env found — building unsigned (create .env to enable notarization)"; \
+		echo "  ⚠ WARNING: No .env found — building UNSIGNED (use 'make release' for signed builds)"; \
+		echo "  ⚠ This build should NOT be distributed to users"; \
 		NODE_OPTIONS=--max-old-space-size=8192 npm run dist -- --mac; \
 	fi
 	@echo "Restoring dev symlink and native modules..."
@@ -102,3 +103,84 @@ typecheck: ## Run TypeScript type checking without building
 
 test: ## Run Jest unit tests
 	npm test
+
+# ---------------------------------------------------------------------------
+# Release pipeline — build, test, sign, and push
+# ---------------------------------------------------------------------------
+release: ## Full release: typecheck, test, build signed packages, and push tag
+	@echo ""
+	@echo "���═════════════════════════════════════════════════════════"
+	@echo "  Release pipeline — $(shell node -p "require('./package.json').version")"
+	@echo "══════════════════════════════════════════════════════════"
+	@echo ""
+	@# --- Pre-flight checks ---
+	@echo "▶ [1/7] Pre-flight checks..."
+	@if [ ! -f .env ]; then \
+		echo "  ✗ ERROR: .env file not found — signing credentials required for release"; \
+		echo "    Create .env with APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID"; \
+		exit 1; \
+	fi
+	@for var in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do \
+		if ! grep -q "$$var" .env; then \
+			echo "  ✗ ERROR: $$var missing from .env — all signing credentials required for release"; \
+			echo "    Required: APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID"; \
+			exit 1; \
+		fi; \
+	done
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "  ✗ ERROR: Working tree is dirty — commit or stash changes before releasing"; \
+		git status --short; \
+		exit 1; \
+	fi
+	@echo "  ✓ .env present with all signing credentials"
+	@echo "  ✓ Working tree is clean"
+	@echo ""
+	@# --- TypeScript type check ---
+	@echo "▶ [2/7] TypeScript type check..."
+	@$(MAKE) typecheck
+	@echo "  ✓ Type check passed"
+	@echo ""
+	@# --- Run tests ---
+	@echo "▶ [3/7] Running tests..."
+	@npm test
+	@echo "  ✓ All tests passed"
+	@echo ""
+	@# --- Build signed packages ---
+	@echo "▶ [4/7] Building signed macOS packages..."
+	@$(MAKE) dist-mac
+	@echo "  ✓ Signed macOS packages built"
+	@echo ""
+	@# --- Verify code signature ---
+	@echo "▶ [5/7] Verifying code signature..."
+	@APP=$$(find release/mac* -name '*.app' -maxdepth 2 | head -1); \
+	if [ -z "$$APP" ]; then \
+		echo "  ✗ ERROR: No .app bundle found in release/ — build may have failed"; \
+		exit 1; \
+	fi; \
+	if ! codesign --verify --deep --strict "$$APP" 2>/dev/null; then \
+		echo "  ✗ ERROR: Code signature verification FAILED on $$APP"; \
+		echo "    This release would be unsigned — aborting to prevent another v1.3.1 incident"; \
+		exit 1; \
+	fi; \
+	TEAM=$$(codesign -dv "$$APP" 2>&1 | grep TeamIdentifier | cut -d= -f2); \
+	echo "  ✓ Code signature valid (Team: $$TEAM)"
+	@echo ""
+	@# --- Tag the release ---
+	@echo "▶ [6/7] Tagging release..."
+	@VERSION=$$(node -p "require('./package.json').version"); \
+	if git rev-parse "v$$VERSION" >/dev/null 2>&1; then \
+		echo "  ⚠ Tag v$$VERSION already exists — skipping tag creation"; \
+	else \
+		git tag -a "v$$VERSION" -m "Release v$$VERSION"; \
+		echo "  ✓ Created tag v$$VERSION"; \
+	fi
+	@echo ""
+	@# --- Push ---
+	@echo "▶ [7/7] Pushing to remote..."
+	@VERSION=$$(node -p "require('./package.json').version"); \
+	git push && git push origin "v$$VERSION"
+	@echo "  ✓ Pushed branch and tag"
+	@echo ""
+	@echo "══════════════════════════════════════════════════════════"
+	@echo "  ✓ Release v$$(node -p "require('./package.json').version") complete!"
+	@echo "══════════════════════════════════════════════════════════"
