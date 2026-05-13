@@ -568,6 +568,10 @@ app.on('before-quit', async (event) => {
 });
 
 app.on('activate', () => {
+  // On macOS `activate` can fire before `whenReady` resolves (e.g. when the
+  // app is launched via the dock). Constructing a BrowserWindow before the
+  // app is ready throws "Cannot create BrowserWindow before app is ready".
+  if (!app.isReady()) return;
   if (mainWindow === null) {
     createWindow();
     startReconnectionLoop();
