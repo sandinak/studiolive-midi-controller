@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-06-03
+
+### Fixed
+- **CI release workflow** — bumped GitHub Actions `node-version` from 18 → 22 in `.github/workflows/release.yml`. Node 18 lacks `styleText` in `node:util`, which the upstream `presonus-studiolive-api` build pipeline (rolldown/tsdown) now imports, causing both the macOS and Windows CI jobs to fail. v1.4.0 and v1.4.1 both hit this and shipped without a CI-built Windows artifact; v1.4.2's CI pipeline now produces the full Mac + Windows release.
+
 ## [1.4.1] - 2026-05-13
 
 ### Fixed
