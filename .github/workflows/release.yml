@@ -58,8 +58,15 @@ jobs:
           if [ -n "$CSC_LINK" ]; then
             NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac -p never
           else
+            # package.json has notarize:true and hardenedRuntime:true; without
+            # signing creds we must override both, otherwise electron-builder
+            # still attempts to sign and fails with "... not a file".
             echo "No signing credentials — building unsigned"
-            CSC_IDENTITY_AUTO_DISCOVERY=false NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac -p never
+            CSC_IDENTITY_AUTO_DISCOVERY=false NODE_OPTIONS=--max-old-space-size=8192 \
+              npx electron-builder --mac -p never \
+                --config.mac.identity=null \
+                --config.mac.notarize=false \
+                --config.mac.hardenedRuntime=false
           fi
 
       - name: Upload macOS release assets
