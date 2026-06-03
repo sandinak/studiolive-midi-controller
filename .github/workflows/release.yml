@@ -18,6 +18,11 @@ jobs:
         with:
           node-version: '22'
 
+      # node-gyp needs distutils to build @julusian/midi; Python 3.12+ removed it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Clone and build presonus-studiolive-api
         run: |
           cd "$GITHUB_WORKSPACE/.."
@@ -70,6 +75,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      # node-gyp needs distutils to build @julusian/midi; Python 3.12+ removed it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
       - name: Clone and build presonus-studiolive-api
         shell: bash
