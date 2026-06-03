@@ -52,11 +52,14 @@ jobs:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: |
+          # -p never disables electron-builder auto-publish (uploads are
+          # handled by softprops/action-gh-release below); without this it
+          # demands GH_TOKEN whenever a tag is present.
           if [ -n "$CSC_LINK" ]; then
-            NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac
+            NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac -p never
           else
             echo "No signing credentials — building unsigned"
-            CSC_IDENTITY_AUTO_DISCOVERY=false NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac
+            CSC_IDENTITY_AUTO_DISCOVERY=false NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac -p never
           fi
 
       - name: Upload macOS release assets
@@ -119,7 +122,7 @@ jobs:
           [ -d "$DEPS_DIR/node_modules" ] && cp -r "$DEPS_DIR/node_modules" node_modules/presonus-studiolive-api/ || true
 
       - name: Build Windows packages
-        run: npx electron-builder --win
+        run: npx electron-builder --win -p never
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
