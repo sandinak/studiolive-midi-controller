@@ -1,0 +1,51 @@
+name: CI
+
+# release.yml only fires on v* tags and only builds packages, so nothing
+# gated ordinary commits. This runs the type checker and the test suite on
+# every push and pull request.
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # node-gyp needs distutils to build @julusian/midi; Python 3.12+ removed it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # package.json depends on presonus-studiolive-api via a `file:` path, so
+      # `npm install` and the type checker both need it present and built.
+      - name: Clone and build presonus-studiolive-api
+        run: |
+          cd "$GITHUB_WORKSPACE/.."
+          git clone --depth 1 https://github.com/featherbear/presonus-studiolive-api.git
+          cd presonus-studiolive-api && npm install && npm run build
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npm run typecheck
+
+      # Enforces the coverage thresholds in jest.config.js. The integration
+      # suite self-skips without MIXER_IP, which no runner has.
+      - name: Test with coverage
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 14

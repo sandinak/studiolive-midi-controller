@@ -11,6 +11,7 @@ import { MappingEngine } from './mapping-engine';
 import { clampCount } from './ipc-validators';
 import { compareVersions, pickLatestVersion } from './update-checker';
 import { buildLevelFeedback } from './midi-feedback';
+import { subnetHosts, isInSubnet } from './net-utils';
 import { TuioManager } from './tuio-manager';
 import type { MidiMapping } from '../shared/types';
 import type { DiscoveryType } from 'presonus-studiolive-api';
@@ -600,32 +601,6 @@ ipcMain.handle('get-preferred-mixer-ip', async () => {
 // SO_REUSEPORT, blocking us from receiving discovery broadcasts on macOS.
 // ---------------------------------------------------------------------------
 
-function ipToNum(ip: string): number {
-  const parts = ip.split('.').map(Number);
-  if (parts.length !== 4 || parts.some(p => Number.isNaN(p) || p < 0 || p > 255)) return -1;
-  return (((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0);
-}
-
-function numToIp(n: number): string {
-  return [(n >>> 24) & 0xFF, (n >>> 16) & 0xFF, (n >>> 8) & 0xFF, n & 0xFF].join('.');
-}
-
-function netmaskToCidr(mask: string): number {
-  const parts = mask.split('.').map(Number);
-  if (parts.length !== 4) return 0;
-  let cidr = 0;
-  let done = false;
-  for (const p of parts) {
-    for (let i = 7; i >= 0; i--) {
-      const bit = (p >>> i) & 1;
-      if (done && bit) return 0; // Non-contiguous — malformed mask
-      if (bit) cidr++;
-      else done = true;
-    }
-  }
-  return cidr;
-}
-
 function probeTcp(ip: string, port: number, timeoutMs: number): Promise<boolean> {
   return new Promise((resolve) => {
     const socket = new net.Socket();
@@ -658,9 +633,7 @@ async function sweepLocalSubnets(
   const timeoutMs = opts.timeoutMs ?? 600;
   const concurrency = opts.concurrency ?? 128;
   const maxHostsPerIface = opts.maxHostsPerIface ?? 1024; // /22 safety cap
-  const priorityIpNums = (opts.priorityIps ?? [])
-    .map(ipToNum)
-    .filter(n => n >= 0);
+  const priorityIps = opts.priorityIps ?? [];
 
   const seen = new Set<string>();
   const localIps = new Set<string>();
@@ -681,24 +654,15 @@ async function sweepLocalSubnets(
   for (const list of Object.values(os.networkInterfaces())) {
     for (const iface of list ?? []) {
       if (iface.family !== 'IPv4' || iface.internal) continue;
-      const cidr = netmaskToCidr(iface.netmask);
-      if (cidr < 22 || cidr > 30) continue;
-      const ipNum = ipToNum(iface.address);
-      if (ipNum < 0) continue;
-      const mask = cidr === 32 ? 0xFFFFFFFF : ((0xFFFFFFFF << (32 - cidr)) >>> 0);
-      const network = (ipNum & mask) >>> 0;
-      const broadcast = (network | ((~mask) >>> 0)) >>> 0;
-      const hostCount = broadcast - network - 1;
-      if (hostCount <= 0 || hostCount > maxHostsPerIface) continue;
-      const hosts: string[] = [];
-      for (let i = network + 1; i < broadcast; i++) {
-        const host = numToIp(i);
-        if (localIps.has(host) || seen.has(host)) continue;
-        seen.add(host);
-        hosts.push(host);
-      }
+      const hosts = subnetHosts(iface.address, iface.netmask, { maxHosts: maxHostsPerIface })
+        .filter(host => {
+          if (localIps.has(host) || seen.has(host)) return false;
+          seen.add(host);
+          return true;
+        });
+      if (hosts.length === 0) continue;
       // Interface is high-priority if any candidate IP falls in its range.
-      const isPriority = priorityIpNums.some(n => n >= network && n <= broadcast);
+      const isPriority = priorityIps.some(p => isInSubnet(p, iface.address, iface.netmask));
       buckets.push({ priority: isPriority ? 0 : 1, hosts });
     }
   }
