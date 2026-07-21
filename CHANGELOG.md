@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-07-21
+
+### Security
+- **Electron 28 → 43.** Electron ships inside the app, so its advisories were the only ones here that reached users — ASAR integrity bypass and AppleScript injection in `app.moveToApplicationsFolder` among them. `npm audit` now reports **0 vulnerabilities**, down from 20 (2 critical, 15 high). The remaining 44 Dependabot alerts were all build tooling that never leaves the build machine.
+
+### Fixed
+- **macOS and Windows builds were not the same software.** `package.json` depended on `presonus-studiolive-api` through `file:../presonus-studiolive-api`, but CI cloned `featherbear/master` while local builds used the sibling checkout — which carried unpublished fixes. The two platforms' artifacts were built against different versions of the mixer protocol library, v1.5.0 included. The library is now pinned to a published tag, so every platform builds identical code.
+- **Dependabot had never run.** It clones only this repository, so the `file:` path dependency made it abort at file fetching every time — "path based dependencies could not be retrieved" — without opening a single PR. That is how 44 alerts accumulated unnoticed. With the dependency resolvable from a URL it works, and `.github/dependabot.yml` now configures weekly npm and github-actions updates, grouped so an Electron bump arrives as one PR.
+- `app.dock.setIcon` is now guarded — Electron 43 correctly types `app.dock` as undefined off macOS.
+
+### Changed
+- Both workflows drop the clone-and-build-the-dependency step and the copy-into-`node_modules` dance; `npm ci` is enough. This also removes what the npm 10.9 workaround and the `windows-2022` pin were compensating for.
+- `make release` reinstalls dependencies during pre-flight, so a local `make link-local` override can never end up in a release.
+- New `make link-local` / `make unlink-local` for developing against a local checkout of the API library, replacing `install-deps` / `build-deps`.
+
+### Upstream
+
+Published as [`sandinak/presonus-studiolive-api` v1.8.1](https://github.com/sandinak/presonus-studiolive-api/releases/tag/v1.8.1) — per-client packet reassembly state (module-level singletons corrupted each other across concurrent connections), 15-second connection and handshake timeouts, sleep/wake reconnect, a `MeterServer` error handler that threw instead of rejecting, and discovery accepting port 53000 for R-series consoles. Plus a 160-test vitest suite.
+
 ## [1.5.0] - 2026-07-21
 
 ### Fixed
