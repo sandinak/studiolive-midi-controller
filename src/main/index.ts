@@ -12,6 +12,7 @@ import { clampCount } from './ipc-validators';
 import { compareVersions, pickLatestVersion } from './update-checker';
 import { buildLevelFeedback } from './midi-feedback';
 import { subnetHosts, isInSubnet } from './net-utils';
+import { slugifyPresetName, presetPathFor, isWithinDirectory } from './preset-paths';
 import { TuioManager } from './tuio-manager';
 import type { MidiMapping } from '../shared/types';
 import type { DiscoveryType } from 'presonus-studiolive-api';
@@ -815,7 +816,7 @@ ipcMain.handle('create-preset-for-mixer', async (_event, name: string, ip: strin
       return { success: false, error: 'Mixer IP is required' };
     }
     const presetsDir = ensureProfilesDir();
-    const safeSlug = name.trim().toLowerCase().replace(/[^a-z0-9\- _]/g, '').replace(/\s+/g, '-');
+    const safeSlug = slugifyPresetName(name);
     if (!safeSlug) {
       return { success: false, error: 'Invalid preset name' };
     }
@@ -1278,7 +1279,10 @@ ipcMain.handle('remove-mapping', async (_event, index: number) => {
 ipcMain.handle('save-preset', async (_event, name: string, description?: string) => {
   try {
     const presetsDir = ensureProfilesDir();
-    const presetPath = path.join(presetsDir, `${name.toLowerCase().replace(/\s+/g, '-')}.json`);
+    const presetPath = presetPathFor(presetsDir, name);
+    if (!presetPath) {
+      return { success: false, error: 'Invalid preset name' };
+    }
     mappingEngine.savePreset(presetPath, name, description);
     return { success: true, path: presetPath };
   } catch (error) {
@@ -1290,7 +1294,10 @@ ipcMain.handle('save-preset', async (_event, name: string, description?: string)
 ipcMain.handle('load-preset', async (_event, presetName: string) => {
   try {
     const presetsDir = getProfilesDir();
-    const presetPath = path.join(presetsDir, `${presetName.toLowerCase().replace(/\s+/g, '-')}.json`);
+    const presetPath = presetPathFor(presetsDir, presetName);
+    if (!presetPath) {
+      return { success: false, error: 'Invalid preset name' };
+    }
     mappingEngine.loadPreset(presetPath);
     return { success: true };
   } catch (error) {
@@ -1378,6 +1385,18 @@ ipcMain.handle('get-current-preset-path', async () => {
 
 ipcMain.handle('save-preset-to-path', async (_event, presetPath: string) => {
   try {
+    if (typeof presetPath !== 'string' || !presetPath) {
+      return { success: false, error: 'Preset path is required' };
+    }
+    // The renderer only ever passes back the path it got from
+    // get-current-preset-path, so accept exactly that, or anything inside the
+    // profiles directory. Without this the handler is an arbitrary-file-write
+    // primitive for any script that reaches the renderer.
+    const isCurrent = currentPresetPath !== null
+      && path.resolve(presetPath) === path.resolve(currentPresetPath);
+    if (!isCurrent && !isWithinDirectory(getProfilesDir(), presetPath)) {
+      return { success: false, error: 'Refusing to write outside the profiles directory' };
+    }
     const name = path.basename(presetPath, '.json');
     mappingEngine.savePreset(presetPath, name);
     return { success: true };

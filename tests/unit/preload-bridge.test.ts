@@ -109,9 +109,24 @@ describe('preload bridge', () => {
 
   // ---- openExternal ----
   describe('openExternal', () => {
-    it('delegates to shell.openExternal', () => {
+    it('delegates a web URL to shell.openExternal', () => {
       api.openExternal('https://example.com');
       expect(shell.openExternal).toHaveBeenCalledWith('https://example.com');
+    });
+
+    it.each([
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      'data:text/html,<script>alert(1)</script>',
+      'zoommtg://zoom.us/join?confno=1',
+      'not-a-url',
+    ])('throws for %s', (url) => {
+      expect(() => api.openExternal(url)).toThrow(/Blocked external URL/);
+    });
+
+    it('does not reach the shell when blocked', () => {
+      expect(() => api.openExternal('file:///etc/passwd')).toThrow();
+      expect(shell.openExternal).not.toHaveBeenCalled();
     });
   });
 });

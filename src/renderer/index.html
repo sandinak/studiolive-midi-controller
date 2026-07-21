@@ -3514,7 +3514,7 @@
       const logContent = document.getElementById('midi-log-content');
       const entryDiv = document.createElement('div');
       entryDiv.className = `midi-log-entry ${type}`;
-      entryDiv.innerHTML = `<span class="midi-log-timestamp">${timestamp}</span><span class="midi-log-type">${type.toUpperCase()}</span><span class="midi-log-details">${details}</span>`;
+      entryDiv.innerHTML = `<span class="midi-log-timestamp">${sanitizeHtml(timestamp)}</span><span class="midi-log-type">${sanitizeHtml(type.toUpperCase())}</span><span class="midi-log-details">${sanitizeHtml(details)}</span>`;
 
       logContent.appendChild(entryDiv);
 
@@ -5358,26 +5358,40 @@
           let html = `<div class="midi-section-header">MIDI Inputs (${inputs.length})</div>`;
           html += inputs.map(device => {
             const isConnected = connectedSet.has(device);
-            const escapedDevice = device.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-            const colorValue = midiDeviceColors[device] || '#888888';
+            // Device names come from the OS and land in text, in an attribute
+            // and in a colour value — escape at every interpolation. The
+            // connect/disconnect buttons carry the name in a data attribute
+            // and bind below rather than building an inline onclick, which
+            // would nest a JS string inside an HTML attribute.
+            const safeDevice = sanitizeHtml(device);
+            const colorValue = sanitizeHtml(midiDeviceColors[device] || '#888888');
             return `
               <div class="mixer-item${isConnected ? ' connected-device' : ''}">
                 <div class="mixer-info">
-                  <div class="mixer-name">${getMidiDeviceIcon(device)} ${device}</div>
+                  <div class="mixer-name">${getMidiDeviceIcon(device)} ${safeDevice}</div>
                   ${isConnected ? '<div class="mixer-details" style="color: #4a9b7f; font-size: 0.8rem;">● Connected</div>' : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:3px">
-                  <input type="color" class="device-color-picker" value="${colorValue}" data-device="${device}" title="Set device color" style="width:28px;height:20px;padding:1px 2px;border:1px solid rgba(255,255,255,0.2);background:rgba(40,40,40,0.8);border-radius:3px;cursor:pointer">
-                  <button class="device-color-reset" data-device="${device}" title="Remove device color" style="width:18px;height:20px;padding:0;font-size:0.7rem;line-height:1;background:rgba(80,80,80,0.5);border:1px solid rgba(255,255,255,0.15);border-radius:3px;cursor:pointer;color:#aaa;${midiDeviceColors[device] ? '' : 'visibility:hidden'}">✕</button>
+                  <input type="color" class="device-color-picker" value="${colorValue}" data-device="${safeDevice}" title="Set device color" style="width:28px;height:20px;padding:1px 2px;border:1px solid rgba(255,255,255,0.2);background:rgba(40,40,40,0.8);border-radius:3px;cursor:pointer">
+                  <button class="device-color-reset" data-device="${safeDevice}" title="Remove device color" style="width:18px;height:20px;padding:0;font-size:0.7rem;line-height:1;background:rgba(80,80,80,0.5);border:1px solid rgba(255,255,255,0.15);border-radius:3px;cursor:pointer;color:#aaa;${midiDeviceColors[device] ? '' : 'visibility:hidden'}">✕</button>
                 </div>
                 ${isConnected
-                  ? `<button class="btn" style="background:rgba(200,50,50,0.3); border-color:#c74a3a;" onclick="disconnectMidiDevice('${escapedDevice}')">Disconnect</button>`
-                  : `<button class="btn" onclick="connectToMidiDevice('${escapedDevice}')">Connect</button>`
+                  ? `<button class="btn device-disconnect" data-device="${safeDevice}" style="background:rgba(200,50,50,0.3); border-color:#c74a3a;">Disconnect</button>`
+                  : `<button class="btn device-connect" data-device="${safeDevice}">Connect</button>`
                 }
               </div>
             `;
           }).join('');
           listEl.innerHTML = html;
+
+          // Connect / disconnect — bound here so the device name never has to
+          // survive a trip through an inline onclick attribute.
+          listEl.querySelectorAll('.device-connect').forEach(btn => {
+            btn.addEventListener('click', (e) => connectToMidiDevice(e.target.dataset.device));
+          });
+          listEl.querySelectorAll('.device-disconnect').forEach(btn => {
+            btn.addEventListener('click', (e) => disconnectMidiDevice(e.target.dataset.device));
+          });
 
           // Color picker — update badges immediately without full loadFaders()
           listEl.querySelectorAll('.device-color-picker').forEach(picker => {
@@ -5411,7 +5425,7 @@
         }
       } catch (error) {
         const listEl = document.getElementById('midi-devices-list');
-        listEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+        listEl.innerHTML = `<div class="empty-state">Error: ${sanitizeHtml(error.message)}</div>`;
       }
     }
 
@@ -6711,20 +6725,24 @@
           listEl.innerHTML = '<div class="empty-state">No mappings yet. Click "Create New" to add one.</div>';
         } else {
           listEl.innerHTML = mappings.map((mapping, index) => {
-            const midiDesc = mapping.midi.type === 'cc'
+            // Preset files are user-supplied JSON — these fields are not
+            // guaranteed to be the numbers the schema says they are.
+            const midiDesc = sanitizeHtml(mapping.midi.type === 'cc'
               ? `CC ${mapping.midi.controller} (Ch ${mapping.midi.channel})`
-              : `Note ${mapping.midi.note} (Ch ${mapping.midi.channel})`;
+              : `Note ${mapping.midi.note} (Ch ${mapping.midi.channel})`);
 
             // Extract channel number and get name
             const channelNum = resolveChannelNum(mapping.mixer.channel);
             const channelInfo = channelNames.find(c => c.channel === channelNum);
             const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
-            const mixerDesc = `${mapping.mixer.action} - ${channelNum}: ${channelName}`;
+            // channelName is whatever the mixer reports for the channel, so it
+            // is attacker-controlled from the network's point of view.
+            const mixerDesc = sanitizeHtml(`${mapping.mixer.action} - ${channelNum}: ${channelName}`);
 
             // Apply device color to the MIDI source label
             const devColor = mapping.midi.device ? (midiDeviceColors[mapping.midi.device] || '') : '';
             const sourceStyle = devColor
-              ? `background:${devColor};color:${getTextColorForBackground(devColor)};padding:2px 6px;border-radius:3px;`
+              ? sanitizeHtml(`background:${devColor};color:${getTextColorForBackground(devColor)};padding:2px 6px;border-radius:3px;`)
               : '';
 
             return `
@@ -7158,7 +7176,10 @@
             const channelData = channelDataCache[channelType.toLowerCase()] || { names: [], colors: [], icons: [], links: [], inputSources: [] };
 
             const channelInfo = channelData.names.find(c => c.channel === channelNum);
-            const channelName = channelInfo ? channelInfo.name : `Ch ${channelNum}`;
+            // Channel names are whatever the mixer sends over the network and
+            // this whole function builds an innerHTML string, so escape once
+            // here — every use below is an HTML context.
+            const channelName = sanitizeHtml(channelInfo ? channelInfo.name : `Ch ${channelNum}`);
 
 
             const channelColorInfo = channelData.colors.find(c => c.channel === channelNum);
@@ -7245,10 +7266,14 @@
             const textColor = getTextColorForBackground(channelColor);
 
             // Apply color as background of label with appropriate text color
-            const labelStyle = `background: ${channelColor}; color: ${textColor};`;
+            // channelColor originates from mixer state — escape before it
+            // lands in a style attribute.
+            const labelStyle = sanitizeHtml(`background: ${channelColor}; color: ${textColor};`);
 
             // Get MIDI mapping info — plain text (used for both display and title)
-            const midiInfo = mapping.midi.type === 'none'
+            // Mapping fields come from the preset file, so they are not
+            // guaranteed to be the numbers/strings the schema describes.
+            const midiInfo = sanitizeHtml(mapping.midi.type === 'none'
               ? ''
               : mapping.midi.type === 'cc'
               ? `${getCCShorthand(mapping.midi.controller)} Ch${mapping.midi.channel}`
@@ -7256,12 +7281,12 @@
               ? `Note ${mapping.midi.noteMin}-${mapping.midi.noteMax} Ch${mapping.midi.channel}`
               : mapping.midi.type === 'note'
               ? `Note ${mapping.midi.note} Ch${mapping.midi.channel}`
-              : '';
+              : '');
 
             // Check if this channel has MIDI mapping
             const isMapped = mapping.midi.type !== 'none';
             // Build tooltip showing MIDI info + device name
-            const faderDeviceName = mapping.midi.device ? shortenMidiDeviceName(mapping.midi.device) : '';
+            const faderDeviceName = mapping.midi.device ? sanitizeHtml(shortenMidiDeviceName(mapping.midi.device)) : '';
             const faderTooltip = isMapped
               ? (faderDeviceName ? `Volume: ${midiInfo}\nDevice: ${faderDeviceName}` : `Volume: ${midiInfo}`)
               : '';
@@ -7287,7 +7312,9 @@
                   const info = lineNames.find(n => n.channel === ch);
                   return info ? info.name : `Ch ${ch}`;
                 });
-                const memberTitle = ('Members: ' + memberLabels.join(', ')).replace(/"/g, '&quot;');
+                // Member labels are mixer-supplied channel names; escaping only
+                // the double-quote left every other markup character intact.
+                const memberTitle = sanitizeHtml('Members: ' + memberLabels.join(', '));
                 dcaHtml = `<div class="dca-members" title="${memberTitle}" style="color:${dcaColor.bright};">${dcaMembers.length} ch</div>`;
               }
             }
@@ -7300,14 +7327,17 @@
               mappedDevice = [...connectedMidiDevices][0];
             }
             const deviceMissing = isMapped && mapping.midi.device && !connectedMidiDevices.has(mapping.midi.device);
+            // Device colours are read back from the preset file, so they are
+            // arbitrary strings rather than guaranteed hex — escape before
+            // they reach a style attribute.
             const deviceColor = mappedDevice ? (midiDeviceColors[mappedDevice] || '') : '';
             const midiLabelStyle = (!deviceMissing && deviceColor)
-              ? `background:${deviceColor};color:${getTextColorForBackground(deviceColor)};border-color:${deviceColor};`
+              ? sanitizeHtml(`background:${deviceColor};color:${getTextColorForBackground(deviceColor)};border-color:${deviceColor};`)
               : '';
             const midiLabelClass = isMapped ? (deviceMissing ? 'mapped device-missing' : 'mapped') : '';
             // When mapped and has device color, override the default green border
             const containerMappedStyle = isMapped && deviceColor && !deviceMissing
-              ? `border-color:${deviceColor}; box-shadow: 0 0 6px ${deviceColor}aa;`
+              ? sanitizeHtml(`border-color:${deviceColor}; box-shadow: 0 0 6px ${deviceColor}aa;`)
               : '';
             const containerMissingClass = deviceMissing ? ' device-missing' : '';
 

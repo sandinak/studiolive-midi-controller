@@ -5,6 +5,7 @@
  */
 
 import { contextBridge, ipcRenderer, shell } from 'electron';
+import { isSafeExternalUrl } from '../shared/url-safety';
 
 /** Whitelisted request/response channels (ipcRenderer.invoke) */
 const INVOKE_CHANNELS = new Set([
@@ -123,6 +124,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   /**
    * Open a URL in the system default browser.
+   * Restricted to web schemes — openExternal defers to the OS handler, so
+   * file: and custom app schemes would be a launch primitive for anything
+   * that manages to inject script into the renderer.
    */
-  openExternal: (url: string): Promise<void> => shell.openExternal(url),
+  openExternal: (url: string): Promise<void> => {
+    if (!isSafeExternalUrl(url)) {
+      throw new Error(`Blocked external URL: ${String(url).slice(0, 100)}`);
+    }
+    return shell.openExternal(url);
+  },
 });
