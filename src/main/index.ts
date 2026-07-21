@@ -547,7 +547,8 @@ app.whenReady().then(() => {
     const pngPath = path.join(app.getAppPath(), 'assets', 'icon.png');
     const dockImage = nativeImage.createFromPath(pngPath);
     if (!dockImage.isEmpty()) {
-      app.dock.setIcon(dockImage);
+      // app.dock is undefined off macOS; Electron 43's types make that explicit.
+      app.dock?.setIcon(dockImage);
     }
   }
 

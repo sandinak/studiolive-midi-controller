@@ -23,35 +23,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Node 22 ships npm 10.9, whose resolver crashes with "Cannot read
-      # properties of null (reading 'edgesOut')" on the upstream dependency
-      # tree. This began failing both jobs after v1.4.2; npm 11 resolves it.
-      - name: Use npm 11
-        shell: bash
-        run: |
-          npm install -g npm@11
-          echo "node $(node -v) / npm $(npm -v)"
-
-      - name: Clone and build presonus-studiolive-api
-        run: |
-          cd "$GITHUB_WORKSPACE/.."
-          git clone https://github.com/featherbear/presonus-studiolive-api.git
-          cd presonus-studiolive-api && npm install && npm run build
-
+      # presonus-studiolive-api is a pinned git dependency that builds itself
+      # via its `prepare` script. No sibling checkout, and no copying it into
+      # node_modules for electron-builder — it is already a real directory.
+      # This also means macOS and Windows build against identical code, which
+      # was not true while the dependency was a local file: path.
       - name: Install app dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build application
         run: npm run build
-
-      - name: Prepare dependency for electron-builder
-        run: |
-          DEPS_DIR="$GITHUB_WORKSPACE/../presonus-studiolive-api"
-          rm -rf node_modules/presonus-studiolive-api
-          mkdir -p node_modules/presonus-studiolive-api
-          cp -r "$DEPS_DIR/dist" node_modules/presonus-studiolive-api/
-          cp "$DEPS_DIR/package.json" node_modules/presonus-studiolive-api/
-          [ -d "$DEPS_DIR/node_modules" ] && cp -r "$DEPS_DIR/node_modules" node_modules/presonus-studiolive-api/ || true
 
       - name: Build macOS packages
         id: build_mac
@@ -105,13 +86,15 @@ jobs:
                "secrets, or upload the signed artifacts from 'make release' manually."
 
   build-win:
-    # Pinned, not windows-latest: that label now resolves to
-    # windows-2025-vs2026, and the node-gyp bundled with @electron/rebuild for
-    # Electron 28 cannot detect Visual Studio 2026 — it fails with "Could not
-    # find any Visual Studio installation to use" while rebuilding
-    # @julusian/midi. windows-2022 carries the VS 2022 toolchain it expects,
-    # and is what windows-latest pointed at when v1.4.2 built successfully.
-    # Revisit when Electron is upgraded.
+    # Pinned, not windows-latest: that label resolves to windows-2025-vs2026,
+    # and the node-gyp bundled with @electron/rebuild for Electron 28 could not
+    # detect Visual Studio 2026 — "Could not find any Visual Studio
+    # installation to use" while rebuilding @julusian/midi.
+    #
+    # The Electron 43 upgrade probably carries a node-gyp that handles VS 2026,
+    # but that is unverified: release.yml only runs on a tag, so trying it costs
+    # a failed release. Left pinned deliberately; worth testing on a throwaway
+    # tag before removing.
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
@@ -125,24 +108,8 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Node 22 ships npm 10.9, whose resolver crashes with "Cannot read
-      # properties of null (reading 'edgesOut')" on the upstream dependency
-      # tree. This began failing both jobs after v1.4.2; npm 11 resolves it.
-      - name: Use npm 11
-        shell: bash
-        run: |
-          npm install -g npm@11
-          echo "node $(node -v) / npm $(npm -v)"
-
-      - name: Clone and build presonus-studiolive-api
-        shell: bash
-        run: |
-          cd "$GITHUB_WORKSPACE/.."
-          git clone https://github.com/featherbear/presonus-studiolive-api.git
-          cd presonus-studiolive-api && npm install && npm run build
-
       - name: Install app dependencies
-        run: npm install
+        run: npm ci
 
       # npm scripts use Unix shell commands so we bypass npm run build
       # and replicate the steps directly through bash
@@ -160,16 +127,6 @@ jobs:
           cp assets/icons/*.svg assets/icons/*.png dist/renderer/icons/ 2>/dev/null || true
           mkdir -p dist/assets
           cp assets/icon.icns assets/icon.png dist/assets/ 2>/dev/null || true
-
-      - name: Prepare dependency for electron-builder
-        shell: bash
-        run: |
-          DEPS_DIR="$GITHUB_WORKSPACE/../presonus-studiolive-api"
-          rm -rf node_modules/presonus-studiolive-api
-          mkdir -p node_modules/presonus-studiolive-api
-          cp -r "$DEPS_DIR/dist" node_modules/presonus-studiolive-api/
-          cp "$DEPS_DIR/package.json" node_modules/presonus-studiolive-api/
-          [ -d "$DEPS_DIR/node_modules" ] && cp -r "$DEPS_DIR/node_modules" node_modules/presonus-studiolive-api/ || true
 
       - name: Build Windows packages
         run: npx electron-builder --win -p never

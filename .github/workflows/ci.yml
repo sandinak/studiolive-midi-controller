@@ -23,25 +23,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      # Node 22 ships npm 10.9, whose dependency resolver crashes with
-      # "Cannot read properties of null (reading 'edgesOut')" on the upstream
-      # presonus-studiolive-api tree — its package.json carries an `overrides`
-      # block that trips a known arborist bug. npm 11 resolves it cleanly.
-      - name: Use npm 11
-        run: |
-          npm install -g npm@11
-          echo "node $(node -v) / npm $(npm -v)"
-
-      # package.json depends on presonus-studiolive-api via a `file:` path, so
-      # `npm install` and the type checker both need it present and built.
-      - name: Clone and build presonus-studiolive-api
-        run: |
-          cd "$GITHUB_WORKSPACE/.."
-          git clone --depth 1 https://github.com/featherbear/presonus-studiolive-api.git
-          cd presonus-studiolive-api && npm install && npm run build
-
+      # presonus-studiolive-api is a pinned git dependency that builds itself
+      # via its `prepare` script, so a plain install is all that's needed —
+      # no sibling checkout, and the same code every platform builds against.
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Type check
         run: npm run typecheck

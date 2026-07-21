@@ -116,13 +116,13 @@
   "license": "MIT",
   "dependencies": {
     "easymidi": "^3.0.1",
-    "presonus-studiolive-api": "file:../presonus-studiolive-api"
+    "presonus-studiolive-api": "git+https://github.com/sandinak/presonus-studiolive-api.git#v1.8.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
     "@types/node": "^20.11.0",
-    "electron": "^28.2.0",
-    "electron-builder": "^25.1.8",
+    "electron": "^43.1.1",
+    "electron-builder": "^26.15.3",
     "jest": "^29.7.0",
     "ts-jest": "^29.4.6",
     "typescript": "^5.3.3"

@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  # Until presonus-studiolive-api was pinned to a git tag, package.json used
+  # `file:../presonus-studiolive-api`. Dependabot clones only this repository,
+  # so it aborted at file-fetching every time — "path based dependencies could
+  # not be retrieved" — and never opened a single PR, which is how 44 alerts
+  # accumulated unnoticed. With the dependency resolvable from a URL it can run.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Electron and electron-builder drag in most of the dependency tree
+      # between them; grouping keeps one upgrade from becoming five PRs.
+      electron:
+        patterns:
+          - electron
+          - electron-builder
+          - '@electron/*'
+      types:
+        patterns:
+          - '@types/*'
+      test-tooling:
+        patterns:
+          - jest
+          - ts-jest
+          - typescript
+    ignore:
+      # Pinned deliberately and updated by hand — bumping it changes what the
+      # app is built against, which needs verification against real hardware.
+      - dependency-name: presonus-studiolive-api
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
