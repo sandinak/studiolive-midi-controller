@@ -119,12 +119,12 @@
     "presonus-studiolive-api": "git+https://github.com/sandinak/presonus-studiolive-api.git#v1.8.1"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.14",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.0",
     "electron": "^43.1.1",
     "electron-builder": "^26.15.3",
-    "jest": "^29.7.0",
+    "jest": "^30.4.2",
     "ts-jest": "^29.4.6",
-    "typescript": "^5.3.3"
+    "typescript": "^7.0.2"
   }
 }
