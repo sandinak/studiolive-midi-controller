@@ -105,7 +105,14 @@ jobs:
                "secrets, or upload the signed artifacts from 'make release' manually."
 
   build-win:
-    runs-on: windows-latest
+    # Pinned, not windows-latest: that label now resolves to
+    # windows-2025-vs2026, and the node-gyp bundled with @electron/rebuild for
+    # Electron 28 cannot detect Visual Studio 2026 — it fails with "Could not
+    # find any Visual Studio installation to use" while rebuilding
+    # @julusian/midi. windows-2022 carries the VS 2022 toolchain it expects,
+    # and is what windows-latest pointed at when v1.4.2 built successfully.
+    # Revisit when Electron is upgraded.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
 
