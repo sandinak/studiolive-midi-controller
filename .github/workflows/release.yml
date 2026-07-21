@@ -45,6 +45,7 @@ jobs:
           [ -d "$DEPS_DIR/node_modules" ] && cp -r "$DEPS_DIR/node_modules" node_modules/presonus-studiolive-api/ || true
 
       - name: Build macOS packages
+        id: build_mac
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -56,12 +57,16 @@ jobs:
           # handled by softprops/action-gh-release below); without this it
           # demands GH_TOKEN whenever a tag is present.
           if [ -n "$CSC_LINK" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
             NODE_OPTIONS=--max-old-space-size=8192 npx electron-builder --mac -p never
           else
-            # package.json has notarize:true and hardenedRuntime:true; without
-            # signing creds we must override both, otherwise electron-builder
-            # still attempts to sign and fails with "... not a file".
-            echo "No signing credentials — building unsigned"
+            # An *empty* CSC_LINK is not the same as an unset one: electron-builder
+            # treats the empty string as a certificate path and dies with
+            # "<workspace> not a file", which is why every build-mac run has
+            # failed. Clear the signing variables outright before building.
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "No signing credentials — building unsigned (artifacts will NOT be uploaded)"
+            unset CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID
             CSC_IDENTITY_AUTO_DISCOVERY=false NODE_OPTIONS=--max-old-space-size=8192 \
               npx electron-builder --mac -p never \
                 --config.mac.identity=null \
@@ -69,13 +74,26 @@ jobs:
                 --config.mac.hardenedRuntime=false
           fi
 
+      # Only publish macOS artifacts when they are actually signed. An unsigned
+      # DMG is blocked by Gatekeeper and must not reach users — `make release`
+      # guards against exactly this locally. When the repo has no signing
+      # secrets the build above still runs, so a broken mac build fails CI, but
+      # nothing unusable gets attached to the release.
       - name: Upload macOS release assets
+        if: steps.build_mac.outputs.signed == 'true'
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           files: |
             release/*.dmg
             release/*-mac.zip
+
+      - name: Note that macOS artifacts were skipped
+        if: steps.build_mac.outputs.signed != 'true'
+        run: |
+          echo "::warning::macOS build succeeded but was unsigned, so no DMG/ZIP was attached." \
+               "Add CSC_LINK / CSC_KEY_PASSWORD (and APPLE_* for notarization) to repository" \
+               "secrets, or upload the signed artifacts from 'make release' manually."
 
   build-win:
     runs-on: windows-latest
