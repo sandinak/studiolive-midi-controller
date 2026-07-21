@@ -473,6 +473,7 @@ export class MappingEngine extends EventEmitter {
 
   setFaderFilter(filter: 'all' | 'added' | 'mapped'): void {
     this.faderFilter = filter;
+    this.autoSavePreset();
   }
 
   getMidiFeedbackEnabled(): boolean {

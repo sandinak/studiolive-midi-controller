@@ -370,6 +370,18 @@ describe('MappingEngine', () => {
       engine.setFaderFilter('all');
       expect(engine.getFaderFilter()).toBe('all');
     });
+
+    // Regression: setFaderFilter was the only setter that skipped
+    // autoSavePreset(), so the filter silently reverted on next launch.
+    it('auto-saves to the loaded preset file', () => {
+      const file = writeTempPreset({ name: 'P', version: '1.0', mappings: [] });
+      engine.loadPreset(file);
+
+      engine.setFaderFilter('mapped');
+
+      const onDisk = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      expect(onDisk.faderFilter).toBe('mapped');
+    });
   });
 
   // ---- Settings persistence via preset save/load ----

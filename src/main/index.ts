@@ -10,8 +10,25 @@ import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
 import { clampCount } from './ipc-validators';
 import { compareVersions, pickLatestVersion } from './update-checker';
+import { buildLevelFeedback } from './midi-feedback';
 import { TuioManager } from './tuio-manager';
+import type { MidiMapping } from '../shared/types';
 import type { DiscoveryType } from 'presonus-studiolive-api';
+
+/**
+ * Send MIDI feedback for a channel at `percentage` (0-100) via `mapping`.
+ * MidiManager takes a 1-16 Logic channel and converts to wire 0-15 itself,
+ * so the value from buildLevelFeedback is passed through untouched.
+ */
+function sendLevelFeedback(mapping: MidiMapping, percentage: number): void {
+  const msg = buildLevelFeedback(mapping, percentage);
+  if (!msg) return;
+  if (msg.type === 'cc') {
+    midiManager.sendCC(msg.channel, msg.controller, msg.value);
+  } else {
+    midiManager.sendNoteOn(msg.channel, msg.note, msg.velocity);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Volume command throttle — coalesces rapid MIDI fader moves into fewer
@@ -257,20 +274,9 @@ async function initializeApp() {
       const mapping = mappingEngine.findVolumeMapping(data.channel.type, data.channel.channel);
 
       if (mapping && midiManager.hasOutput()) {
-        const percentage = data.value * 100; // Convert 0-1 to 0-100
-
-        if (mapping.midi.type === 'cc') {
-          const midiValue = Math.round((percentage / 100) * 127);
-          const midiChannel = (mapping.midi.channel - 1) as any; // Convert Logic 1-16 to MIDI 0-15
-          midiManager.sendCC(midiChannel, mapping.midi.controller!, midiValue);
-        } else if (mapping.midi.type === 'note-value') {
-          const noteMin = mapping.midi.noteMin || 24;
-          const noteMax = mapping.midi.noteMax || 60;
-          const noteRange = noteMax - noteMin;
-          const noteNumber = Math.round((percentage / 100) * noteRange) + noteMin;
-          const midiChannel = (mapping.midi.channel - 1) as any; // Convert Logic 1-16 to MIDI 0-15
-          midiManager.sendNoteOn(midiChannel, noteNumber, 100);
-        }
+        // The event field is `level`, on a 0-100 scale — see LevelEvent in
+        // presonus-studiolive-api. MixerManager's DCA poll emits the same shape.
+        sendLevelFeedback(mapping, data.level);
       }
     } catch (error) {
       // Silently ignore feedback errors
@@ -1045,18 +1051,7 @@ ipcMain.handle('set-mixer-volume', async (_event, type: string, channel: number,
       const mapping = mappingEngine.findVolumeMapping(type, channel);
 
       if (mapping && midiManager.hasOutput()) {
-        if (mapping.midi.type === 'cc') {
-          // Send CC message with scaled value (0-100 -> 0-127)
-          const midiValue = Math.round((value / 100) * 127);
-          midiManager.sendCC(mapping.midi.channel, mapping.midi.controller!, midiValue);
-        } else if (mapping.midi.type === 'note-value') {
-          // Send note-on with note number based on value
-          const noteMin = mapping.midi.noteMin || 24;
-          const noteMax = mapping.midi.noteMax || 60;
-          const noteRange = noteMax - noteMin;
-          const noteNumber = Math.round(noteMin + (value / 100) * noteRange);
-          midiManager.sendNoteOn(mapping.midi.channel, noteNumber, 100);
-        }
+        sendLevelFeedback(mapping, value);
       }
     }
 
