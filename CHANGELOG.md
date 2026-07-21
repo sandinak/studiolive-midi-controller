@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **MIDI feedback to the DAW never worked.** The mixer's `level` event carries a `level` field on a 0–100 scale, but the handler read `data.value * 100` — so every mixer-originated fader move sent a `NaN` CC value. The same path also pre-converted the MIDI channel to 0–15 before `MidiManager` converted it again, sending Logic channel 1 out as wire channel −1. Both call sites now share `buildLevelFeedback()` so the scaling and channel numbering cannot drift apart again.
+- **Unauthenticated remote denial of service in the TUIO listener.** The OSC bundle walker advanced its cursor by the element size declared in the packet, without validation; a negative size moved it backwards and spun the Electron main process forever — freezing the UI, MIDI and mixer control. The listener binds `0.0.0.0:3333`, so any host on the network could trigger it with a single 20-byte UDP datagram. Bundle elements are now rejected unless positive, 4-aligned and within the packet, and every read is bounded to its own element.
+- **Renderer XSS reaching a capable IPC surface.** `sanitizeHtml` was defined in the renderer and never called, while mixer- and preset-supplied values flowed raw into ~30 `innerHTML` sites — and channel names come from the mixer over the network. Escaping is now applied at each sink. Downstream, `save-preset`/`load-preset` joined unsanitised names into a path (traversal), `save-preset-to-path` accepted any absolute path (arbitrary file write), and `openExternal` passed any scheme to the OS handler including `file:`. All three are constrained.
+- **Fader filter did not persist** — `setFaderFilter` was the only setter that skipped `autoSavePreset()`.
+- Degenerate note ranges (`noteMin === noteMax`) and non-finite levels no longer produce `NaN` MIDI messages; `noteMin: 0` and `controller: 0` are honoured rather than replaced by defaults.
+
+### Added
+- **CI workflow** running type check and the test suite on every push and pull request. `release.yml` only fired on `v*` tags and only built packages, so nothing gated ordinary commits.
+- **Coverage reporting and thresholds.** Coverage was reported as 71% but was actually 32%: Jest's `roots` excluded `src`, so files with no tests were omitted from the report rather than counted as 0%. The three largest untested files were invisible.
+- **LICENSE file** — the README linked to one that did not exist.
+- Documentation for six shipped features that appeared nowhere: TUIO multi-touch, Edit/Run mode, transport control, fader stacking, per-mixer presets and DCA colours. Covered in the in-app help, `docs/usage.md` and the documentation site.
+
+### Changed
+- Test suite 295 → 570 passing tests; coverage 32% → 42%, honestly measured. `net-utils`, `preset-paths`, `url-safety`, `midi-feedback`, `preload`, `ipc-validators`, `update-checker` and `sanitize` are at 100%; `tuio-manager` at 96%.
+- Corrected documented facts that had drifted from the code: the preset directory (`StudioLive Midi Controller`, not `studiolive-midi-controller/presets`), port 53000 as TCP with UDP 47809 for discovery, Node 22 and Python 3.11 build prerequisites, and per-architecture rather than universal macOS artifacts. `docs-consistency.test.ts` now pins these to their sources.
+- Subnet-sweep helpers extracted from `index.ts` into `net-utils.ts` so they are testable outside Electron.
+
 ## [1.4.2] - 2026-06-03
 
 ### Fixed

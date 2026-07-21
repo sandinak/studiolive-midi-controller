@@ -2,8 +2,12 @@
 
 ## Prerequisites
 
-- **macOS** (tested on macOS 12+)
-- **Node.js 18+** and npm (install via [Homebrew](https://brew.sh): `brew install node`)
+- **macOS 12+** (primary platform) or **Windows 10/11**
+- **Node.js 22+** and npm (install via [Homebrew](https://brew.sh): `brew install node`)
+  - Node 22 is required to build from source: the upstream `presonus-studiolive-api`
+    build imports `styleText` from `node:util`, which Node 18 doesn't provide
+- **Python 3.11** if building from source — `node-gyp` needs `distutils` to compile
+  the native MIDI module, and Python 3.12 removed it
 - **PreSonus StudioLive III** mixer on the same network
 - **Logic Pro** or any DAW with MIDI output capability
   - Logic Pro exposes **Logic Pro Virtual Out** automatically — no extra setup needed
@@ -39,7 +43,7 @@ npm start
 ## Building Distributable Packages
 
 ```bash
-# macOS DMG and ZIP (universal binary)
+# macOS DMG and ZIP (separate x64 and arm64 artifacts)
 make dist-mac
 
 # Windows installer and portable

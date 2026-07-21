@@ -8,3 +8,6 @@ release/
 .idea/
 .claude/
 coverage/
+
+# Editor backups of the renderer
+src/renderer/*.backup*

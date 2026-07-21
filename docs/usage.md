@@ -1,14 +1,29 @@
 # Usage Guide
 
+## Edit & Run Mode
+
+The app has two modes, toggled with the **EDIT** / **RUN** button at the far right of the header.
+
+| Mode | Accent bar | Behaviour |
+|------|-----------|-----------|
+| **Edit** | Orange | Full configuration — create, edit and delete mappings; right-click menus available |
+| **Run** | Green | Interface locked against accidental edits. Faders and MIDI still work; the transport button appears |
+
+Enable **Start in Run Mode** in **⚙️ Preferences** to launch straight into Run mode — useful for a dedicated performance machine.
+
+### Transport Control
+
+The **▶ Play** / **⏸ Stop** button, visible in Run mode, sends MIDI Start and Stop messages to every connected MIDI output. Logic Pro, Ableton and other DAWs that follow MIDI transport will respond.
+
 ## Fader Controls
 
 | Action | Description |
 |--------|-------------|
-| **Drag fader** | Adjust mixer volume (sends MIDI feedback to DAW) |
+| **Drag fader** | Adjust mixer volume (sends MIDI feedback to the DAW) |
 | **Click M** | Toggle mute |
 | **Click S** | Toggle solo (yellow when active) |
-| **Double-click fader** | Edit or create mapping |
-| **Right-click fader** | Context menu: Edit, Clear, or Delete mapping |
+| **Double-click fader** | Edit or create mapping (Edit mode) |
+| **Right-click fader** | Context menu: Learn, Edit, Clear, or Delete (Edit mode) |
 | **Ctrl/Cmd + Click** | Select multiple faders |
 
 ## Keyboard Shortcuts
@@ -43,8 +58,13 @@
 - **➕ Add Channel** — Create new channel mapping
 - **➖ Remove Selected** — Remove selected channel mappings
 - **🗑️ Clear All** — Clear all MIDI mappings (channels remain visible)
-- **🔍 View: All/Mapped** — Toggle between all channels or only mapped channels
+- **🔍 Filter** — Choose which channels are shown (see below)
+- **1–8** — Mute group toggles
 - **📋 Mappings** — View, edit, or delete all mappings in a list
+- **💾 Save** / **📂 Load** — Preset management
+- **⚙️ Preferences** — Display and behaviour settings
+- **📊 MIDI Log** — Live MIDI event monitor
+- **▶ Play / ⏸ Stop** — DAW transport (Run mode)
 
 ## Filter Modes
 
@@ -52,8 +72,12 @@ The filter dropdown supports several views:
 - **All** — All LINE channels plus any non-LINE mapped channels
 - **Mapped** — Only channels with MIDI mappings
 - **DCA groups** — Channels assigned to a specific DCA
-- **Auto-filter groups** — Custom channel groupings from the mixer
+- **Auto-filter groups** — Icon-based channel groupings from the mixer (~Drums, ~Guitars, …)
 - **Device** — Only channels mapped to a specific MIDI device
+
+## Fader Stacking
+
+When more than 16 channels are in view, enable **Fader Stacking** to wrap them into two shorter rows rather than one long scrolling strip. Row breaks fall on channel boundaries — 1–16 above, 17–32 below. The setting is stored in the preset.
 
 ## Multiple MIDI Devices
 
@@ -71,6 +95,12 @@ Each MIDI device can be assigned a color:
 
 Mapped faders display a small colored dot badge for the device that controls them. If a mapped device disconnects, the fader border switches to a pulsing dashed red/white animation until the device reconnects.
 
+## DCA Colors
+
+Each of the 8 DCA groups can be given a color of its own — right-click a DCA fader's label to choose one. LINE channels belonging to that DCA carry a small badge in the same color, making group membership visible at a glance.
+
+DCA colors are saved per preset rather than globally, because they describe one particular mixer's group layout.
+
 ## Channel Level Display
 
 Configurable in **⚙️ Preferences → Channel Level Display**:
@@ -85,6 +115,10 @@ When **Meter** mode is active, enable **Peak Hold** to show a white line at the 
 
 Meter data comes from the mixer's UDP audio stream, so it reflects actual pre-fader signal levels.
 
+## Input Source
+
+LINE, FX and FX Return channels show a badge for their current input source — **Analog**, **Network**, **USB** or **SD Card**. Right-click the badge to switch sources; the change is sent directly to the mixer.
+
 ## Visual Indicators
 
 ### Change Source Glow
@@ -98,8 +132,9 @@ Meter data comes from the mixer's UDP audio stream, so it reflects actual pre-fa
 
 ### Badges
 - **M badge (blue)** — Channel assigned to Main mix
-- **LINE/NET/USB badge** — Input source type
+- **LINE/NET/USB/SD badge** — Input source type
 - **Colored dot** — MIDI device color badge (when device color is assigned)
+- **DCA badge** — DCA group membership, in that group's color
 
 ### Connection Status Buttons
 - **Solid color** — Connected
@@ -121,24 +156,55 @@ Stereo linking is configured on the mixer itself (in Universal Control). The app
 
 ## Mute Groups
 
-Mute groups from the mixer are accessible via the toolbar. Toggling a mute group mutes or unmutes all assigned channels simultaneously.
+The mixer's 8 mute groups are toggled from the numbered buttons in the faders toolbar. A red highlight means the group is active (its channels are muted); a green dot means the button has a MIDI mapping.
+
+Group membership is configured on the mixer. Changes made elsewhere — the console's own buttons, or Universal Control — are reflected here as they happen.
+
+To map a controller button to a group, right-click it and choose **Learn Mute Group Mapping**, or select **Mute Group** as the action in the Add Mapping form.
+
+## Touch Control (TUIO)
+
+The app listens for **TUIO** multi-touch messages on **UDP port 3333**, so a tablet can drive several faders simultaneously — something a mouse cannot do. TouchOSC and Lemur both work, as does any app with TUIO output.
+
+Point the sender at your computer's IP address on port 3333. Nothing needs configuring in the app; the listener runs from startup.
+
+Touches map onto the fader strip directly:
+- **Horizontal position** selects the fader — the surface is divided evenly across the currently visible faders, so the filter setting changes what your touches reach
+- **Vertical position** sets the level — top is full, bottom is silence
+- Each finger stays with the fader it first touched, so sliding sideways won't jump to a neighbour
+
+If nothing happens, check that UDP 3333 isn't firewalled and that no other app is holding the port — it's a common default. On a conflict the app logs a warning at startup and runs without touch support.
 
 ## Profiles
 
 Profiles are saved as JSON in:
+
 ```
-~/Library/Application Support/studiolive-midi-controller/presets/
+macOS:    ~/Library/Application Support/StudioLive Midi Controller/
+Windows:  %APPDATA%\StudioLive MIDI Controller\
 ```
 
 Each profile stores:
-- Mixer IP address
+- Mixer identity — IP address, model, device name and serial number
 - MIDI device names and preferred devices list
 - MIDI device color assignments
-- Channel level display preference
+- DCA group colors
+- Channel level display preference and peak hold
+- Fader stacking and fader filter state
 - All channel mappings
 - MIDI feedback enabled/disabled
 
 Use **💾 Save** / **📂 Load** in the toolbar, or **Cmd-S** for quick-save.
+
+A profile named `default.json` is loaded automatically at startup.
+
+### Working With More Than One Mixer
+
+A profile remembers which mixer it was built for — by serial number where the mixer reports one, otherwise by model and IP address. Connect to a mixer that doesn't match and the app says so, offering to start a fresh profile for it.
+
+Creating one clears the mappings and DCA colors, which belong to the mixer, while keeping your MIDI devices, device colors and display preferences, which belong to your setup. **The previous profile file is left untouched**, so you can load it again when you reconnect to the original mixer.
+
+This matters because channel layouts differ between models — a 32-channel profile applied to a 16-channel mixer would map faders onto channels that don't exist.
 
 ## Preferences
 
@@ -146,6 +212,8 @@ Click **⚙️ Preferences** to configure:
 - **Fader Smoothing** — Transition speed (0–500 ms, default 300 ms)
 - **Channel Level Display** — None / Indicator / Meter
 - **Peak Hold** — Hold peak marker for 3 seconds (Meter mode only)
+- **Fader Stacking** — Wrap more than 16 channels into two rows
+- **Start in Run Mode** — Launch directly into Run mode
 
 ## MIDI Log
 
@@ -163,9 +231,12 @@ When manually disconnecting a MIDI device that has active mappings, you will be 
 ## Troubleshooting
 
 ### Mixer Not Found
+
 - Ensure the mixer is on the same network / subnet
-- Check firewall — allow port 53000
-- Try entering the mixer IP manually
+- Allow **TCP port 53000** (mixer control) and **UDP port 47809** (discovery broadcasts) through your firewall
+- Enter the mixer IP manually — a typed-in address is probed directly and doesn't depend on discovery
+
+If **PreSonus Universal Control** is running it holds UDP 47809 and the app can't receive discovery broadcasts. To work around this the app also TCP-probes every address on your local subnets, so the mixer should still appear — it may just take a few seconds longer. Subnets wider than /22 are skipped to keep the sweep bounded.
 
 ### MIDI Not Working
 - Verify MIDI connection status (green dot in sidebar)
@@ -190,7 +261,10 @@ When manually disconnecting a MIDI device that has active mappings, you will be 
 - Increase fader smoothing in Preferences (try 400–500 ms)
 - Use wired network instead of WiFi
 
+### Mute Button Toggles On Then Off Again
+Some controllers send several messages per press. The app debounces toggles for 150 ms; if your controller spaces duplicates more widely than that, adjust its settings.
+
 ### Profile Not Loading
-- Check location: `~/Library/Application Support/studiolive-midi-controller/presets/`
-- Verify JSON is valid
+- Check the location above for your platform
+- Verify the JSON is valid
 - Try creating and saving a new profile first

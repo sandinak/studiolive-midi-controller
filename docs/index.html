@@ -345,7 +345,9 @@
   <a href="#mappings">Creating Mappings</a>
   <a href="#midi-modes">MIDI Modes</a>
   <a href="#context-menus">Right-Click Menus</a>
+  <a href="#modes">Edit &amp; Run Mode</a>
   <a href="#mute-groups">Mute Groups</a>
+  <a href="#touch">Touch Control (TUIO)</a>
   <a href="#profiles">Profiles</a>
 
   <div class="nav-section">Integration</div>
@@ -705,6 +707,23 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
     <p>Right-clicking anywhere outside an open menu dismisses it.</p>
   </section>
 
+  <!-- ── Edit & Run Mode ───────────────────────────────────────── -->
+  <section id="modes">
+    <h2>Edit &amp; Run Mode</h2>
+    <p>The app separates configuration from performance. Toggle between the two with the <strong>EDIT</strong> / <strong>RUN</strong> button at the far right of the header.</p>
+    <table>
+      <thead><tr><th>Mode</th><th>Accent bar</th><th>Behaviour</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Edit</strong></td><td>Orange</td><td>Create, edit and delete mappings. Right-click menus and all toolbar buttons are live.</td></tr>
+        <tr><td><strong>Run</strong></td><td>Green</td><td>Interface locked against accidental edits. Faders and MIDI keep working; toolbar buttons are dimmed and the transport button appears.</td></tr>
+      </tbody>
+    </table>
+    <div class="tip"><strong>Tip</strong>Enable <em>Start in Run Mode</em> in Preferences to launch straight into Run mode — handy on a dedicated performance machine.</div>
+
+    <h3>Transport Control</h3>
+    <p>The <strong>▶ Play</strong> / <strong>⏸ Stop</strong> button, visible in Run mode, sends MIDI Start and Stop messages to every connected MIDI output. Logic Pro, Ableton Live and other DAWs that follow MIDI transport respond to it.</p>
+  </section>
+
   <!-- ── Mute Groups ───────────────────────────────────────────── -->
   <section id="mute-groups">
     <h2>Mute Groups</h2>
@@ -725,18 +744,50 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
     </figure>
   </section>
 
+  <!-- ── Touch Control ─────────────────────────────────────────── -->
+  <section id="touch">
+    <h2>Touch Control (TUIO)</h2>
+    <p>The app listens for <strong>TUIO</strong> multi-touch messages, so a tablet or touch surface can move several faders at once — something a mouse cannot do.</p>
+
+    <h3>Setting it up</h3>
+    <ol>
+      <li>Install a TUIO-capable app on the tablet. <strong>TouchOSC</strong> and <strong>Lemur</strong> both work, as does anything with TUIO output.</li>
+      <li>Point it at your computer's IP address on <strong>UDP port 3333</strong>.</li>
+      <li>Start sending. Nothing needs configuring in this app — the listener runs from startup.</li>
+    </ol>
+
+    <h3>How touches map to faders</h3>
+    <p>The touch surface is treated as the fader strip itself:</p>
+    <ul>
+      <li><strong>Horizontal position</strong> selects the fader — the surface is divided evenly across every fader currently visible, so the filter setting changes what your touches reach.</li>
+      <li><strong>Vertical position</strong> sets the level — top is full, bottom is silence.</li>
+      <li>Each finger keeps the fader it first landed on, so sliding sideways won't jump to a neighbour mid-move.</li>
+    </ul>
+
+    <div class="note"><strong>Note</strong>Port 3333 is a common TUIO default. If another app already holds it, this app logs a warning at startup and runs without touch support — quit the other app and restart.</div>
+  </section>
+
   <!-- ── Profiles ──────────────────────────────────────────────── -->
   <section id="profiles">
     <h2>Profiles</h2>
     <p>A profile stores your entire configuration as a JSON file:</p>
     <ul>
-      <li>Mixer IP (used for auto-reconnect on next launch)</li>
-      <li>MIDI device name and colour</li>
+      <li>Mixer identity — IP, model, device name and serial number (used for auto-reconnect and mixer matching)</li>
+      <li>MIDI device names and their colour assignments</li>
+      <li>DCA group colours</li>
       <li>All volume, mute, solo, and mute-group mappings</li>
-      <li>Display preferences (fader smoothing, level display)</li>
+      <li>Display preferences — fader smoothing, level display, peak hold, fader stacking, filter state</li>
+      <li>Whether MIDI feedback to the DAW is enabled</li>
     </ul>
     <p>Profiles are saved to:</p>
-    <pre><code>~/Library/Application Support/StudioLive Midi Controller/</code></pre>
+    <pre><code>macOS:   ~/Library/Application Support/StudioLive Midi Controller/
+Windows: %APPDATA%\StudioLive MIDI Controller\</code></pre>
+    <p>A profile named <code>default.json</code> is loaded automatically at startup.</p>
+
+    <h3>Working with more than one mixer</h3>
+    <p>A profile remembers which mixer it was built for — by serial number where the mixer reports one, otherwise by model and IP address. Connect to a mixer that doesn't match and the app says so, offering to start a fresh profile for it.</p>
+    <p>Creating one clears the mappings and DCA colours, which belong to the mixer, while keeping your MIDI devices, device colours and display preferences, which belong to your setup. <strong>The previous profile file is left untouched on disk</strong>, so you can load it again when you reconnect to the original mixer.</p>
+    <div class="note"><strong>Note</strong>This matters because channel layouts differ between models — a 32-channel profile applied to a 16-channel mixer would map faders onto channels that don't exist.</div>
     <table>
       <thead><tr><th>Action</th><th>How</th></tr></thead>
       <tbody>
@@ -817,11 +868,23 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
           <td>When Meter mode is active, hold a white peak marker for 3 seconds before it drops. Useful for catching transient overloads.</td>
         </tr>
         <tr>
+          <td><strong>Fader Stacking</strong></td>
+          <td>With more than 16 channels in view, wrap them into two shorter rows instead of one long scrolling strip. Row breaks fall on channel boundaries — 1–16 above, 17–32 below.</td>
+        </tr>
+        <tr>
+          <td><strong>Start in Run Mode</strong></td>
+          <td>Launch directly into Run mode rather than Edit mode.</td>
+        </tr>
+        <tr>
           <td><strong>MIDI Feedback</strong></td>
           <td>When enabled, dragging a fader in the app sends a CC message back to the DAW so automation lanes stay in sync.</td>
         </tr>
       </tbody>
     </table>
+
+    <h3>DCA Colors</h3>
+    <p>Each of the 8 DCA groups can be given a colour of its own — right-click a DCA fader's label to choose one. LINE channels belonging to that DCA carry a small badge in the same colour, which makes group membership readable at a glance.</p>
+    <p>DCA colours are stored per profile rather than globally, since they describe one particular mixer's group layout.</p>
 
     <h3>MIDI Device Colors</h3>
     <ol class="steps">
@@ -848,9 +911,10 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
     <h3>Mixer not found during discovery</h3>
     <ul>
       <li>Ensure the mixer and your Mac are on the same subnet.</li>
-      <li>Check firewall — allow port <strong>53000</strong> (UDP and TCP).</li>
-      <li>Try entering the IP manually in the Mixer connection panel.</li>
+      <li>Check the firewall — allow <strong>TCP port 53000</strong> (mixer control) and <strong>UDP port 47809</strong> (discovery broadcasts).</li>
+      <li>Try entering the IP manually in the Mixer connection panel — a typed-in address is probed directly and doesn't depend on discovery working.</li>
     </ul>
+    <div class="note"><strong>Note</strong>If <strong>PreSonus Universal Control</strong> is running it holds UDP port 47809, so the app can't receive discovery broadcasts. To work around this the app also TCP-probes every address on your local subnets, and your mixer should still appear — it may just take a few seconds longer. Subnets wider than /22 are skipped to keep the sweep bounded.</div>
 
     <h3>MIDI not working</h3>
     <ul>

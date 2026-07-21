@@ -2251,8 +2251,10 @@
         <button class="btn help-tab active" onclick="showHelpSection('getting-started')">Getting Started</button>
         <button class="btn help-tab" onclick="showHelpSection('mappings')">Mappings</button>
         <button class="btn help-tab" onclick="showHelpSection('midi-learn')">MIDI Learn</button>
+        <button class="btn help-tab" onclick="showHelpSection('faders')">Faders &amp; Display</button>
         <button class="btn help-tab" onclick="showHelpSection('modes')">Edit &amp; Run Mode</button>
         <button class="btn help-tab" onclick="showHelpSection('mute-groups')">Mute Groups</button>
+        <button class="btn help-tab" onclick="showHelpSection('touch')">Touch (TUIO)</button>
         <button class="btn help-tab" onclick="showHelpSection('presets')">Presets</button>
         <button class="btn help-tab" onclick="showHelpSection('troubleshooting')">Troubleshooting</button>
       </div>
@@ -2756,6 +2758,84 @@
           <li><strong>Pitch Bend</strong> — Not mappable; the app will prompt you to use a CC control instead and keep listening</li>
         </ul>
       `,
+      'faders': `
+        <h2>Faders &amp; Display</h2>
+
+        <h3>Fader Controls</h3>
+        <ul>
+          <li><strong>Drag a fader</strong> — sets the mixer channel's volume</li>
+          <li><strong>M</strong> / <strong>S</strong> — toggle mute and solo</li>
+          <li><strong>Double-click</strong> a fader — create or edit its mapping (Edit mode)</li>
+          <li><strong>Right-click</strong> a fader — Learn, Edit, Clear or Delete (Edit mode)</li>
+          <li><strong>Ctrl/Cmd + click</strong> — select several faders at once</li>
+        </ul>
+
+        <h3>Change-Source Glow</h3>
+        <p>When a fader moves, it briefly glows to show what moved it:</p>
+        <ul>
+          <li><strong>Green</strong> — an incoming MIDI message from your DAW or controller</li>
+          <li><strong>Blue</strong> — the mixer itself, or Universal Control</li>
+          <li><strong>Purple</strong> — you, dragging in this app</li>
+        </ul>
+        <p>Two markers sit on each fader: an <strong>orange line</strong> at the last MIDI value received, and a <strong>white line at 75%</strong> marking 0&nbsp;dB.</p>
+
+        <h3>Channel Level Display</h3>
+        <p>Set in <strong>⚙️ Preferences → Channel Level Display</strong>:</p>
+        <ul>
+          <li><strong>None</strong> — no level shown (default)</li>
+          <li><strong>Indicator</strong> — a colored dot in the channel number, green through red by signal level</li>
+          <li><strong>Meter</strong> — a live VU bar beside the fader, fed from the mixer's audio meter stream</li>
+        </ul>
+        <p>In Meter mode, <strong>Peak Hold</strong> leaves a white line at the loudest recent level for a few seconds.</p>
+
+        <h3>Fader Stacking</h3>
+        <p>With more than 16 channels in view, enable <strong>Fader Stacking</strong> to wrap them into two shorter rows instead of one long scrolling strip. The break falls every 16 channels, so channels 1–16 sit above 17–32. The setting is saved with your preset.</p>
+
+        <h3>Stereo-Linked Channels</h3>
+        <p>Channels linked as a stereo pair on the mixer render as a single strip with two narrow faders and a combined number such as <strong>11/12</strong>. Moving one moves both. Linking is configured on the mixer, not here — the app follows whatever the mixer reports.</p>
+
+        <h3>Input Source</h3>
+        <p>LINE, FX and FX Return channels show a badge for their input source — <strong>Analog</strong>, <strong>Network</strong>, <strong>USB</strong> or <strong>SD Card</strong>. Right-click the badge to switch sources; the change is sent straight to the mixer.</p>
+
+        <h3>DCA Colors</h3>
+        <p>Each of the 8 DCA groups can be given its own color. Right-click a DCA fader's label to pick one. LINE channels belonging to that DCA show a small badge in the same color, which makes group membership readable at a glance. DCA colors are saved per preset, since they describe a specific mixer's layout.</p>
+
+        <h3>Filter Modes</h3>
+        <p>The filter dropdown above the faders narrows what's shown:</p>
+        <ul>
+          <li><strong>All</strong> — every LINE channel, plus any mapped channel of another type</li>
+          <li><strong>Mapped</strong> — only channels that have a MIDI mapping</li>
+          <li><strong>DCA group</strong> — the members of one DCA</li>
+          <li><strong>Auto-filter group</strong> — the mixer's icon-based groupings (~Drums, ~Guitars, …)</li>
+          <li><strong>Device</strong> — only channels mapped to one MIDI controller</li>
+        </ul>
+      `,
+      'touch': `
+        <h2>Touch Control (TUIO)</h2>
+        <p>The app listens for <strong>TUIO</strong> multi-touch messages, so a tablet or touch surface can drive several faders at once — something a mouse cannot do.</p>
+
+        <h3>Setting It Up</h3>
+        <ol>
+          <li>Install a TUIO-capable app on your tablet — <strong>TouchOSC</strong> and <strong>Lemur</strong> both work, as does anything with TUIO output.</li>
+          <li>Point it at your computer's IP address on <strong>UDP port 3333</strong>.</li>
+          <li>Start sending. No configuration is needed in this app — the listener is always running.</li>
+        </ol>
+
+        <h3>How Touches Map to Faders</h3>
+        <p>The touch surface is treated as the fader strip itself:</p>
+        <ul>
+          <li><strong>Horizontal position</strong> picks the fader — the surface is divided evenly across every fader currently visible, so filtering changes what your touches reach</li>
+          <li><strong>Vertical position</strong> sets the level — top is full, bottom is silence</li>
+          <li>Each finger keeps the fader it first landed on, so sliding sideways won't jump to a neighbour mid-move</li>
+        </ul>
+
+        <h3>If Nothing Happens</h3>
+        <ul>
+          <li>Confirm the tablet and computer are on the same network and that UDP 3333 isn't firewalled</li>
+          <li>Port 3333 is a common default — if another app already holds it, this app logs a warning at startup and carries on without touch support. Quit the other app and restart.</li>
+          <li>Check that the faders you expect are actually visible; the mapping follows the current filter</li>
+        </ul>
+      `,
       'modes': `
         <h2>Edit &amp; Run Mode</h2>
         <p>The app has two modes to separate configuration from performance.</p>
@@ -2825,6 +2905,15 @@
         <h3>Auto-Save &amp; Auto-Load</h3>
         <p>When you modify mappings while a preset is loaded, changes are auto-saved. On startup, if a <strong>default.json</strong> preset exists, it loads automatically.</p>
         <div class="help-tip">Create a preset named "default" to have your configuration load every time the app starts.</div>
+
+        <h3>Working With More Than One Mixer</h3>
+        <p>A preset remembers which mixer it was built for, identified by serial number where available and by model plus IP address otherwise. When you connect to a mixer that doesn't match, the app tells you and offers to start a <strong>fresh preset</strong> for it.</p>
+        <p>Choosing to create one clears the mappings and DCA colors — which belong to the mixer — while carrying over your MIDI devices, device colors and display preferences, which belong to your setup. <strong>Your previous preset file is left untouched on disk</strong>, so you can load it again whenever you reconnect to the original mixer.</p>
+        <div class="help-tip">This matters because channel layouts differ between models — a 32-channel preset applied to a 16-channel mixer would map faders to channels that don't exist.</div>
+
+        <h3>Where Presets Live</h3>
+        <p>macOS: <code>~/Library/Application Support/StudioLive Midi Controller/</code><br>
+        Windows: the app's user-data folder under <code>%APPDATA%</code></p>
       `,
       'troubleshooting': `
         <h2>Troubleshooting</h2>
@@ -2833,9 +2922,10 @@
         <ul>
           <li>Ensure your computer and mixer are on the <strong>same network</strong></li>
           <li>Check the mixer's IP address under <em>Settings → Network</em> on the mixer screen</li>
-          <li>Try entering the IP manually in the connection panel</li>
-          <li>Ensure no firewall is blocking UDP port 53000</li>
+          <li>Try entering the IP manually in the connection panel — a typed-in address is probed directly and does not depend on discovery working</li>
+          <li>Allow <strong>TCP port 53000</strong> (mixer control) and <strong>UDP port 47809</strong> (discovery broadcasts) through your firewall</li>
         </ul>
+        <div class="help-tip">If <strong>PreSonus Universal Control</strong> is running, it holds UDP port 47809 and the app cannot receive discovery broadcasts. The app works around this by also TCP-probing every address on your local subnet, so your mixer should still appear — it may just take a few seconds longer.</div>
 
         <h3>MIDI Device Not Appearing</h3>
         <ul>

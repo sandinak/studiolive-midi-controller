@@ -4,7 +4,10 @@ This document describes how to build distributable packages for macOS and Window
 
 ## Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 22+ and npm — the upstream `presonus-studiolive-api` build imports
+  `styleText` from `node:util`, which Node 18 doesn't provide
+- Python 3.11 — `node-gyp` needs `distutils` to compile the native MIDI
+  module, and Python 3.12 removed it
 - For macOS builds: macOS with Xcode Command Line Tools
 - For Windows builds: Windows or macOS (cross-compilation supported)
 
@@ -69,14 +72,18 @@ Builds packages for both macOS and Windows.
 
 ## Build Output
 
-All packages are created in the `release/` directory:
+All packages are created in the `release/` directory. `<version>` is whatever
+`package.json` currently declares; macOS produces a separate artifact per
+architecture rather than a universal binary:
 
 ```
 release/
-├── StudioLive MIDI Controller-1.2.2.dmg              # macOS DMG (universal)
-├── StudioLive MIDI Controller-1.2.2-mac.zip          # macOS ZIP (universal)
-├── StudioLive MIDI Controller Setup 1.2.2.exe        # Windows installer
-└── StudioLive MIDI Controller 1.2.2.exe              # Windows portable
+├── StudioLive MIDI Controller-<version>.dmg               # macOS DMG (x64)
+├── StudioLive MIDI Controller-<version>-arm64.dmg         # macOS DMG (Apple silicon)
+├── StudioLive MIDI Controller-<version>-mac.zip           # macOS ZIP (x64)
+├── StudioLive MIDI Controller-<version>-arm64-mac.zip     # macOS ZIP (Apple silicon)
+├── StudioLive MIDI Controller Setup <version>.exe         # Windows installer
+└── StudioLive MIDI Controller <version>.exe               # Windows portable
 ```
 
 ## Build Process
