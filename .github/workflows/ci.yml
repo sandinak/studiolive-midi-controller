@@ -27,9 +27,27 @@ jobs:
       # `npm install` and the type checker both need it present and built.
       - name: Clone and build presonus-studiolive-api
         run: |
+          echo "node $(node -v) / npm $(npm -v)"
           cd "$GITHUB_WORKSPACE/.."
           git clone --depth 1 https://github.com/featherbear/presonus-studiolive-api.git
-          cd presonus-studiolive-api && npm install && npm run build
+          cd presonus-studiolive-api
+          # That package.json lists itself as one of its own dependencies
+          # (github:featherbear/presonus-studiolive-api#v1.7.2). Some npm
+          # versions crash resolving that cycle with "Cannot read properties
+          # of null (reading 'edgesOut')". The self-reference is meaningless
+          # for building the package, so drop it along with the committed
+          # lockfile that pins it.
+          node -e "
+            const fs = require('fs');
+            const p = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
+              if (p[field]) delete p[field]['presonus-studiolive-api'];
+            }
+            fs.writeFileSync('package.json', JSON.stringify(p, null, 2));
+          "
+          rm -f package-lock.json
+          npm install
+          npm run build
 
       - name: Install dependencies
         run: npm install
