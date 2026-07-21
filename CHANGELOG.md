@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-07-21
 
 ### Fixed
 - **MIDI feedback to the DAW never worked.** The mixer's `level` event carries a `level` field on a 0–100 scale, but the handler read `data.value * 100` — so every mixer-originated fader move sent a `NaN` CC value. The same path also pre-converted the MIDI channel to 0–15 before `MidiManager` converted it again, sending Logic channel 1 out as wire channel −1. Both call sites now share `buildLevelFeedback()` so the scaling and channel numbering cannot drift apart again.
