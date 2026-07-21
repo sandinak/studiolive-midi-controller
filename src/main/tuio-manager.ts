@@ -64,12 +64,16 @@ export class TuioManager extends EventEmitter {
       if (buf[0] === 0x23) {
         // OSC bundle: "#bundle\0" + timetag (8 bytes) + size-prefixed messages
         let offset = 16; // skip "#bundle\0" (8) + timetag (8)
-        while (offset < buf.length) {
+        while (offset + 4 <= buf.length) {
           const size = buf.readInt32BE(offset);
           offset += 4;
-          if (size > 0 && offset + size <= buf.length) {
-            this.parseOscMessage(buf, offset, size);
-          }
+          // A size that is non-positive, misaligned, or overruns the packet
+          // means the bundle is malformed — abandon it rather than trusting
+          // the length to advance us. A negative size would otherwise move
+          // `offset` backwards and spin here forever, and this parser runs on
+          // unauthenticated UDP from anyone on the network.
+          if (size <= 0 || size % 4 !== 0 || offset + size > buf.length) return;
+          this.parseOscMessage(buf, offset, size);
           offset += size;
         }
       } else {
@@ -81,35 +85,41 @@ export class TuioManager extends EventEmitter {
     }
   }
 
-  private parseOscMessage(buf: Buffer, start: number, _len: number): void {
+  private parseOscMessage(buf: Buffer, start: number, len: number): void {
+    // Every read below is bounded by `end` so a message inside a bundle can't
+    // run off into its neighbours (or past the packet) on malformed input.
+    const end = Math.min(start + len, buf.length);
     let offset = start;
 
-    // Read address string
-    const addrEnd = buf.indexOf(0, offset);
-    if (addrEnd === -1) return;
-    const address = buf.toString('ascii', offset, addrEnd);
-    offset = align4(addrEnd + 1);
+    /** Read a null-terminated, 4-byte-aligned OSC string; null if truncated. */
+    const readString = (): string | null => {
+      const strEnd = buf.indexOf(0, offset);
+      if (strEnd === -1 || strEnd >= end) return null;
+      const s = buf.toString('ascii', offset, strEnd);
+      offset = align4(strEnd + 1);
+      return s;
+    };
 
+    // Read address string
+    const address = readString();
     if (address !== '/tuio/2Dcur') return;
 
     // Read type tag string (starts with ',')
     if (buf[offset] !== 0x2c) return;
-    const tagEnd = buf.indexOf(0, offset);
-    if (tagEnd === -1) return;
-    const typeTags = buf.toString('ascii', offset + 1, tagEnd); // skip the ','
-    offset = align4(tagEnd + 1);
+    const rawTags = readString();
+    if (rawTags === null) return;
+    const typeTags = rawTags.slice(1); // skip the ','
 
     // First arg should be a string (the TUIO message type)
     if (!typeTags.startsWith('s')) return;
-    const strEnd = buf.indexOf(0, offset);
-    if (strEnd === -1) return;
-    const msgType = buf.toString('ascii', offset, strEnd);
-    offset = align4(strEnd + 1);
+    const msgType = readString();
+    if (msgType === null) return;
 
     const remaining = typeTags.slice(1);
 
     if (msgType === 'set' && remaining.startsWith('iffff')) {
       // set: sessionId(i) x(f) y(f) xVel(f) yVel(f) [accel(f)]
+      if (offset + 12 > end) return;
       const id = buf.readInt32BE(offset); offset += 4;
       const x  = buf.readFloatBE(offset); offset += 4;
       const y  = buf.readFloatBE(offset); offset += 4;
@@ -121,7 +131,7 @@ export class TuioManager extends EventEmitter {
       // alive: zero or more int32 session IDs
       const aliveIds = new Set<number>();
       let i = 0;
-      while (i < remaining.length && remaining[i] === 'i') {
+      while (i < remaining.length && remaining[i] === 'i' && offset + 4 <= end) {
         aliveIds.add(buf.readInt32BE(offset));
         offset += 4;
         i++;
