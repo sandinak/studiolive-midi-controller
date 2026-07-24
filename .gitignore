@@ -11,3 +11,6 @@ coverage/
 
 # Editor backups of the renderer
 src/renderer/*.backup*
+
+# Soak test output
+soak-results/

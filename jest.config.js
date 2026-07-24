@@ -6,6 +6,10 @@ module.exports = {
   // no tests at all were silently omitted from the report rather than counted
   // as 0%. That inflated the headline number from ~32% to ~71%.
   roots: ['<rootDir>/src', '<rootDir>/tests'],
+  // Soak tests live under tests/soak and run via their own config
+  // (`npm run test:soak`) — they're long by design and must not run in the
+  // default unit suite.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/soak/'],
   moduleNameMapper: {
     '^easymidi$': '<rootDir>/tests/__mocks__/easymidi.ts',
     '^presonus-studiolive-api(/.*)?$': '<rootDir>/tests/__mocks__/presonus-studiolive-api.ts',

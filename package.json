@@ -12,6 +12,7 @@
     "dist": "npm run build && electron-builder",
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:soak": "node --expose-gc node_modules/jest/bin/jest.js --config jest.soak.config.js --runInBand",
     "typecheck": "tsc -p tsconfig.main.json --noEmit"
   },
   "build": {
