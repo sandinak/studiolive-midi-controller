@@ -553,14 +553,20 @@
       flex-direction: column;
       align-items: center;
       gap: 4px;
-      background: rgba(80, 80, 80, 0.8);
+      background: linear-gradient(180deg, rgba(30, 34, 33, 0.9), rgba(18, 21, 20, 0.92));
+      border: 1px solid rgba(255, 255, 255, 0.05);
       padding: 6px 4px;
-      border-radius: 4px;
+      border-radius: 8px;
       min-width: 65px;
       max-width: 75px;
       flex-shrink: 0;
       height: 100%;
-      transition: box-shadow 0.3s ease;
+      transition: box-shadow 0.3s ease, background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .fader-channel:hover {
+      border-color: rgba(255, 255, 255, 0.09);
+      background: linear-gradient(180deg, rgba(36, 41, 39, 0.92), rgba(22, 26, 25, 0.94));
     }
 
     /* Change source indicators */
@@ -712,6 +718,21 @@
       padding: 2px 0;
       width: 100%;
       min-height: 30px; /* Fixed height to ensure consistent alignment */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fader-icon svg {
+      width: 27px;
+      height: 27px;
+      color: #b9c2be;
+      display: block;
+    }
+
+    .faders-scrollable.stacked .fader-icon svg {
+      width: 20px;
+      height: 20px;
     }
 
     .fader-channel-number {
@@ -884,21 +905,21 @@
     }
 
     .fader-container {
-      width: 24px;
+      width: 12px; /* Narrow track — a mono bar matches one stereo bar */
       height: 100%; /* Fill available height */
       min-height: 200px;
-      background: rgba(50, 50, 50, 0.95);
-      border-radius: 12px;
+      background: linear-gradient(180deg, #101413, #0a0d0c);
+      border-radius: 7px;
       position: relative;
-      border: 2px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
-      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.7), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+      overflow: visible; /* let the wider cap overhang the track */
       cursor: pointer;
       user-select: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
-    /* Stereo fader - half width for dual L/R display */
+    /* Stereo fader - same narrow track width as a mono bar */
     .fader-container.stereo {
       width: 11px;
     }
@@ -916,21 +937,64 @@
       box-shadow: 0 0 4px rgba(76, 175, 80, 0.4);
     }
 
+    /* Teal value trace — fills the narrow track (inset a touch) */
     .fader-fill {
       position: absolute;
       bottom: 0;
-      left: 0;
-      right: 0;
-      background: linear-gradient(to bottom, #4a9b7f, #3d7a63);
-      border-radius: 0 0 13px 13px;
+      left: 1.5px;
+      right: 1.5px;
+      background: linear-gradient(to top, #2e6d58, #4a9b7f 55%, #7fd0ae);
+      border-radius: 2px;
       transition: height 0.1s;
       min-height: 2px;
+      filter: drop-shadow(0 0 5px rgba(74, 155, 127, 0.45));
     }
+
+    /* The lever/cap — near-black body, grey outline, WIDER than the bar so it
+       overhangs the track. Cap rides the fill's top edge (= the fader value). */
+    .fader-fill::after {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: -14.25px;
+      right: -14.25px;
+      height: 15px;
+      background: linear-gradient(180deg, #2c3230, #161a19);
+      border: 1px solid #7a827e;
+      border-radius: 3px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+      z-index: 4;
+    }
+
+    /* White center bar on the cap */
+    .fader-fill::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -10px;
+      right: -10px;
+      height: 2px;
+      transform: translateY(-0.5px);
+      background: #eef2f0;
+      border-radius: 1px;
+      z-index: 5;
+    }
+
+    /* Linked stereo: ONE cap spanning both bars, centered over the pair.
+       The left half draws it (raised above the right half so it paints on top);
+       the right half's cap + center bar are hidden. Offsets assume an 11px track,
+       1.5px fill inset, and 2px gap between the two halves. */
+    .fader-container.stereo { z-index: 1; }
+    .fader-container.stereo:first-child { z-index: 2; }
+    .fader-container.stereo .fader-fill::after { left: -8.25px; right: -21.25px; }
+    .fader-container.stereo .fader-fill::before { left: -2px; right: -15px; }
+    .fader-container.stereo + .fader-container.stereo .fader-fill::after,
+    .fader-container.stereo + .fader-container.stereo .fader-fill::before { display: none; }
 
     .fader-midi-indicator {
       position: absolute;
-      left: -8px;
-      right: -8px;
+      left: -5px;
+      right: -5px;
       height: 4px;
       background: #ff9800;
       box-shadow: 0 0 8px rgba(255, 152, 0, 0.9);
@@ -1496,14 +1560,16 @@
       right: 0;
       border-radius: 2px;
       transition: height 50ms linear;
-      background: #4CAF50;
+      background: linear-gradient(to top, #2e6d58, #4a9b7f 50%, #8fe0c0 85%, #d8f7ea);
+      box-shadow: 0 0 8px rgba(74, 155, 127, 0.4);
     }
     .fader-meter-peak {
       position: absolute;
       left: 0;
       right: 0;
       height: 2px;
-      background: #ffffff;
+      background: #d8f7ea;
+      box-shadow: 0 0 4px rgba(191, 238, 218, 0.9);
       display: none;
     }
     .fader-meter-tick {
@@ -3434,6 +3500,80 @@
       'default': '🎚️'
     };
 
+    // Clean stroked line-icons (demo style) that upgrade the emoji set.
+    // Any family without a line-icon falls back to ICON_MAP emoji.
+    const _svg = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+    const LINE = {
+      guitar: _svg('<circle cx="8" cy="16" r="4.2"/><path d="M11 13.2 19.6 4.6l1.5 1.5L12.4 14.7"/><path d="M18.4 5.8l1.8 1.8"/>'),
+      bass: _svg('<circle cx="8" cy="16" r="4.2"/><path d="M11 13 20.2 3.8"/><path d="M18.4 3.6l2 2"/>'),
+      keys: _svg('<rect x="3" y="6" width="18" height="12" rx="1.6"/><path d="M7.5 6v7.5M12 6v7.5M16.5 6v7.5"/>'),
+      drums: _svg('<ellipse cx="12" cy="8.5" rx="8" ry="3"/><path d="M4 8.5v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/><path d="M6 17l-2.5 4M18 17l2.5 4"/>'),
+      mic: _svg('<rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v4M8.5 21h7"/>'),
+      headphones: _svg('<path d="M4 14v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="13.5" width="4" height="6.5" rx="1.6"/><rect x="17" y="13.5" width="4" height="6.5" rx="1.6"/>'),
+      computer: _svg('<rect x="3" y="4" width="18" height="12" rx="1.6"/><path d="M2 20h20M9.5 16l-1 4M14.5 16l1 4"/>'),
+      click: _svg('<path d="M9 3h6l3 18H6z"/><path d="M7 16h10"/><path d="M12 16 16.5 6"/>'),
+      speaker: _svg('<rect x="5" y="3" width="14" height="18" rx="2"/><circle cx="12" cy="14" r="3.6"/><circle cx="12" cy="7" r="1.1"/>'),
+      strings: _svg('<path d="M16.5 3.5l4 4-9 9-4-4z"/><circle cx="7" cy="17" r="3.3"/><path d="M14 6l4 4"/>'),
+      wind: _svg('<path d="M8 3v8a5 5 0 0 0 5 5h1a3 3 0 0 0 3-3"/><circle cx="17" cy="16.5" r="1.2"/><path d="M8 6.5h3.5M8 9.5h3.5"/>'),
+      brass: _svg('<path d="M2 10v4M2 12h12l6-4v8l-6-4"/><path d="M8 12v3M11 12v3"/>'),
+      fx: _svg('<path d="M2.5 12h3l2-6 4 14 2.5-8H21.5"/>'),
+      mix: _svg('<path d="M4 21V3M12 21V3M20 21V3"/><rect x="1.5" y="7.5" width="5" height="4" rx="1"/><rect x="9.5" y="12.5" width="5" height="4" rx="1"/><rect x="17.5" y="5.5" width="5" height="4" rx="1"/>'),
+      phone: _svg('<rect x="6" y="2" width="12" height="20" rx="2.6"/><path d="M10.5 18h3"/>'),
+      turntable: _svg('<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="10" cy="12" r="5"/><circle cx="10" cy="12" r="1"/><path d="M15.5 7l3 1"/>'),
+    };
+    const SVG_ICONS = {
+      // Guitars
+      electricguitar: LINE.guitar, electric2: LINE.guitar, electric: LINE.guitar,
+      acousticguitar: LINE.guitar, acoustic2: LINE.guitar, acoustic: LINE.guitar,
+      guitar: LINE.guitar, dobro: LINE.guitar, banjo: LINE.guitar, mandolin: LINE.guitar,
+      pedalsteel: LINE.guitar, shamisen: LINE.guitar, sitar: LINE.guitar, ukulele: LINE.guitar, rock: LINE.guitar,
+      // Bass
+      bass: LINE.bass, uprightbass: LINE.bass,
+      // Keys
+      pipeorgan: LINE.keys, keyboardstier: LINE.keys, vibraphone: LINE.keys, harpsichord: LINE.keys,
+      piano: LINE.keys, organ: LINE.keys, keys: LINE.keys, keyboard: LINE.keys, synth: LINE.keys,
+      accordion: LINE.keys, clavinet: LINE.keys, kalimba: LINE.keys, xylophone: LINE.keys,
+      // Drums / percussion
+      drumpad: LINE.drums, drumset: LINE.drums, snarebottom: LINE.drums, snaretop: LINE.drums,
+      racktom: LINE.drums, floortom: LINE.drums, midtom: LINE.drums, hightom: LINE.drums,
+      kickin: LINE.drums, kickout: LINE.drums, ohleft: LINE.drums, ohright: LINE.drums, hihat: LINE.drums,
+      kick: LINE.drums, snare: LINE.drums, drums: LINE.drums, oh: LINE.drums, bongo: LINE.drums,
+      congas: LINE.drums, cymbal: LINE.drums, cymbals: LINE.drums, handpan: LINE.drums,
+      orchestrdrum: LINE.drums, miscperc: LINE.drums, steeldrum: LINE.drums, shakers: LINE.drums,
+      tambourine: LINE.drums, timbales: LINE.drums, timpani: LINE.drums, washboard: LINE.drums,
+      woodblock: LINE.drums, percussion: LINE.drums,
+      // Mic / vocals
+      microphone: LINE.mic, wirelessmic: LINE.mic, talkback: LINE.mic, backupvocals: LINE.mic,
+      leadvocals: LINE.mic, choirsingle: LINE.mic, crowdambient: LINE.mic, vocalcue: LINE.mic,
+      vocalmic: LINE.mic, choir: LINE.mic, speech: LINE.mic, vocals: LINE.mic, vocal: LINE.mic, mic: LINE.mic,
+      // Headphones
+      headphones: LINE.headphones, headphone: LINE.headphones, headset: LINE.headphones, iem: LINE.headphones,
+      // Computer / media
+      computer: LINE.computer, ssd: LINE.computer, firewire: LINE.computer,
+      // Click
+      metronome: LINE.click,
+      // Speakers / monitors
+      fohmain: LINE.speaker, sidefillmonitor: LINE.speaker, wedgemonitor: LINE.speaker, delayfill: LINE.speaker,
+      // Strings
+      cello: LINE.strings, fiddle: LINE.strings, harp: LINE.strings, viola: LINE.strings,
+      violin: LINE.strings, strings: LINE.strings, stringsection: LINE.strings,
+      // Woodwinds
+      bassclarinet: LINE.wind, altosaxophone: LINE.wind, tenorsaphone: LINE.wind, sopranophone: LINE.wind,
+      clarinet: LINE.wind, flute: LINE.wind, oboe: LINE.wind, saxophone: LINE.wind, sax: LINE.wind,
+      woodwinds: LINE.wind, bassoon: LINE.wind, baritone: LINE.wind,
+      // Brass
+      brasssection: LINE.brass, frenchhorn: LINE.brass, flugelhorn: LINE.brass, cornet: LINE.brass,
+      trombone: LINE.brass, trumpet: LINE.brass, tuba: LINE.brass, brass: LINE.brass,
+      // FX / routing
+      externalfx: LINE.fx, fx: LINE.fx, effect: LINE.fx, return: LINE.fx, aux: LINE.fx,
+      // Mix / DJ
+      djbox: LINE.mix, mix: LINE.mix,
+      // Phones / tablets
+      ipad: LINE.phone, ipod: LINE.phone, phone: LINE.phone, tablet: LINE.phone, telephone: LINE.phone,
+      // Turntable / video
+      turntable: LINE.turntable, video: LINE.turntable,
+    };
+
     function getIconForId(iconId, channelType, channelNum) {
       if (!iconId) return '';
       const id = iconId.toLowerCase().replace(/[_\s-\/]/g, '');  // Remove separators including slashes
@@ -3482,7 +3622,7 @@
 
       for (const key of orderedKeys) {
         if (id.includes(key)) {
-          return ICON_MAP[key];
+          return SVG_ICONS[key] || ICON_MAP[key];
         }
       }
 
