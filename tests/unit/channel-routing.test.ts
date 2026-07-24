@@ -7,6 +7,8 @@ describe('Channel Routing - Input Source', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     manager = new MixerManager();
+    // Skip the 500ms post-handshake state-settle wait — the mock is synchronous.
+    (manager as any).stateSettleMs = 0;
   });
 
   afterEach(async () => {

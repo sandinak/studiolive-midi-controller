@@ -27,6 +27,15 @@ export class MixerManager extends EventEmitter {
   private dcaLevelPollInterval: NodeJS.Timeout | null = null;
   private lastDcaLevels: (number | null)[] = [null, null, null, null, null, null, null, null];
   private hasDcaMappingsCallback: (() => boolean) | null = null;
+  // Set true once a mute-group PV packet has been observed. The 200ms poll is
+  // only a fallback for firmware that doesn't emit those packets; once we've
+  // seen one we know PV works and the poll is pure redundancy, so it stops
+  // itself. Reset on each connect (in startMuteGroupPolling).
+  private pvMuteGroupSeen: boolean = false;
+  // Time to let the state tree populate after the TCP handshake before we read
+  // it back. Real mixers need ~500ms; tests override this to keep the suite
+  // fast (51 connects would otherwise burn ~25s of real waiting).
+  private stateSettleMs: number = 500;
 
   constructor() {
     super();
@@ -87,6 +96,9 @@ export class MixerManager extends EventEmitter {
         if (mgMatch) {
           const groupNum = parseInt(mgMatch[1], 10);
           if (groupNum >= 1 && groupNum <= 8) {
+            // PV mute-group packets work on this mixer — the fallback poll can
+            // stop next tick (see startMuteGroupPolling).
+            this.pvMuteGroupSeen = true;
             const state = normalizeBoolish(data.value);
             // Keep our caches in sync so the poll doesn't fire a duplicate emit.
             this.lastMuteGroupStates[groupNum - 1] = state;
@@ -200,7 +212,7 @@ export class MixerManager extends EventEmitter {
         .catch((_e: any) => { /* Non-fatal: meters unavailable */ });
 
       // Give the state a moment to populate
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, this.stateSettleMs));
 
       // Test if we can read state
       const testName = (this.client as any).state?.get('line.ch1.username');
@@ -710,8 +722,20 @@ export class MixerManager extends EventEmitter {
     }
     try {
       const path = `${type.toLowerCase()}.ch${channel}.lr`;
-      const lr = (this.client as any).state?.get(path);
-      return lr !== null && lr !== undefined ? Boolean(lr) : null;
+      let lr = (this.client as any).state?.get(path);
+
+      if (lr === null || lr === undefined) {
+        return null;
+      }
+
+      // Handle Buffer values (convert to float first). Boolean(Buffer) is
+      // always true, so without this a pass-through Buffer reads as
+      // always-assigned — see getChannelMute/Solo/Link for the same guard.
+      if (lr instanceof Buffer) {
+        lr = lr.readFloatLE(0);
+      }
+
+      return lr > 0;
     } catch (error) {
       return null;
     }
@@ -1053,6 +1077,10 @@ export class MixerManager extends EventEmitter {
   private startMuteGroupPolling(): void {
     this.stopMuteGroupPolling();
 
+    // Fresh connection — re-arm the fallback until this mixer proves it emits
+    // PV mute-group packets.
+    this.pvMuteGroupSeen = false;
+
     // Initialize last + commanded states from whatever the mixer reports now.
     for (let groupNum = 1; groupNum <= 8; groupNum++) {
       const s = this.getMuteGroupState(groupNum);
@@ -1063,6 +1091,13 @@ export class MixerManager extends EventEmitter {
     // Poll every 200ms (5 times per second)
     this.muteGroupPollInterval = setInterval(() => {
       if (!this.client) {
+        this.stopMuteGroupPolling();
+        return;
+      }
+
+      // PV packets are handling mute-group changes directly — the poll is
+      // redundant, so shut it down and let PV be the sole source of truth.
+      if (this.pvMuteGroupSeen) {
         this.stopMuteGroupPolling();
         return;
       }

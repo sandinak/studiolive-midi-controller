@@ -12,6 +12,10 @@ describe('MixerManager', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     manager = new MixerManager();
+    // Skip the 500ms post-handshake state-settle wait — the mock populates
+    // state synchronously, so real waiting only slows the suite (~25s over all
+    // the connect() calls here).
+    (manager as any).stateSettleMs = 0;
   });
 
   afterEach(async () => {

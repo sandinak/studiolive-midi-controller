@@ -53,8 +53,17 @@ function throttledSetVolume(mixerMgr: MixerManager, channel: any, value: number)
     const e = pendingVolume.get(key);
     pendingVolume.delete(key);
     if (e && e.value !== value) {
-      // A newer value arrived while we were waiting — send it
-      mixerMgr.setVolume(e.channel, e.value);
+      // A newer value arrived while we were waiting — send it.
+      // This runs in a timer, outside the message handler's try/catch, so the
+      // mixer may have disconnected during the window; setVolume() throws
+      // synchronously when that happens. Guard + catch so an uncaught throw
+      // can't take down the main process.
+      if (!mixerMgr.isConnected()) return;
+      try {
+        mixerMgr.setVolume(e.channel, e.value);
+      } catch {
+        // Dropped mid-throttle — next MIDI move will resend.
+      }
     }
   }, VOLUME_THROTTLE_MS) };
   pendingVolume.set(key, entry);
