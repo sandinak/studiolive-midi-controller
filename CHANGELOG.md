@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-24
+
+### Added
+- **SVG instrument icons.** Stroked line-icons for the common instrument families (guitar, bass, keys, drums, mic, headphones, strings, winds, brass, FX, and more) now render in place of the emoji set, mapped from the mixer's channel icon IDs. Any family without a line-icon falls back to the existing emoji, so nothing regresses.
+- **Soak / leak / throughput test harness.** A headless, mock-driven suite (`npm run test:soak`, `make soak`) that exercises the failure modes only a long live session reveals — reconnect churn, MIDI replug, MIDI-learn scan churn, the translate hot path, and the unauthenticated-UDP TUIO parser — asserting pollers clear, maps drain, listeners stay steady, handles stay flat, and heap stays bounded. Includes a self-reporting multi-hour endurance mode; a 9-hour run held heap flat at ~123 MB (+0.03 MB/hr) across 14.3 billion translate calls and 11.4 million mixer reconnect cycles with zero issues.
+
+### Changed
+- **Fader restyle.** Fader channels get a gradient background, a subtle border, and a hover state; the mono fader track is narrower so it reads as a single stereo bar.
+
+### Fixed
+- **Uncaught exception could crash the main process.** The volume-throttle timer callback ran outside the MIDI message handler's try/catch and called `setVolume()`, which throws synchronously when the mixer has disconnected mid-throttle. It now checks the connection and catches — a fader move landing in the ~25 ms window as the mixer drops can no longer take down the app.
+- **Main-assign state could read as always-on.** `getChannelMainAssign` used `Boolean(lr)`, which is always true for a pass-through `Buffer`. It now decodes the float like the mute/solo/link getters and compares `> 0`.
+- **Redundant mute-group polling.** The 200 ms mute-group poll now stops once a PV mute-group packet proves the mixer's push path works (re-armed on each reconnect), removing idle polling without regressing external-change display on firmware that lacks those packets.
+
+### Developer
+- The post-handshake state-settle delay is injectable (`stateSettleMs`), letting the mixer-manager and channel-routing test suites skip the real 500 ms wait — the full unit suite drops from ~33 s to ~4 s. Default `npm test` ignores `tests/soak`; `soak-results/` is gitignored.
+
 ## [1.6.0] - 2026-07-21
 
 ### Security
