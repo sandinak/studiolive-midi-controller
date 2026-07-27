@@ -8,6 +8,11 @@ on:
     branches: ['**']
   pull_request:
 
+# Least-privilege token: this workflow only reads the repo to typecheck and
+# test. No write scopes are needed (release.yml handles publishing).
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
