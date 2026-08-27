@@ -59,6 +59,7 @@ async function capture(win, scene) {
   await win.webContents.executeJavaScript(`
     document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
     document.querySelectorAll('.context-menu.show').forEach(m => m.classList.remove('show'));
+    document.getElementById('__shotAnnotations')?.remove();
     window.scrollTo(0, 0);
   `);
   await sleep(120);
@@ -67,6 +68,40 @@ async function capture(win, scene) {
     await win.webContents.executeJavaScript(`(async () => { ${scene.setup} })()`, true);
   }
   await sleep(scene.settle ?? 400);
+
+  // Numbered callout badges, for the annotated shot the docs site pairs with a
+  // legend. Drawn into the page rather than added in an image editor so the
+  // annotated screenshot regenerates with everything else instead of drifting
+  // a few versions behind — which is exactly what happened to the old one.
+  if (scene.annotate) {
+    await win.webContents.executeJavaScript(`(() => {
+      const marks = ${JSON.stringify(scene.annotate)};
+      const layer = document.createElement('div');
+      layer.id = '__shotAnnotations';
+      layer.style.cssText =
+        'position:fixed;inset:0;z-index:99999;pointer-events:none';
+      for (const m of marks) {
+        const el = document.querySelector(m.selector);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        const badge = document.createElement('div');
+        badge.textContent = m.n;
+        // Anchored to a fraction along the target so a callout can sit over
+        // the part of a wide region it actually refers to.
+        const x = r.left + r.width * (m.x ?? 0.5) + (m.dx ?? 0);
+        const y = r.top + r.height * (m.y ?? 0.5) + (m.dy ?? 0);
+        badge.style.cssText =
+          'position:absolute;width:34px;height:34px;border-radius:50%;' +
+          'display:flex;align-items:center;justify-content:center;' +
+          'background:#2e7d5b;color:#fff;font:700 17px/1 system-ui,sans-serif;' +
+          'box-shadow:0 2px 10px rgba(0,0,0,.65);border:2px solid #7fd1ad;' +
+          'left:' + Math.round(x - 17) + 'px;top:' + Math.round(y - 17) + 'px';
+        layer.appendChild(badge);
+      }
+      document.body.appendChild(layer);
+    })()`);
+    await sleep(120);
+  }
 
   // A scene either grabs the whole window or the bounding box of a selector.
   let rect;

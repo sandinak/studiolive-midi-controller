@@ -16,6 +16,21 @@ module.exports = [
     settle: 700,
   },
   {
+    // Paired with the numbered legend in docs/index.html — keep the callout
+    // numbers and that list in step.
+    name: 'main-window-annotated',
+    setup: `if (typeof setLevelVisibility === 'function') await setLevelVisibility('meter');`,
+    settle: 700,
+    annotate: [
+      // Anchored to the empty space beside each region's own content so the
+      // badges never cover a control the legend is pointing at.
+      { n: 1, selector: '.header-left', x: 1, dx: 45 },          // header bar
+      { n: 2, selector: '.faders-toolbar', x: 0.5, dx: -70 },    // toolbar
+      { n: 3, selector: '#faders-container', x: 0.5, y: 0.42 },  // channel strips
+      { n: 4, selector: '.status-bar-left', x: 1, dx: 45 },      // status bar
+    ],
+  },
+  {
     name: 'toolbar',
     // The app header: transport, profile buttons, MIDI/mixer status, mode lock.
     clip: '.header',

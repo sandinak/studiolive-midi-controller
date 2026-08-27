@@ -6993,6 +6993,39 @@
       }
     }
 
+    /**
+     * Shrink a fader badge's text a step when it would otherwise ellipsize.
+     *
+     * Channel names come from the console and can be any length, and the same
+     * name takes different widths on different platforms — the default Linux
+     * sans is wider than the macOS system font, so labels that fit on a Mac
+     * ("Snare Top", "Playback L", "CC21 Ch1") truncated there by 1-5px. Rather
+     * than trim padding until one particular font happens to fit, step down
+     * only the labels that actually overflow, on whatever platform.
+     *
+     * Reads are batched ahead of the writes so the common case — nothing
+     * overflows — costs a single layout pass.
+     */
+    function fitFaderLabels(...roots) {
+      const STEPS = ['0.61rem', '0.57rem', '0.54rem'];
+      const tooWide = [];
+      for (const root of roots) {
+        if (!root) continue;
+        root.querySelectorAll('.fader-label, .fader-mapping-info').forEach(el => {
+          if (el.scrollWidth > el.clientWidth) tooWide.push(el);
+        });
+      }
+      for (const el of tooWide) {
+        for (const size of STEPS) {
+          el.style.fontSize = size;
+          if (el.scrollWidth <= el.clientWidth) break;
+        }
+        // Still over at the smallest step: leave it: ellipsis is the right
+        // answer for a genuinely long name, rather than shrinking it into
+        // illegibility.
+      }
+    }
+
     // Load faders
     async function loadFaders() {
       // Prevent multiple simultaneous calls
@@ -7720,6 +7753,7 @@
           // Add mouse interaction to faders
           setupFaderInteraction();
           applyFaderStacking();
+          fitFaderLabels(container, mainContainer);
 
           // Load initial fader positions, mute states, solo states, and main assign states from mixer
           const allMappings = [...sortedRegularMappings, ...sortedMainMappings];
