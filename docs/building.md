@@ -252,11 +252,15 @@ headless Linux runner under `xvfb-run` — which is exactly what the `screenshot
 job in `.github/workflows/ci.yml` does on every push, doubling as a smoke test
 that the UI still renders.
 
-One caveat for headless Linux: the harness needs Chromium's shared-memory
-setup to work. That is fine on a VM or a GitHub runner, but an **unprivileged
-LXC container** blocks it — its seccomp filter makes the allocation fail with
-`ESRCH` regardless of `--disable-dev-shm-usage`, and the page never loads. The
-Linux *packaging* build has no such problem, since it renders nothing.
+On Linux the harness must be launched through `tools/screenshot/run.js` — what
+`make shots` and `npm run shots` do — not by invoking `electron main.js`
+directly. Electron validates the SUID sandbox helper during startup, before any
+switch the app sets itself is read, so `--no-sandbox` has to arrive as a real
+command-line argument. Skip the launcher and it dies with SIGTRAP; worse, the
+failure sometimes surfaces first as `Creating shared memory in /dev/shm/...
+failed: No such process`, which sends you chasing `/dev/shm` permissions that
+were never the problem. Verified working under `xvfb-run` on both a GitHub
+runner and an unprivileged Proxmox LXC container.
 
 To add a shot, append an entry to `tools/screenshot/scenes.js`: a `name` (which
 becomes the filename), an optional `setup` snippet run inside the renderer to

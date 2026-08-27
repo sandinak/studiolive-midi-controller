@@ -14,7 +14,7 @@
     "test:coverage": "jest --coverage",
     "test:soak": "node --expose-gc node_modules/jest/bin/jest.js --config jest.soak.config.js --runInBand",
     "typecheck": "tsc -p tsconfig.main.json --noEmit",
-    "shots": "npm run build && electron tools/screenshot/main.js"
+    "shots": "npm run build && node tools/screenshot/run.js"
   },
   "build": {
     "appId": "com.sandinak.studiolive-midi-controller",

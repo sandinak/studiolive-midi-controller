@@ -92,7 +92,7 @@ jobs:
         run: npm run build
 
       - name: Capture UI screenshots
-        run: xvfb-run -a --server-args="-screen 0 1600x1000x24" npx electron tools/screenshot/main.js
+        run: xvfb-run -a --server-args="-screen 0 1600x1000x24" node tools/screenshot/run.js
 
       - name: Upload screenshots
         if: always()

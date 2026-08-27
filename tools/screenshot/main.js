@@ -29,26 +29,28 @@ const OUT_DIR = path.join(ROOT, 'docs', 'images');
 // that would otherwise complain on a headless runner.
 app.commandLine.appendSwitch('mute-audio');
 app.disableHardwareAcceleration();
-// Headless Linux is where this runs unattended. CI runners have no user
-// namespace for Chromium's sandbox, and a container's /dev/shm is often too
-// small, so both switches are set on Linux generally rather than gated on CI —
-// `xvfb-run npm run shots` then behaves the same on a build host as on a
-// runner. This tool only ever loads a local file it just built, so dropping the
-// sandbox costs nothing.
+// A container's /dev/shm is often too small for Chromium's allocations, so
+// point it elsewhere on Linux. The other flag headless Linux needs,
+// --no-sandbox, cannot be set here — Electron validates the SUID sandbox
+// helper before these switches are read — so tools/screenshot/run.js passes it
+// on the command line instead. Launch through that, not this file directly.
 //
-// These are not sufficient inside an unprivileged LXC container: its seccomp
-// filter makes Chromium's shared-memory setup fail with ESRCH no matter which
-// directory it is pointed at, and the page never loads. Run the harness in a
-// VM or on a CI runner, or give the container a relaxed seccomp profile.
-if (process.platform === 'linux') {
-  app.commandLine.appendSwitch('no-sandbox');
-  app.commandLine.appendSwitch('disable-dev-shm-usage');
-}
+// If the sandbox flag is missing, the failure surfaces confusingly as a shared
+// memory error ("Creating shared memory in /dev/shm/... failed: No such
+// process") rather than as a sandbox complaint — chasing /dev/shm permissions
+// is a dead end. Launching through run.js is the fix.
+if (process.platform === 'linux') app.commandLine.appendSwitch('disable-dev-shm-usage');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Scenes named on the command line, e.g. `npm run shots -- toolbar`. */
-const wanted = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+/**
+ * Scenes named on the command line, e.g. `npm run shots -- toolbar`.
+ * Sliced relative to this file's own position in argv rather than a fixed
+ * index: run.js prepends Chromium flags on Linux, which would otherwise shift
+ * the script path into the scene list and select nothing.
+ */
+const selfIndex = process.argv.findIndex((a) => a.endsWith('main.js'));
+const wanted = process.argv.slice(selfIndex + 1).filter((a) => !a.startsWith('-'));
 const selected = wanted.length ? SCENES.filter((s) => wanted.includes(s.name)) : SCENES;
 
 async function capture(win, scene) {
