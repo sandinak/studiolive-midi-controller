@@ -5,6 +5,8 @@ MIDI control for Fender(PreSonus) StudioLive III mixers. Map DAW faders and auto
 ![Version](https://img.shields.io/badge/version-1.7.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
+![The main window: sixteen input channels, four DCA groups, and the main fader](docs/images/main-window.png)
+
 ## Features
 
 - **MIDI ↔ Mixer control** — CC, Note, and Note-Value modes with real-time feedback
@@ -22,21 +24,56 @@ MIDI control for Fender(PreSonus) StudioLive III mixers. Map DAW faders and auto
 - **Level metering** — per-channel indicator or live VU meter with peak hold
 - **Channel labels, colors & icons** — set based on mixer configuration, with per-DCA color coding
 
+## A Look Around
+
+Every channel is a full strip: the instrument icon and color come straight from the
+console, the meter shows live level with peak hold, and the badges underneath name the
+channel, its DCA group, and any MIDI control bound to it.
+
+<img src="docs/images/channel-strip.png" alt="Four channel strips showing icons, meters, mute/solo and DCA badges" width="316">
+
+Mute groups sit along the top of the fader area — a lit ring means the group is
+currently muting its members.
+
+![Filter selector and mute group buttons](docs/images/mute-groups.png)
+
+Mappings are built in a dialog that can either be filled in by hand or taught: press
+**Learn**, move the fader or press the pad on your controller, and the MIDI type,
+channel, and CC/note are captured for you.
+
+<img src="docs/images/mapping-modal.png" alt="The Create Mapping dialog" width="440">
+
+Everything you have bound is listed in one place with its source device on every row,
+so it is obvious what is driving what.
+
+![All MIDI Mappings, showing DAW faders on the DCAs and a controller on the vocal channels](docs/images/mappings-list.png)
+
+Mixers are found automatically by UDP broadcast plus an active TCP sweep of the local
+subnet, so the console still shows up when Universal Control is holding the discovery
+port. Connected MIDI devices each get their own color, which is then used to tint the
+mappings they own.
+
+<img src="docs/images/mixer-discovery.png" alt="The Find Mixer dialog" width="380"> <img src="docs/images/midi-modal.png" alt="The MIDI Connection dialog" width="380">
+
 ## Quick Start
 
 ```bash
-# Clone both repos side-by-side — the API is a local file: dependency
-git clone https://github.com/featherbear/presonus-studiolive-api.git
 git clone https://github.com/sandinak/studiolive-midi-controller.git
 cd studiolive-midi-controller
-
-# Build the API dependency, install, then build and run this app
 make setup && npm run build && npm start
 ```
 
-Requires **Node 22+** and **Python 3.11** to build from source — see [Setup](docs/setup.md) for why.
+`presonus-studiolive-api` is a pinned git dependency that builds itself on install —
+no sibling checkout needed. (`make link-local` still exists for working against a
+local checkout of it.)
 
-Or download the latest DMG from [Releases](https://github.com/sandinak/studiolive-midi-controller/releases).
+Requires **Node 22+**, **Python 3.11**, and **yarn** (`corepack enable`) to build from
+source — see [Setup](docs/setup.md) for why. Linux needs `libasound2` at runtime;
+MIDI there goes through ALSA.
+
+Or download a build from [Releases](https://github.com/sandinak/studiolive-midi-controller/releases):
+a **DMG** for macOS, an **installer or portable .exe** for Windows, and an
+**AppImage, .deb, or tarball** for Linux (x64 and arm64).
 
 ## Documentation
 
@@ -70,7 +107,18 @@ npm test               # Jest unit suite
 npm run test:coverage  # ...with coverage thresholds enforced
 ```
 
-CI runs the type check and the coverage-gated test suite on every push and pull request. The integration suite under `tests/integration/` talks to real hardware and skips itself unless `MIXER_IP` is set:
+CI runs the type check and the coverage-gated test suite on every push and pull request,
+plus a headless UI pass that boots the real renderer against a synthetic mixer and
+re-captures every screenshot in this README — so a change that breaks the interface
+fails the build instead of quietly shipping. Regenerate them locally with:
+
+```bash
+make shots             # all scenes → docs/images/
+npm run shots -- main-window   # or just one
+```
+
+No mixer, MIDI interface, or network is involved; see [tools/screenshot/](tools/screenshot/).
+ The integration suite under `tests/integration/` talks to real hardware and skips itself unless `MIXER_IP` is set:
 
 ```bash
 MIXER_IP=192.168.1.50 npx jest -c jest.integration.config.js

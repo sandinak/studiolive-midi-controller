@@ -1,15 +1,21 @@
 # Building StudioLive MIDI Controller
 
-This document describes how to build distributable packages for macOS and Windows.
+This document describes how to build distributable packages for macOS, Windows, and Linux.
 
 ## Prerequisites
 
 - Node.js 22+ and npm — the upstream `presonus-studiolive-api` build imports
   `styleText` from `node:util`, which Node 18 doesn't provide
 - Python 3.11 — `node-gyp` needs `distutils` to compile the native MIDI
-  module, and Python 3.12 removed it
+  module, and Python 3.12 removed it (anything older than 3.12 works)
+- yarn on `PATH` (`corepack enable`) — the pinned `presonus-studiolive-api`
+  dependency runs its own build during install, and that build shells out to
+  yarn. GitHub's x64 runner images ship it; a bare Debian box does not
 - For macOS builds: macOS with Xcode Command Line Tools
 - For Windows builds: Windows or macOS (cross-compilation supported)
+- For Linux builds: `fakeroot` and `dpkg` for the `.deb` target (which is the only
+  target that needs a Linux host); `libasound2-dev` only if the prebuilt MIDI
+  binaries are ever unavailable and the module has to compile from source
 
 ## Quick Start
 
@@ -21,6 +27,9 @@ make dist-mac
 
 # Build for Windows (NSIS installer and portable)
 make dist-win
+
+# Build for Linux (AppImage, .deb, tar.gz)
+make dist-linux
 
 # Build for all platforms
 make dist-all
@@ -43,6 +52,51 @@ This creates:
 - **ZIP archive** (`release/StudioLive MIDI Controller-{version}-mac.zip`)
   - Universal binary (x64 and arm64)
   - For manual installation or distribution
+
+### Linux Packages
+
+```bash
+make dist-linux
+```
+
+This creates, for both x64 and arm64:
+- **AppImage** (`release/StudioLive MIDI Controller-{version}.AppImage`,
+  and `-{version}-arm64.AppImage`)
+  - Self-contained; `chmod +x` and run, no installation
+- **Debian package** (`release/studiolive-midi-controller_{version}_amd64.deb`)
+  - Declares ALSA and the usual Electron runtime libraries, each as a
+    `pkg | pkgt64` alternative so it installs on both sides of the Debian
+    `time_t` transition (Ubuntu 24.04 / Debian 13 renamed `libasound2` to
+    `libasound2t64`)
+- **Tarball** (`release/studiolive-midi-controller-{version}.tar.gz`)
+  - For distro packaging or manual placement
+
+**Nothing is compiled during a Linux build**, which is why one host produces
+both architectures. Electron is downloaded prebuilt, and `@julusian/midi` — the
+only native dependency that ships — is a
+[prebuildify](https://github.com/prebuild/prebuildify) package whose tarball
+already contains `linux-x64`, `linux-arm64`, `linux-arm`, and musl binaries. So
+`--x64` and `--arm64` both work from an x64 Linux box, and from macOS too.
+
+The one host requirement is the `.deb`: electron-builder shells out to
+`fakeroot` and `dpkg-deb` to assemble it, so that target needs Linux.
+AppImage and tar.gz do not.
+
+The `.deb` also needs packaging metadata the other targets do not: a top-level
+`homepage` in `package.json`, and `build.linux.maintainer`. The maintainer is
+set to `sandinak <sandinak@users.noreply.github.com>` — deliberately the GitHub
+noreply form, since that string is embedded in every published `.deb`. Change it
+there if you would rather ship a different contact address.
+
+`build-linux` in `.github/workflows/release.yml` therefore runs a single
+`ubuntu-22.04` job emitting both architectures. 22.04 rather than
+`ubuntu-latest` is habit rather than necessity here — since nothing links
+against the runner's glibc, the artifacts are portable either way — but it
+keeps the toolchain matched to the oldest distro the app targets.
+
+MIDI on Linux goes through ALSA. Users need `libasound2` present (the `.deb`
+depends on it; AppImage users on a minimal system may have to install it), and
+the mixer connection itself is plain TCP/UDP, so nothing else is platform-specific.
 
 ### Windows Packages
 
@@ -179,3 +233,36 @@ The version number is automatically included in package filenames.
 - `make rebuild` - Clean and rebuild
 - `make typecheck` - Run TypeScript type checking
 
+
+
+## Screenshots
+
+`docs/images/*.png` is generated, not hand-captured:
+
+```bash
+make shots                      # every scene
+npm run shots -- mapping-modal  # one scene
+```
+
+The harness in [`tools/screenshot/`](../tools/screenshot/) loads the real
+renderer (`dist/renderer/index.html`) with a preload that answers every IPC
+channel from a fixture board instead of a console. No mixer, MIDI interface, or
+network is touched, so it produces identical images on macOS, Windows, or a
+headless Linux runner under `xvfb-run` — which is exactly what the `screenshots`
+job in `.github/workflows/ci.yml` does on every push, doubling as a smoke test
+that the UI still renders.
+
+One caveat for headless Linux: the harness needs Chromium's shared-memory
+setup to work. That is fine on a VM or a GitHub runner, but an **unprivileged
+LXC container** blocks it — its seccomp filter makes the allocation fail with
+`ESRCH` regardless of `--disable-dev-shm-usage`, and the page never loads. The
+Linux *packaging* build has no such problem, since it renders nothing.
+
+To add a shot, append an entry to `tools/screenshot/scenes.js`: a `name` (which
+becomes the filename), an optional `setup` snippet run inside the renderer to
+open a dialog or change a mode, and an optional `clip` selector to crop to one
+element. To change what the fixture mixer looks like — channel names, icons,
+colours, DCA membership, mappings — edit `tools/screenshot/fixtures.js`.
+
+Nothing under `tools/` ships: electron-builder's `files` list only packages
+`dist/`, `package.json`, `CHANGELOG.md`, and `docs/`.

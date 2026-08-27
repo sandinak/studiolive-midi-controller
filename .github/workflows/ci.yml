@@ -49,3 +49,55 @@ jobs:
           name: coverage
           path: coverage/
           retention-days: 14
+
+  # A headless smoke test of the actual UI: boot the real renderer against the
+  # fixture mixer in tools/screenshot/, drive every documented scene, and fail
+  # if any of them stops rendering. It is also how docs/images/ gets rebuilt —
+  # the PNGs are attached to the run so a UI change can be eyeballed in the PR
+  # without anyone having a mixer on their desk.
+  screenshots:
+    runs-on: ubuntu-latest
+    # Electron pops a modal error box if the harness fails to load, which under
+    # xvfb waits forever. Cap the job rather than burning a runner.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # libasound2-dev for @julusian/midi's build; the rest are the shared
+      # libraries Electron itself needs on a bare runner.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libasound2-dev libgtk-3-0 libnss3 libatk-bridge2.0-0 libgbm1
+
+      # The pinned presonus-studiolive-api git dependency builds itself on
+      # install and its build script shells out to yarn. GitHub's x64 Ubuntu
+      # images ship yarn preinstalled; the arm64 images carry a reduced
+      # toolset, so make it explicit rather than depend on the image.
+      - name: Ensure yarn is available
+        run: corepack enable && yarn --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Capture UI screenshots
+        run: xvfb-run -a --server-args="-screen 0 1600x1000x24" npx electron tools/screenshot/main.js
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: docs/images/*.png
+          retention-days: 14

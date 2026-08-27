@@ -13,7 +13,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:soak": "node --expose-gc node_modules/jest/bin/jest.js --config jest.soak.config.js --runInBand",
-    "typecheck": "tsc -p tsconfig.main.json --noEmit"
+    "typecheck": "tsc -p tsconfig.main.json --noEmit",
+    "shots": "npm run build && electron tools/screenshot/main.js"
   },
   "build": {
     "appId": "com.sandinak.studiolive-midi-controller",
@@ -82,6 +83,52 @@
       "createStartMenuShortcut": true,
       "shortcutName": "StudioLive MIDI Controller"
     },
+    "linux": {
+      "icon": "assets/icon.png",
+      "category": "AudioVideo",
+      "synopsis": "MIDI control for PreSonus StudioLive III mixers",
+      "description": "Map DAW faders and automation to a PreSonus StudioLive III mixer over the network.",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "studiolive-midi-controller",
+          "Keywords": "midi;mixer;audio;presonus;studiolive;"
+        }
+      },
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "tar.gz",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "maintainer": "sandinak <sandinak@users.noreply.github.com>"
+    },
+    "deb": {
+      "depends": [
+        "libasound2 | libasound2t64",
+        "libgtk-3-0 | libgtk-3-0t64",
+        "libnss3",
+        "libxtst6",
+        "libatspi2.0-0 | libatspi2.0-0t64",
+        "xdg-utils"
+      ]
+    },
     "asarUnpack": [
       "**/*.node",
       "**/node_modules/@julusian/midi/**",
@@ -114,6 +161,7 @@
     "controller"
   ],
   "author": "sandinak",
+  "homepage": "https://github.com/sandinak/studiolive-midi-controller",
   "license": "MIT",
   "dependencies": {
     "easymidi": "^3.0.1",

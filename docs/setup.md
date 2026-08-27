@@ -2,12 +2,19 @@
 
 ## Prerequisites
 
-- **macOS 12+** (primary platform) or **Windows 10/11**
+- **macOS 12+** (primary platform), **Windows 10/11**, or **Linux** (x64 or arm64)
 - **Node.js 22+** and npm (install via [Homebrew](https://brew.sh): `brew install node`)
   - Node 22 is required to build from source: the upstream `presonus-studiolive-api`
     build imports `styleText` from `node:util`, which Node 18 doesn't provide
 - **Python 3.11** if building from source — `node-gyp` needs `distutils` to compile
-  the native MIDI module, and Python 3.12 removed it
+  the native MIDI module, and Python 3.12 removed it (any Python before 3.12 works;
+  3.11 is simply the newest that still ships it)
+- **yarn** on `PATH` — the pinned `presonus-studiolive-api` dependency builds itself
+  during `npm install` and its build script invokes yarn. `corepack enable` provides
+  it. Without it the install fails with `sh: 1: yarn: not found`.
+- **On Linux**: `libasound2` at runtime — MIDI goes through ALSA there. The MIDI
+  module ships prebuilt binaries, so `libasound2-dev` is only needed in the unlikely
+  event it has to compile from source
 - **PreSonus StudioLive III** mixer on the same network
 - **Logic Pro** or any DAW with MIDI output capability
   - Logic Pro exposes **Logic Pro Virtual Out** automatically — no extra setup needed
@@ -17,10 +24,6 @@
 ### From Source
 
 ```bash
-# Clone the API library (must be in the same parent directory)
-git clone https://github.com/featherbear/presonus-studiolive-api.git
-
-# Clone the main application
 git clone https://github.com/sandinak/studiolive-midi-controller.git
 cd studiolive-midi-controller
 
@@ -32,7 +35,19 @@ npm run build
 npm start
 ```
 
-> The `presonus-studiolive-api` repository must be cloned alongside `studiolive-midi-controller` in the same parent directory — it is referenced as a local dependency.
+> `presonus-studiolive-api` is a **pinned git dependency** (`#v1.8.1`) that builds
+> itself during install — no sibling checkout is required. It used to be a local
+> `file:` dependency, which is what older instructions describe. To develop against a
+> local checkout of it, use `make link-local`; `npm install` or `make release` restores
+> the pinned tag.
+
+### From a Linux Package
+
+Download from the [Releases](https://github.com/sandinak/studiolive-midi-controller/releases)
+page — an **AppImage** (`chmod +x` and run, no installation), a **.deb**
+(`sudo apt install ./studiolive-midi-controller_*.deb`), or a **tarball**. x64 and
+arm64 builds are published separately; there is no universal Linux binary because
+the MIDI module is native code.
 
 ### From DMG
 

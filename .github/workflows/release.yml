@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+  # Lets a platform build be exercised without cutting a release — useful for
+  # the Linux and Windows jobs, which otherwise only ever run on a tag.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -139,3 +142,58 @@ jobs:
           draft: true
           files: |
             release/*.exe
+
+  build-linux:
+    # One runner emits both architectures. Nothing is compiled here: Electron
+    # is downloaded prebuilt, and @julusian/midi — the only native dependency
+    # that ships — is a prebuildify package whose tarball already carries
+    # linux-x64, linux-arm64, linux-arm and musl binaries. Verified by building
+    # both AppImages on a single x64 Debian host.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # node-gyp needs distutils to build @julusian/midi from source if a
+      # prebuild is ever missing; Python 3.12+ removed it.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # libasound2-dev for the from-source fallback above; fakeroot and dpkg
+      # are what electron-builder shells out to for the .deb, and are the only
+      # reason this job has to run on Linux at all.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev fakeroot dpkg
+
+      # The pinned presonus-studiolive-api git dependency builds itself on
+      # install and its build script shells out to yarn. GitHub's x64 Ubuntu
+      # images ship yarn preinstalled, but make it explicit rather than depend
+      # on the image — a bare Debian box fails with "sh: 1: yarn: not found".
+      - name: Ensure yarn is available
+        run: corepack enable && yarn --version
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Build Linux packages
+        run: npx electron-builder --linux --x64 --arm64 -p never
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Upload Linux release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: |
+            release/*.AppImage
+            release/*.deb
+            release/*.tar.gz

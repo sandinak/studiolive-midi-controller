@@ -1,6 +1,6 @@
 # Makefile for StudioLive MIDI Controller
 
-.PHONY: help build clean dev start dist dist-mac dist-win dist-all install setup typecheck copy-assets rebuild link-local unlink-local test soak release
+.PHONY: help build clean dev start dist dist-mac dist-win dist-linux dist-all install setup typecheck copy-assets rebuild link-local unlink-local test soak shots release
 
 # Paths
 DEPS_DIR  = ../presonus-studiolive-api
@@ -89,6 +89,18 @@ dist-win: build ## Build Windows packages (NSIS installer and portable)
 	@echo "Building Windows packages..."
 	npm run dist -- --win
 
+dist-linux: build ## Build Linux packages (AppImage, .deb, tar.gz — x64 and arm64)
+	@echo "Building Linux packages..."
+	@# Nothing is compiled here: Electron ships prebuilt and @julusian/midi is a
+	@# prebuildify package carrying linux-x64/arm64/musl binaries, so both
+	@# architectures build from any host. The .deb is the one exception —
+	@# electron-builder shells out to fakeroot/dpkg, which macOS lacks.
+	@if [ "$$(uname -s)" != "Linux" ]; then \
+		echo "  Note: building from $$(uname -s). AppImage and tar.gz are fine;"; \
+		echo "  the .deb needs fakeroot and dpkg, so run this on Linux for that."; \
+	fi
+	npm run dist -- --linux
+
 dist-all: build ## Build packages for all platforms
 	@echo "Building packages for all platforms..."
 	@if [ -f .env ]; then \
@@ -105,6 +117,9 @@ test: ## Run Jest unit tests
 
 soak: ## Run soak/leak/throughput tests (headless, mocked — no hardware needed)
 	npm run test:soak
+
+shots: ## Regenerate docs/images/*.png from the real UI (no mixer needed)
+	npm run shots
 
 # ---------------------------------------------------------------------------
 # Release pipeline — build, test, sign, and push

@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Documented the yarn build requirement.** The pinned `presonus-studiolive-api` dependency builds itself during `npm install` and its build script invokes yarn, so a machine without it fails `npm ci` with `sh: 1: yarn: not found`. GitHub's x64 runner images happen to ship yarn, which is why this never surfaced in CI. Now called out in the README and both setup docs, and made explicit with `corepack enable` in the Linux CI jobs.
+- **Linux builds.** electron-builder now produces an AppImage, a `.deb`, and a tarball for x64 and arm64, via `make dist-linux` or the new `build-linux` job in the release workflow. A single x64 host emits both architectures: nothing is compiled during a Linux build, because Electron is downloaded prebuilt and `@julusian/midi` — the only native dependency that ships — is a prebuildify package carrying `linux-x64`, `linux-arm64`, and musl binaries in its tarball. The `.deb` is the one target that needs a Linux host, since electron-builder shells out to `fakeroot`/`dpkg-deb`; it declares ALSA as a `libasound2 | libasound2t64` alternative so it installs on both sides of the Debian `time_t` transition. No main-process changes were needed — the platform branches for icon path, dock icon, and `window-all-closed` already handled non-macOS. Verified end to end on a Debian 11 host. Building the `.deb` also required packaging metadata the project never had: a top-level `homepage`, and a `linux.maintainer` (set to the GitHub noreply address rather than a personal one, since it is published inside every `.deb`).
+- **Documentation screenshot harness** (`make shots`, `npm run shots`). Boots the real renderer against a fixture mixer defined in `tools/screenshot/fixtures.js` — a full 16-channel board with names, icons, colors, stereo links, DCA and mute-group membership, and a representative mapping set — then drives it through the scenes in `tools/screenshot/scenes.js` and writes `docs/images/*.png`. No mixer, MIDI interface, or network involved, so it reproduces on any platform. A `screenshots` job in CI runs it headlessly under `xvfb-run` on every push and attaches the images to the run, which doubles as a smoke test that the UI still renders.
+- **README screenshots.** The README now shows the main window, a channel strip close-up, the mute-group bar, the mapping dialog, the mappings list, and the discovery and MIDI dialogs. The previous `docs/images/` set was captured at v1.2.0 and predated the v1.7.0 fader restyle and instrument icons; everything except the hand-annotated `main-window-annotated.png` is regenerated.
+
 ## [1.7.0] - 2026-07-24
 
 ### Added
