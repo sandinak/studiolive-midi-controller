@@ -1806,6 +1806,36 @@
       margin-left: auto; font-size: 0.58rem; color: #8a6d3b; white-space: nowrap;
     }
     .channel-menu-empty { padding: 10px 12px; font-size: 0.72rem; color: #8a938f; }
+    /* Preamp gain row in the channel menu */
+    .channel-menu-gain { padding: 4px 12px 8px; }
+    .channel-menu-gain .gain-row {
+      display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+      font-size: 0.74rem; color: #dfe4e1; margin-bottom: 5px;
+    }
+    .channel-menu-gain .gain-value {
+      font-family: var(--shot-mono, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+      font-size: 0.72rem; color: #4a9b7f; font-weight: 700;
+    }
+    .channel-menu-gain input[type="range"] { width: 100%; accent-color: #4a9b7f; }
+    .channel-menu-gain.locked { opacity: .45; }
+    .channel-menu-gain.locked input { pointer-events: none; }
+
+    /* Console channel presets */
+    .channel-menu-presets { max-height: 190px; overflow-y: auto; }
+    .channel-menu-preset {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 12px; font-size: 0.72rem; color: #dfe4e1; cursor: pointer;
+    }
+    .channel-menu-preset:hover { background: rgba(255,255,255,.06); }
+    .channel-menu-preset .preset-cat {
+      margin-left: auto; font-size: 0.56rem; letter-spacing: .06em;
+      text-transform: uppercase; color: #626b68;
+    }
+    /* Presets whose category matches this channel's instrument icon. */
+    .channel-menu-preset.match .preset-cat { color: #4a9b7f; }
+    .channel-menu-preset.match { color: #eafff5; }
+    .channel-menu-presets.locked { opacity: .45; }
+    .channel-menu-presets.locked .channel-menu-preset { pointer-events: none; }
   </style>
 </head>
 <body>
@@ -3684,6 +3714,66 @@
       return ICON_MAP.default;
     }
 
+    /**
+     * The console groups its channel presets into instrument categories, which
+     * it encodes in the preset filename (`07.Snare 1.Drum.channel`). Channel
+     * icons are a free-form string — the console has no published vocabulary
+     * for them, and they arrive both as `keyboards/piano` and as a bare
+     * `piano` depending on how the channel was set up.
+     *
+     * So this matches on instrument keywords the way getIconForId() does,
+     * rather than trusting a path prefix that is often absent. Order matters:
+     * "steeldrum" is percussion rather than a drum kit piece, "bassoon" is a
+     * woodwind rather than a bass, so the specific entries come first.
+     *
+     * The match only reorders the list — it is never a filter, so every preset
+     * stays reachable whatever a channel's icon says.
+     */
+    const PRESET_CATEGORY_KEYWORDS = [
+      // Percussion before drums: "steeldrum" and "orchestrdrum" contain "drum".
+      ['Perc', ['steeldrum', 'orchestrdrum', 'miscperc', 'conga', 'bongo', 'tambourine',
+                'shaker', 'timbale', 'timpani', 'cowbell', 'woodblock', 'triangle',
+                'chimes', 'handpan', 'kalimba', 'percussion', 'perc']],
+      ['Drum', ['drumpad', 'drumset', 'kickin', 'kickout', 'snaretop', 'snarebottom',
+                'racktom', 'floortom', 'midtom', 'hightom', 'hihat', 'ohleft', 'ohright',
+                'cymbal', 'kick', 'snare', 'drum']],
+      // Woodwinds before "bass" so "bassoon" and "bassclarinet" do not read as bass.
+      ['Wind', ['bassclarinet', 'bassoon', 'clarinet', 'altosaxophone', 'tenorsaphone',
+                'sopranophone', 'saxophone', 'flute', 'oboe', 'woodwind', 'sax']],
+      ['Brass', ['brasssection', 'frenchhorn', 'flugelhorn', 'trombone', 'trumpet',
+                 'cornet', 'tuba', 'brass']],
+      ['Guit', ['electricguitar', 'acousticguitar', 'uprightbass', 'bassguitar', 'pedalsteel',
+                'guitar', 'banjo', 'mandolin', 'ukulele', 'dobro', 'sitar', 'shamisen',
+                'amp', 'bass']],
+      ['Keys', ['keyboardstier', 'harpsichord', 'vibraphone', 'pipeorgan', 'xylophone',
+                'accordion', 'clavinet', 'keyboard', 'piano', 'organ', 'synth', 'keys']],
+      ['Vocal', ['backupvocals', 'leadvocals', 'choirsingle', 'crowdambient', 'wirelessmic',
+                 'vocalcue', 'vocalmic', 'talkback', 'vocals', 'vocal', 'choir', 'speech',
+                 'mic']],
+    ];
+
+    /** Preset category matching a channel's icon id, or null if unknown. */
+    function presetCategoryForIcon(iconId) {
+      if (!iconId) return null;
+      const id = String(iconId).toLowerCase().replace(/[_\s\-\/]/g, '');
+      for (const [category, keywords] of PRESET_CATEGORY_KEYWORDS) {
+        for (const keyword of keywords) {
+          if (id.includes(keyword)) return category;
+        }
+      }
+      return null;
+    }
+
+    /** Order presets so the ones matching this channel's instrument come first. */
+    function sortPresetsForChannel(presets, category) {
+      return [...presets].sort((a, b) => {
+        const am = category && a.category === category ? 0 : 1;
+        const bm = category && b.category === category ? 0 : 1;
+        if (am !== bm) return am - bm;
+        return String(a.title).localeCompare(String(b.title));
+      });
+    }
+
     // -----------------------------------------------------------------
     // Per-channel settings menu
     // -----------------------------------------------------------------
@@ -3736,7 +3826,11 @@
       positionChannelMenu(menu, channelMenuAnchor);
       menu.classList.add('show');
 
-      const states = await ipcRenderer.invoke('get-channel-switches', type, channel);
+      const [states, gain, presets] = await Promise.all([
+        ipcRenderer.invoke('get-channel-switches', type, channel),
+        ipcRenderer.invoke('get-preamp-gain', type, channel),
+        ipcRenderer.invoke('get-channel-presets'),
+      ]);
       // A second click elsewhere may have retargeted the menu while we waited.
       if (!channelMenuTarget || channelMenuTarget.type !== type || channelMenuTarget.channel !== channel) return;
 
@@ -3745,14 +3839,17 @@
         positionChannelMenu(menu, channelMenuAnchor);
         return;
       }
-      renderChannelMenu(states);
+
+      const icons = (channelDataCache[String(type).toLowerCase()] || {}).icons || [];
+      const icon = (icons.find(i => i.channel === channel) || {}).icon || null;
+      renderChannelMenu(states, gain, presets || [], presetCategoryForIcon(icon));
       // The menu was placed while it still said "Reading channel…", so it is
       // several times taller now. Re-anchor, or one opened near the bottom of
       // the window hangs off the edge.
       positionChannelMenu(menu, channelMenuAnchor);
     }
 
-    function renderChannelMenu(states) {
+    function renderChannelMenu(states, gain, presets, matchCategory) {
       const body = document.getElementById('channel-menu-body');
       const runMode = window.appMode === 'run';
       let html = '';
@@ -3782,7 +3879,80 @@
         html += `<div class="${classes.join(' ')}"${onclick} data-switch="${sw.id}">` +
                 `<span class="switch-pip"></span><span>${sanitizeHtml(sw.label)}</span>${note}</div>`;
       }
+
+      // --- Preamp gain -------------------------------------------------
+      // Edit-mode only: gain is a setup control, and a mis-set one is the
+      // change here most likely to produce feedback.
+      if (gain && typeof gain.gain === 'number') {
+        const range = gain.range || { min: 0, max: 60 };
+        const db = gain.gain;
+        html += `<div class="channel-menu-section">Preamp</div>`;
+        html += `<div class="channel-menu-gain${runMode ? ' locked' : ''}">` +
+                `<div class="gain-row"><span>Gain</span>` +
+                `<span class="gain-value" id="channel-gain-value">${db.toFixed(1)} dB</span></div>` +
+                `<input type="range" id="channel-gain-slider" min="${range.min}" max="${range.max}" ` +
+                `step="0.5" value="${db}"${runMode ? ' disabled' : ''} ` +
+                `oninput="onChannelGainInput(this.value)" onchange="onChannelGainCommit(this.value)">` +
+                (runMode ? '<div class="gain-row"><span class="lock-note">Edit mode only</span></div>' : '') +
+                `</div>`;
+      }
+
+      // --- Console channel presets --------------------------------------
+      if (presets && presets.length) {
+        html += `<div class="channel-menu-section">Console Presets</div>`;
+        html += `<div class="channel-menu-presets${runMode ? ' locked' : ''}">`;
+        for (const p of sortPresetsForChannel(presets, matchCategory)) {
+          const isMatch = matchCategory && p.category === matchCategory;
+          html += `<div class="channel-menu-preset${isMatch ? ' match' : ''}"` +
+                  (runMode ? '' : ` onclick="recallChannelPreset(this.dataset.file, this.dataset.title)"`) +
+                  ` data-file="${sanitizeHtml(p.name)}" data-title="${sanitizeHtml(p.title)}">` +
+                  `<span>${sanitizeHtml(p.title)}</span>` +
+                  `<span class="preset-cat">${sanitizeHtml(p.category || '')}</span></div>`;
+        }
+        html += '</div>';
+        if (runMode) html += '<div class="channel-menu-empty">Presets are Edit mode only.</div>';
+      }
+
       body.innerHTML = html;
+    }
+
+    /** Live dB readout while dragging; the mixer is written on release. */
+    function onChannelGainInput(value) {
+      const el = document.getElementById('channel-gain-value');
+      if (el) el.textContent = Number(value).toFixed(1) + ' dB';
+    }
+
+    /**
+     * Commit gain on release rather than on every input event, so dragging the
+     * slider does not flood the console with packets.
+     */
+    async function onChannelGainCommit(value) {
+      if (!channelMenuTarget) return;
+      const { type, channel } = channelMenuTarget;
+      const result = await ipcRenderer.invoke('set-preamp-gain', type, channel, Number(value));
+      if (!result || !result.success) {
+        addStatusLog(`Could not set gain: ${result?.error || 'unknown error'}`, 'error');
+        return;
+      }
+      addStatusLog(`Preamp gain ${Number(value).toFixed(1)} dB — ${type} ${channel}`, 'info');
+    }
+
+    /**
+     * Recall a console channel preset. This rewrites the whole strip, so it
+     * always confirms — there is no undo on the console side.
+     */
+    async function recallChannelPreset(file, title) {
+      if (!channelMenuTarget || !file) return;
+      const { type, channel } = channelMenuTarget;
+      if (!confirm(`Recall "${title}" onto channel ${channel}?\n\nThis replaces the entire channel strip — gain, EQ, compressor, gate and limiter. It cannot be undone from here.`)) return;
+
+      const result = await ipcRenderer.invoke('recall-channel-preset', type, channel, file);
+      if (!result || !result.success) {
+        addStatusLog(`Could not recall preset: ${result?.error || 'unknown error'}`, 'error');
+        return;
+      }
+      addStatusLog(`Recalled "${title}" onto ${type} ${channel}`, 'info');
+      hideChannelMenu();
     }
 
     /** Keep the menu inside the window rather than letting it run off an edge. */

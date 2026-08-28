@@ -650,4 +650,93 @@ describe('MixerManager', () => {
     });
   });
 
+
+  describe('preamp gain', () => {
+    it('returns null when not connected', () => {
+      expect(manager.getPreampGain('line', 1)).toBeNull();
+    });
+
+    it('reports gain in decibels', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      // The wire value is a fraction of the console's 0-60 dB range.
+      client.state.__set('line.ch2.preampgain', 0.5);
+      expect(manager.getPreampGain('line', 2)).toBeCloseTo(30, 5);
+    });
+
+    it('returns the console-published range', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      expect(manager.getPreampGainRange('line', 2)).toEqual({ min: 0, max: 60 });
+    });
+
+    // A console that publishes no range must not leave the UI without one.
+    it('falls back to 0-60 dB when the console publishes no range', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      client.getParameterRange.mockReturnValueOnce(null);
+      expect(manager.getPreampGainRange('line', 2)).toEqual({ min: 0, max: 60 });
+    });
+
+    it('falls back when the range is malformed', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      client.getParameterRange.mockReturnValueOnce({ min: 'low', max: null });
+      expect(manager.getPreampGainRange('line', 2)).toEqual({ min: 0, max: 60 });
+    });
+
+    it('returns the fallback range when not connected', () => {
+      expect(manager.getPreampGainRange('line', 1)).toEqual({ min: 0, max: 60 });
+    });
+
+    it('sets gain in decibels and reads it back', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      manager.setPreampGain('line', 2, 20);
+      expect(manager.getPreampGain('line', 2)).toBeCloseTo(20, 5);
+    });
+
+    it('throws when setting gain while disconnected', () => {
+      expect(() => manager.setPreampGain('line', 1, 20)).toThrow(/Not connected/);
+    });
+  });
+
+  describe('console channel presets', () => {
+    it('returns an empty list when not connected', async () => {
+      await expect(manager.getChannelPresets()).resolves.toEqual([]);
+    });
+
+    it('parses the instrument category out of the preset filename', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const presets = await manager.getChannelPresets();
+      expect(presets).toContainEqual({
+        name: '07.Snare 1.Drum.channel', title: 'Snare 1', category: 'Drum',
+      });
+      expect(presets).toContainEqual({
+        name: '18.Male 1.Vocal.channel', title: 'Male 1', category: 'Vocal',
+      });
+    });
+
+    // A name that does not follow `NN.Title.Category.channel` gets no category
+    // and simply never matches a channel's instrument.
+    it('gives a malformed preset name an empty category rather than failing', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const presets = await manager.getChannelPresets();
+      expect(presets.find(p => p.title === 'Malformed')?.category).toBe('');
+    });
+
+    it('recallChannelPreset forwards to the client', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      await manager.recallChannelPreset('line', 3, '07.Snare 1.Drum.channel');
+      expect(client.recallChannelStrip).toHaveBeenCalledWith(
+        { type: 'LINE', channel: 3 }, '07.Snare 1.Drum.channel'
+      );
+    });
+
+    it('recallChannelPreset rejects when not connected', async () => {
+      await expect(
+        manager.recallChannelPreset('line', 1, '07.Snare 1.Drum.channel')
+      ).rejects.toThrow(/Not connected/);
+    });
+  });
+
 });

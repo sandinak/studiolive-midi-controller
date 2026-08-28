@@ -133,8 +133,38 @@ from the mixer and are written straight back to it.
 | **Compressor** | Processing | |
 | **EQ** | Processing | |
 | **Limiter** | Processing | |
+| **Preamp Gain** | Preamp | Slider in dB. Edit mode only. |
+| **Console Presets** | — | Recalls the whole strip. Confirms first. Edit mode only. |
 
 ![The channel settings menu](images/channel-menu.png)
+
+### Preamp Gain
+
+The **Gain** slider is in decibels, using the range the console publishes for
+itself (0–60 dB on a StudioLive III) rather than a hard-coded one, so it stays
+correct across models. The value is written when you release the slider, not on
+every movement, so dragging does not flood the console with packets.
+
+Gain is **Edit mode only**. It is a setup control — you ride the fader, not the
+preamp — and it is the one change in this menu that can produce feedback.
+
+### Console Channel Presets
+
+The bottom of the menu lists the channel presets stored on the console — the
+factory library is 51 presets across Drum, Guit, Vocal, Keys, Perc, Brass and
+Wind. Presets whose category matches the channel's instrument icon are listed
+first and shown in green; the rest follow alphabetically. The match only
+reorders the list, so every preset stays reachable whatever a channel's icon
+says, and a channel with no icon simply gets the full list alphabetically.
+
+Recalling a preset **replaces the entire channel strip** — gain, EQ, compressor,
+gate and limiter — so it always confirms first, and it cannot be undone from the
+app. Presets are Edit mode only.
+
+> The instrument match reads the channel's icon id, which the console publishes
+> as a free-form string with no fixed vocabulary — both `keyboards/piano` and a
+> bare `piano` occur. Matching is therefore on instrument keywords rather than
+> the path prefix.
 
 ### Why some switches lock in Run mode
 

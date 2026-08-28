@@ -1538,6 +1538,77 @@ ipcMain.handle(
   }
 );
 
+ipcMain.handle('get-preamp-gain', async (_event, type: string, channel: number) => {
+  try {
+    if (!mixerManager.isConnected()) return null;
+    return {
+      gain: mixerManager.getPreampGain(type, channel),
+      range: mixerManager.getPreampGainRange(type, channel),
+    };
+  } catch (error) {
+    return null;
+  }
+});
+
+// Gain is Edit-mode only. It is not a performance control — you ride the
+// fader, not the preamp — and a mis-set gain on a live channel is the one
+// change here that can produce feedback.
+ipcMain.handle(
+  'set-preamp-gain',
+  async (_event, type: string, channel: number, decibels: unknown) => {
+    try {
+      if (!mixerManager.isConnected()) {
+        return { success: false, error: 'Not connected to mixer' };
+      }
+      if (appMode === 'run') {
+        return { success: false, error: 'Preamp gain cannot be changed in Run mode' };
+      }
+      const value = Number(decibels);
+      if (!Number.isFinite(value)) {
+        return { success: false, error: 'Gain must be a number' };
+      }
+      mixerManager.setPreampGain(type, channel, value);
+      return { success: true, gain: mixerManager.getPreampGain(type, channel) };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  }
+);
+
+ipcMain.handle('get-channel-presets', async () => {
+  try {
+    if (!mixerManager.isConnected()) return [];
+    return await mixerManager.getChannelPresets();
+  } catch (error) {
+    return [];
+  }
+});
+
+// Recalling a preset rewrites the entire channel strip, so it is barred in Run
+// mode alongside phantom power and polarity.
+ipcMain.handle(
+  'recall-channel-preset',
+  async (_event, type: string, channel: number, presetFile: unknown) => {
+    try {
+      if (!mixerManager.isConnected()) {
+        return { success: false, error: 'Not connected to mixer' };
+      }
+      if (appMode === 'run') {
+        return { success: false, error: 'Channel presets cannot be recalled in Run mode' };
+      }
+      if (typeof presetFile !== 'string' || !presetFile.endsWith('.channel')) {
+        return { success: false, error: 'Invalid channel preset' };
+      }
+      await mixerManager.recallChannelPreset(type, channel, presetFile);
+      return { success: true };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  }
+);
+
 ipcMain.handle('open-docs', async () => {
   const liveUrl = 'https://sandinak.github.io/studiolive-midi-controller/';
 

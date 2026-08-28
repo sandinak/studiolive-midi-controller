@@ -337,6 +337,91 @@ export class MixerManager extends EventEmitter {
   }
 
   /**
+   * Read preamp gain in decibels, or null when the mixer has not reported it.
+   *
+   * The wire value is a fraction of the console's own gain range (0-60 dB on
+   * the StudioLive III), which the API converts using the range the console
+   * publishes rather than a hard-coded one.
+   */
+  getPreampGain(type: string, channel: number): number | null {
+    if (!this.client) {
+      return null;
+    }
+    try {
+      return this.client.getPreampGain({ type: type.toUpperCase(), channel } as ChannelSelector);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /** The console's gain range for a channel, for labelling the UI control. */
+  getPreampGainRange(type: string, channel: number): { min: number; max: number } {
+    const fallback = { min: 0, max: 60 };
+    if (!this.client) return fallback;
+    try {
+      const range = this.client.getParameterRange(
+        `${type.toLowerCase()}/ch${channel}/preampgain`
+      );
+      if (!range || typeof range.min !== 'number' || typeof range.max !== 'number') return fallback;
+      return { min: range.min, max: range.max };
+    } catch (error) {
+      return fallback;
+    }
+  }
+
+  /** Set preamp gain in decibels. The API clamps to the console's range. */
+  setPreampGain(type: string, channel: number, decibels: number): void {
+    if (!this.client) {
+      throw new Error('Not connected to mixer');
+    }
+    this.client.setPreampGain({ type: type.toUpperCase(), channel } as ChannelSelector, decibels);
+  }
+
+  /**
+   * The console's own channel preset library.
+   *
+   * Names come back as `NN.Title.Category.channel`, where Category is an
+   * instrument family the console assigns — Drum, Guit, Vocal, Keys, Perc,
+   * Brass, Wind. That category is what lets the UI put the presets matching a
+   * channel's instrument at the top of the list.
+   */
+  async getChannelPresets(): Promise<{ name: string; title: string; category: string }[]> {
+    if (!this.client) return [];
+    try {
+      const presets = await this.client.getChannelPresets();
+      return (presets || []).map((p: any) => {
+        const parts = String(p.name).split('.');
+        return {
+          name: p.name,
+          title: p.title,
+          // `NN.Title.Category.channel` — the category sits second from the
+          // end. Anything not matching that shape gets an empty category and
+          // simply never matches a channel's instrument.
+          category: parts.length >= 4 ? parts[parts.length - 2] : '',
+        };
+      });
+    } catch (error) {
+      return [];
+    }
+  }
+
+  /**
+   * Recall a console channel preset onto a channel.
+   *
+   * This overwrites the whole strip — gain, EQ, compressor, gate, the lot —
+   * which is why the UI confirms first and refuses it in Run mode.
+   */
+  async recallChannelPreset(type: string, channel: number, presetFile: string): Promise<void> {
+    if (!this.client) {
+      throw new Error('Not connected to mixer');
+    }
+    await this.client.recallChannelStrip(
+      { type: type.toUpperCase(), channel } as ChannelSelector,
+      presetFile
+    );
+  }
+
+  /**
    * Toggle mute on a channel
    */
   toggleMute(channel: ChannelSelector): void {

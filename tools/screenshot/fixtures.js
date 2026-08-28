@@ -24,47 +24,47 @@ const APP_VERSION =
 // the renderer) so the instrument glyphs added in v1.7.0 actually render.
 // ---------------------------------------------------------------------------
 const LINE = [
-  { name: 'Kick In',    icon: 'kickin',         color: '#c0392b', level: 72, src: 1 },
-  { name: 'Snare Top',  icon: 'snaretop',       color: '#c0392b', level: 68, src: 2 },
-  { name: 'Hi-Hat',     icon: 'hihat',          color: '#c0392b', level: 54, src: 3 },
-  { name: 'Rack Tom',   icon: 'racktom',        color: '#c0392b', level: 57, src: 4 },
+  { name: 'Kick In',    icon: 'drums/kickin',         color: '#c0392b', level: 72, src: 1 },
+  { name: 'Snare Top',  icon: 'drums/snaretop',       color: '#c0392b', level: 68, src: 2 },
+  { name: 'Hi-Hat',     icon: 'drums/hihat',          color: '#c0392b', level: 54, src: 3 },
+  { name: 'Rack Tom',   icon: 'drums/racktom',        color: '#c0392b', level: 57, src: 4 },
   // Stereo pairs live on odd/even boundaries, the way the console links them:
   // the flag sits on the odd channel and the renderer folds N and N+1 together.
-  { name: 'OH L',       icon: 'ohleft',         color: '#c0392b', level: 61, src: 5, link: true },
-  { name: 'OH R',       icon: 'ohright',        color: '#c0392b', level: 61, src: 6 },
-  { name: 'Bass DI',    icon: 'bass',           color: '#8e6cc0', level: 70, src: 7 },
-  { name: 'Acoustic',   icon: 'acousticguitar', color: '#3d8ec9', level: 58, src: 8 },
-  { name: 'Gtr L',      icon: 'electricguitar', color: '#3d8ec9', level: 64, src: 9, link: true },
-  { name: 'Gtr R',      icon: 'electricguitar', color: '#3d8ec9', level: 64, src: 10 },
-  { name: 'Keys L',     icon: 'piano',          color: '#d8a13a', level: 66, src: 11, link: true },
-  { name: 'Keys R',     icon: 'piano',          color: '#d8a13a', level: 66, src: 12 },
-  { name: 'Lead Vox',   icon: 'leadvocals',     color: '#4a9b7f', level: 78, src: 13 },
-  { name: 'BGV 1',      icon: 'backupvocals',   color: '#4a9b7f', level: 62, src: 14 },
-  { name: 'Playback L', icon: 'computer',       color: '#7f8c8d', level: 55, src: 15, link: true },
-  { name: 'Playback R', icon: 'computer',       color: '#7f8c8d', level: 55, src: 16 },
+  { name: 'OH L',       icon: 'drums/ohleft',         color: '#c0392b', level: 61, src: 5, link: true },
+  { name: 'OH R',       icon: 'drums/ohright',        color: '#c0392b', level: 61, src: 6 },
+  { name: 'Bass DI',    icon: 'guitars/bass',           color: '#8e6cc0', level: 70, src: 7 },
+  { name: 'Acoustic',   icon: 'guitars/acoustic', color: '#3d8ec9', level: 58, src: 8 },
+  { name: 'Gtr L',      icon: 'guitars/electric', color: '#3d8ec9', level: 64, src: 9, link: true },
+  { name: 'Gtr R',      icon: 'guitars/electric', color: '#3d8ec9', level: 64, src: 10 },
+  { name: 'Keys L',     icon: 'keyboards/piano',          color: '#d8a13a', level: 66, src: 11, link: true },
+  { name: 'Keys R',     icon: 'keyboards/piano',          color: '#d8a13a', level: 66, src: 12 },
+  { name: 'Lead Vox',   icon: 'vocals/leadvocals',     color: '#4a9b7f', level: 78, src: 13 },
+  { name: 'BGV 1',      icon: 'vocals/backupvocals',   color: '#4a9b7f', level: 62, src: 14 },
+  { name: 'Playback L', icon: 'other/computer',       color: '#7f8c8d', level: 55, src: 15, link: true },
+  { name: 'Playback R', icon: 'other/computer',       color: '#7f8c8d', level: 55, src: 16 },
 ];
 
 const SUB = [
-  { name: 'Drums',   icon: 'drumset',     color: '#c0392b', level: 74 },
-  { name: 'Band',    icon: 'electricguitar', color: '#3d8ec9', level: 70 },
-  { name: 'Vocals',  icon: 'leadvocals',  color: '#4a9b7f', level: 76 },
-  { name: 'Tracks',  icon: 'computer',    color: '#7f8c8d', level: 62 },
+  { name: 'Drums',   icon: 'drums/drumset',     color: '#c0392b', level: 74 },
+  { name: 'Band',    icon: 'guitars/electric', color: '#3d8ec9', level: 70 },
+  { name: 'Vocals',  icon: 'vocals/leadvocals',  color: '#4a9b7f', level: 76 },
+  { name: 'Tracks',  icon: 'other/computer',    color: '#7f8c8d', level: 62 },
 ];
 
 const DCA = [
-  { name: 'Drums',  icon: 'drumset',        color: '#c0392b', level: 75, members: [1, 2, 3, 4, 5, 6] },
-  { name: 'Band',   icon: 'electricguitar', color: '#3d8ec9', level: 71, members: [7, 8, 9, 10, 11, 12] },
-  { name: 'Vocals', icon: 'leadvocals',     color: '#4a9b7f', level: 79, members: [13, 14] },
-  { name: 'Tracks', icon: 'computer',       color: '#d8a13a', level: 60, members: [15, 16] },
+  { name: 'Drums',  icon: 'drums/drumset',        color: '#c0392b', level: 75, members: [1, 2, 3, 4, 5, 6] },
+  { name: 'Band',   icon: 'guitars/electric', color: '#3d8ec9', level: 71, members: [7, 8, 9, 10, 11, 12] },
+  { name: 'Vocals', icon: 'vocals/leadvocals',     color: '#4a9b7f', level: 79, members: [13, 14] },
+  { name: 'Tracks', icon: 'other/computer',       color: '#d8a13a', level: 60, members: [15, 16] },
 ];
 
 const AUX = [
-  { name: 'IEM Vox',  icon: 'iem',         color: '#4a9b7f', level: 65 },
-  { name: 'IEM Gtr',  icon: 'iem',         color: '#3d8ec9', level: 63 },
-  { name: 'Wedge 1',  icon: 'wedgemonitor', color: '#d8a13a', level: 58 },
-  { name: 'Wedge 2',  icon: 'wedgemonitor', color: '#d8a13a', level: 58 },
-  { name: 'Lobby',    icon: 'fohmain',     color: '#7f8c8d', level: 45 },
-  { name: 'Stream',   icon: 'computer',    color: '#7f8c8d', level: 70 },
+  { name: 'IEM Vox',  icon: 'other/iem',         color: '#4a9b7f', level: 65 },
+  { name: 'IEM Gtr',  icon: 'other/iem',         color: '#3d8ec9', level: 63 },
+  { name: 'Wedge 1',  icon: 'other/wedgemonitor', color: '#d8a13a', level: 58 },
+  { name: 'Wedge 2',  icon: 'other/wedgemonitor', color: '#d8a13a', level: 58 },
+  { name: 'Lobby',    icon: 'other/fohmain',     color: '#7f8c8d', level: 45 },
+  { name: 'Stream',   icon: 'other/computer',    color: '#7f8c8d', level: 70 },
 ];
 
 const FX = [
@@ -74,7 +74,7 @@ const FX = [
   { name: 'Drum Rm',  icon: 'fx', color: '#8e6cc0', level: 38 },
 ];
 
-const MAIN = [{ name: 'Main', icon: 'fohmain', color: '#4a9b7f', level: 80 }];
+const MAIN = [{ name: 'Main', icon: 'other/fohmain', color: '#4a9b7f', level: 80 }];
 
 const BANKS = { line: LINE, sub: SUB, dca: DCA, aux: AUX, fxreturn: FX, fx: FX, main: MAIN };
 
@@ -98,6 +98,23 @@ const SWITCHES = {
   'line:13': { phantom: true, polarity: false, mono: false, gate: true, compressor: true, eq: true, limiter: false },
   'line:1': { phantom: false, polarity: false, mono: false, gate: true, compressor: true, eq: true, limiter: false },
 };
+
+// Preamp gain in dB, matching what a working board looks like.
+const GAINS = { 'line:1': 24, 'line:6': 18, 'line:13': 32, 'line:14': 30 };
+
+// A slice of the console's factory channel-preset library, in the same
+// `NN.Title.Category.channel` shape the console reports, so the match-hint
+// ordering can be seen in the docs shot.
+const CHANNEL_PRESETS = [
+  { name: '18.Male 1.Vocal.channel', title: 'Male 1', category: 'Vocal' },
+  { name: '19.Female 1.Vocal.channel', title: 'Female 1', category: 'Vocal' },
+  { name: '20.Vocal Bright.Vocal.channel', title: 'Vocal Bright', category: 'Vocal' },
+  { name: '01.Kick 1.Drum.channel', title: 'Kick 1', category: 'Drum' },
+  { name: '07.Snare 1.Drum.channel', title: 'Snare 1', category: 'Drum' },
+  { name: '31.Electric Bass 1.Guit.channel', title: 'Electric Bass 1', category: 'Guit' },
+  { name: '38.Piano Bright.Keys.channel', title: 'Piano Bright', category: 'Keys' },
+  { name: '44.Congas.Perc.channel', title: 'Congas', category: 'Perc' },
+];
 
 const MIDI_DEVICES = ['Logic Pro Virtual Out', 'Launchkey 49 MK3', 'X-Touch Mini'];
 const CONNECTED_MIDI = ['Logic Pro Virtual Out', 'X-Touch Mini'];
@@ -230,6 +247,19 @@ const HANDLERS = {
     return { success: true, state: Boolean(state) };
   },
   'set-app-mode': () => ({ success: true }),
+
+  // --- preamp gain and console presets -------------------------------------
+  'get-preamp-gain': (type, ch) => {
+    const c = entry(type, ch);
+    if (!c) return null;
+    return { gain: GAINS[key(type, ch)] ?? 0, range: { min: 0, max: 60 } };
+  },
+  'set-preamp-gain': (type, ch, db) => {
+    GAINS[key(type, ch)] = Number(db);
+    return { success: true, gain: Number(db) };
+  },
+  'get-channel-presets': () => CHANNEL_PRESETS,
+  'recall-channel-preset': () => ({ success: true }),
 
   // --- groups -------------------------------------------------------------
   'get-dca-group-assignments': (dca) => (DCA[dca - 1] ? DCA[dca - 1].members : []),

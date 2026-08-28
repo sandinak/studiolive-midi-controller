@@ -46,6 +46,23 @@ export class SimpleClient extends EventEmitter {
   toggleSolo = jest.fn();
   setSolo = jest.fn();
   setPan = jest.fn();
+  getParameterRange = jest.fn(() => ({ min: 0, max: 60, def: 0, units: 'gain.0', curve: 'linear' }));
+  getPreampGain = jest.fn((selector: any) => {
+    const v = this.state.get(`${String(selector.type).toLowerCase()}.ch${selector.channel}.preampgain`);
+    return v === null || v === undefined ? null : Number(v) * 60;
+  });
+  setPreampGain = jest.fn((selector: any, db: number) => {
+    const clamped = Math.min(60, Math.max(0, Number(db) || 0));
+    this.state.set(
+      `${String(selector.type).toLowerCase()}.ch${selector.channel}.preampgain`, clamped / 60
+    );
+  });
+  getChannelPresets = jest.fn().mockResolvedValue([
+    { name: '07.Snare 1.Drum.channel', title: 'Snare 1' },
+    { name: '18.Male 1.Vocal.channel', title: 'Male 1' },
+    { name: 'Malformed.channel', title: 'Malformed' },
+  ]);
+  recallChannelStrip = jest.fn().mockResolvedValue(undefined);
   // Mirrors the real setSwitch closely enough to test MixerManager against:
   // it normalises the console's boolean/number split on read, and writes back
   // into local state because the console does not echo the sender's change.
