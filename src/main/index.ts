@@ -275,6 +275,30 @@ async function initializeApp() {
               if (shouldToggle(mgKey)) mixerManager.toggleMuteGroup(command.channel.channel);
             }
             break;
+          case 'switch': {
+            const switchName = asChannelSwitch(command.switchName);
+            if (!switchName || !('type' in command.channel) || command.channel.channel === undefined) break;
+
+            // A MIDI message is not exempt from the Run-mode interlock. A
+            // controller sending the wrong note must not be able to flip
+            // phantom power mid-performance any more than a stray click can.
+            if (appMode === 'run' && RUN_MODE_BLOCKED_SWITCHES.includes(switchName)) break;
+
+            const swKey = `switch-${switchName}-${command.channel.type}-${command.channel.channel}`;
+            if (shouldToggle(swKey)) {
+              mixerManager.setChannelSwitch(
+                command.channel.type, command.channel.channel, switchName, Boolean(command.toggle)
+              );
+            }
+            break;
+          }
+          case 'gain':
+            // Gain is Edit-mode only from the UI, and the same applies here.
+            if (appMode === 'run') break;
+            if (command.value !== undefined && 'type' in command.channel && command.channel.channel !== undefined) {
+              mixerManager.setPreampGain(command.channel.type, command.channel.channel, command.value);
+            }
+            break;
         }
       } catch (error) {
         console.error('Command failed:', command.action, error);

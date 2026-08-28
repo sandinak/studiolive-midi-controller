@@ -299,8 +299,14 @@ export class MappingEngine extends EventEmitter {
       channel: mapping.mixer.channel
     };
 
+    // Carry which switch a 'switch' mapping targets through to the executor.
+    if (mapping.mixer.action === 'switch') {
+      command.switchName = mapping.mixer.switch;
+    }
+
     // Handle different action types
     switch (mapping.mixer.action) {
+      case 'gain':
       case 'volume':
       case 'pan': {
         let scaledValue: number;
@@ -309,10 +315,18 @@ export class MappingEngine extends EventEmitter {
           const noteMin = (mapping.midi as any).noteMin || 24;
           const noteMax = (mapping.midi as any).noteMax || 60;
           const noteRange = noteMax - noteMin;
-          scaledValue = ((midiMessage.note - noteMin) / noteRange) * 100;
-          scaledValue = Math.max(0, Math.min(100, scaledValue));
+          const [rangeMin, rangeMax] = mapping.mixer.range ||
+            (mapping.mixer.action === 'gain' ? [0, 60] : [0, 100]);
+          scaledValue = rangeMin + ((midiMessage.note - noteMin) / noteRange) * (rangeMax - rangeMin);
+          scaledValue = Math.max(rangeMin, Math.min(rangeMax, scaledValue));
         } else {
-          const [min, max] = mapping.mixer.range || [0, 100];
+          // Gain is in decibels over the console's own 0-60 range; everything
+          // else is a 0-100 percentage. A mapping can narrow either, which for
+          // gain is the difference between a controller sweep reaching a
+          // sensible maximum and reaching +60 dB.
+          const defaultRange: [number, number] =
+            mapping.mixer.action === 'gain' ? [0, 60] : [0, 100];
+          const [min, max] = mapping.mixer.range || defaultRange;
           scaledValue = min + (midiMessage.value / 127) * (max - min);
         }
 
@@ -321,7 +335,8 @@ export class MappingEngine extends EventEmitter {
       }
       case 'mute':
       case 'solo':
-      case 'mutegroup': {
+      case 'mutegroup':
+      case 'switch': {
         let shouldActivate = false;
 
         if (mapping.midi.type === 'cc') {

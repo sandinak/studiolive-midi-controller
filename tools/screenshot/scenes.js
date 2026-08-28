@@ -62,6 +62,21 @@ module.exports = [
     settle: 500,
   },
   {
+    name: 'mapping-modal-switch',
+    // The same dialog with a channel switch selected, which reveals the
+    // switch picker and the Run-mode note.
+    setup: `
+      if (typeof showAddMapping === 'function') showAddMapping();
+      const action = document.getElementById('mixer-action');
+      action.value = 'switch';
+      action.dispatchEvent(new Event('change'));
+      const sw = document.getElementById('mixer-switch');
+      if (sw) sw.value = 'polarity';
+    `,
+    clip: '#add-mapping-modal .modal-content',
+    settle: 500,
+  },
+  {
     name: 'midi-modal',
     setup: `if (typeof showMidiSelect === 'function') showMidiSelect();`,
     clip: '#midi-select-modal .modal-content',

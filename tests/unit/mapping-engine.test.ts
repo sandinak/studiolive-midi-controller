@@ -416,4 +416,77 @@ describe('MappingEngine', () => {
       expect(engine.getLevelVisibility()).toBe('none');
     });
   });
+
+  describe('preamp gain and channel switch actions', () => {
+    const gainMapping = (range?: [number, number]) => ({
+      midi: { type: 'cc' as const, channel: 1, controller: 20 },
+      mixer: {
+        action: 'gain' as const,
+        channel: { type: 'LINE', channel: 4 },
+        ...(range ? { range } : {}),
+      },
+    });
+
+    // Gain is in decibels over the console's own 0-60 range, not the 0-100
+    // percentage volume and pan use.
+    it('scales a CC to the 0-60 dB gain range by default', () => {
+      engine.addMapping(gainMapping() as any);
+      const cmd = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 20, value: 127 });
+      expect(cmd!.action).toBe('gain');
+      expect(cmd!.value).toBeCloseTo(60, 5);
+    });
+
+    it('puts a mid-travel CC near the middle of the gain range', () => {
+      engine.addMapping(gainMapping() as any);
+      const cmd = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 20, value: 64 });
+      expect(cmd!.value).toBeCloseTo(30.2, 1);
+    });
+
+    // Narrowing the range is what stops a controller sweep reaching +60 dB.
+    it('honours a narrowed range', () => {
+      engine.addMapping(gainMapping([10, 40]) as any);
+      const full = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 20, value: 127 });
+      const none = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 20, value: 0 });
+      expect(full!.value).toBeCloseTo(40, 5);
+      expect(none!.value).toBeCloseTo(10, 5);
+    });
+
+    it('carries the switch name through to the command', () => {
+      engine.addMapping({
+        midi: { type: 'note', channel: 1, note: 60 },
+        mixer: { action: 'switch', channel: { type: 'LINE', channel: 5 }, switch: 'polarity' },
+      } as any);
+      const cmd = engine.translateMidiToMixer({ type: 'note_on', channel: 1, note: 60, value: 127 });
+      expect(cmd!.action).toBe('switch');
+      expect(cmd!.switchName).toBe('polarity');
+      expect(cmd!.toggle).toBe(true);
+    });
+
+    it('treats a switch as a boolean control, so note-off turns it off', () => {
+      engine.addMapping({
+        midi: { type: 'note', channel: 1, note: 61 },
+        mixer: { action: 'switch', channel: { type: 'LINE', channel: 5 }, switch: 'gate' },
+      } as any);
+      const cmd = engine.translateMidiToMixer({ type: 'note_off', channel: 1, note: 61, value: 0 });
+      expect(cmd!.toggle).toBe(false);
+    });
+
+    it('applies the CC threshold to a switch mapping', () => {
+      engine.addMapping({
+        midi: { type: 'cc', channel: 1, controller: 30, threshold: 100 },
+        mixer: { action: 'switch', channel: { type: 'LINE', channel: 5 }, switch: 'compressor' },
+      } as any);
+      const below = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 30, value: 80 });
+      const above = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 30, value: 110 });
+      expect(below!.toggle).toBe(false);
+      expect(above!.toggle).toBe(true);
+    });
+
+    it('leaves switchName undefined for non-switch actions', () => {
+      engine.addMapping(gainMapping() as any);
+      const cmd = engine.translateMidiToMixer({ type: 'cc', channel: 1, controller: 20, value: 64 });
+      expect(cmd!.switchName).toBeUndefined();
+    });
+  });
+
 });

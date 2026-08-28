@@ -1973,7 +1973,23 @@
           <option value="mute">Mute</option>
           <option value="solo">Solo</option>
           <option value="pan">Pan</option>
+          <option value="gain">Preamp Gain (dB)</option>
+          <option value="switch">Channel Switch…</option>
         </select>
+      </div>
+      <!-- Which switch, shown only for the 'switch' action -->
+      <div class="form-group" id="mixer-switch-group" style="display:none;">
+        <label>Switch</label>
+        <select id="mixer-switch">
+          <option value="phantom">48V Phantom Power</option>
+          <option value="polarity">Polarity Invert</option>
+          <option value="mono">Sum to Mono</option>
+          <option value="gate">Gate</option>
+          <option value="compressor">Compressor</option>
+          <option value="eq">EQ</option>
+          <option value="limiter">Limiter</option>
+        </select>
+        <small style="color: #888; display: block; margin-top: 5px;">Phantom power and polarity are refused while the app is in Run mode, however they are triggered.</small>
       </div>
       <!-- MIDI Settings (Bottom) -->
       <div class="form-group">
@@ -1986,7 +2002,7 @@
         </select>
       </div>
       <div class="form-group" id="cc-threshold-group" style="display:none;">
-        <label>CC Threshold (for Mute/Solo)</label>
+        <label>CC Threshold (for on/off controls)</label>
         <input type="number" id="midi-cc-threshold" value="64" min="0" max="127" />
         <small style="color: #888; display: block; margin-top: 5px;">Values >= threshold activate, values < threshold deactivate (default: 64 = middle)</small>
       </div>
@@ -4684,6 +4700,36 @@
       document.getElementById('discovery-modal').classList.remove('show');
     }
 
+    /**
+     * Actions driven by an on/off trigger rather than a continuous value.
+     * Defined once because the list is checked in several places and adding
+     * an action while missing one of them produces a mapping dialog that
+     * silently drops the threshold or invert setting.
+     */
+    const BOOLEAN_ACTIONS = ['mute', 'solo', 'mutegroup', 'switch'];
+    const SWITCH_LABELS = {
+      phantom: '48V Phantom Power',
+      polarity: 'Polarity Invert',
+      mono: 'Sum to Mono',
+      gate: 'Gate',
+      compressor: 'Compressor',
+      eq: 'EQ',
+      limiter: 'Limiter',
+    };
+    /** Human name for a mapping's mixer action, including which switch. */
+    function mixerActionLabel(mixer) {
+      if (mixer.action === 'switch') return SWITCH_LABELS[mixer.switch] || 'Channel Switch';
+      return {
+        volume: 'Volume',
+        mute: 'Mute',
+        solo: 'Solo',
+        pan: 'Pan',
+        gain: 'Preamp Gain',
+        mutegroup: 'Mute Group',
+      }[mixer.action] || mixer.action;
+    }
+    const isBooleanAction = (action) => BOOLEAN_ACTIONS.includes(action);
+
     function updateMidiTypeFields() {
       const midiType = document.getElementById('midi-type').value;
       const mixerAction = document.getElementById('mixer-action').value;
@@ -4697,7 +4743,11 @@
       const listenGroup = document.getElementById('midi-listen-group');
 
       // Determine if this is a boolean control (mute/solo/mutegroup)
-      const isBooleanControl = mixerAction === 'mute' || mixerAction === 'solo' || mixerAction === 'mutegroup';
+      const isBooleanControl = isBooleanAction(mixerAction);
+
+      // The switch picker only applies to the 'switch' action.
+      const switchGroup = document.getElementById('mixer-switch-group');
+      if (switchGroup) switchGroup.style.display = mixerAction === 'switch' ? '' : 'none';
 
       if (midiType === 'none') {
         ccGroup.style.display = 'none';
@@ -5157,7 +5207,7 @@
 
                   // MIDI Trigger - What triggers it and value ranges
                   let midiTrigger = '';
-                  const isBooleanControl = m.mixer.action === 'mute' || m.mixer.action === 'solo' || m.mixer.action === 'mutegroup';
+                  const isBooleanControl = isBooleanAction(m.mixer.action);
 
                   if (m.midi.type === 'cc') {
                     if (isBooleanControl && m.midi.threshold !== undefined) {
@@ -5336,6 +5386,9 @@
 
       // Set mixer action and channel
       document.getElementById('mixer-action').value = mapping.mixer.action;
+      if (mapping.mixer.action === 'switch' && mapping.mixer.switch) {
+        document.getElementById('mixer-switch').value = mapping.mixer.switch;
+      }
       document.getElementById('mixer-channel-type').value = mapping.mixer.channel.type || 'LINE';
 
       // Update channel number options and then set the value
@@ -5369,12 +5422,7 @@
       } else {
         const channelType = mapping.mixer.channel.type || 'LINE';
         const channelNum = resolveChannelNum(mapping.mixer.channel);
-        const actionName = {
-          'volume': 'Volume',
-          'mute': 'Mute',
-          'solo': 'Solo',
-          'pan': 'Pan'
-        }[mapping.mixer.action] || mapping.mixer.action;
+        const actionName = mixerActionLabel(mapping.mixer);
         desc = `${channelType} ${channelNum} - ${actionName}`;
       }
 
@@ -6550,6 +6598,9 @@
         updateMidiTypeFields();
 
         document.getElementById('mixer-action').value = mapping.mixer.action;
+        if (mapping.mixer.action === 'switch' && mapping.mixer.switch) {
+          document.getElementById('mixer-switch').value = mapping.mixer.switch;
+        }
         document.getElementById('mixer-channel-type').value = mapping.mixer.channel.type || 'LINE';
 
         // Update channel number options and then set the value
@@ -7127,20 +7178,23 @@
           channel: {
             type: channelType,
             channel: channelNum
-          }
+          },
+          ...(mixerAction === 'switch'
+            ? { switch: document.getElementById('mixer-switch').value }
+            : {})
         }
       };
 
       if (midiType === 'cc') {
         mapping.midi.controller = parseInt(document.getElementById('midi-cc').value);
         // Add threshold for boolean controls (mute/solo/mutegroup)
-        if (mixerAction === 'mute' || mixerAction === 'solo' || mixerAction === 'mutegroup') {
+        if (isBooleanAction(mixerAction)) {
           mapping.midi.threshold = parseInt(document.getElementById('midi-cc-threshold').value) || 64;
         }
       } else if (midiType === 'note') {
         mapping.midi.note = parseInt(document.getElementById('midi-note').value);
         // Add invert for boolean controls (mute/solo/mutegroup)
-        if (mixerAction === 'mute' || mixerAction === 'solo' || mixerAction === 'mutegroup') {
+        if (isBooleanAction(mixerAction)) {
           mapping.midi.invert = document.getElementById('midi-note-invert').checked;
         }
       } else if (midiType === 'note-value') {

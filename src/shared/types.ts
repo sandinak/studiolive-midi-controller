@@ -11,11 +11,25 @@ export interface MidiMessage {
   device?: string;      // Source MIDI device name
 }
 
+/**
+ * Per-channel switches that can be bound to MIDI, mirroring CHANNEL_SWITCHES in
+ * src/main/ipc-validators.ts — the main process validates against its own copy.
+ */
+export type ChannelSwitchAction =
+  | 'phantom'
+  | 'polarity'
+  | 'mono'
+  | 'gate'
+  | 'compressor'
+  | 'eq'
+  | 'limiter';
+
 export interface MixerCommand {
-  action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup';
+  action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup' | 'switch' | 'gain';
   channel: ChannelSelector | { channel: number };  // mutegroup uses { channel: number }
-  value?: number;       // For volume/pan
-  toggle?: boolean;     // For mute/solo/mutegroup
+  value?: number;       // For volume/pan/gain — gain is in dB, the rest 0-100
+  toggle?: boolean;     // For mute/solo/mutegroup/switch
+  switchName?: ChannelSwitchAction;  // For the 'switch' action
 }
 
 export interface MidiMapping {
@@ -31,9 +45,16 @@ export interface MidiMapping {
     device?: string;      // Optional: only match messages from this device (absent = any device)
   };
   mixer: {
-    action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup';
+    action: 'volume' | 'mute' | 'solo' | 'pan' | 'mutegroup' | 'switch' | 'gain';
     channel: ChannelSelector | { channel: number };  // mutegroup uses { channel: number }
-    range?: [number, number];  // Min/max for scaling
+    /**
+     * Min/max for scaling. Volume and pan are 0-100; gain is in dB and
+     * defaults to the console's own 0-60 range. Narrowing it for gain is
+     * worth doing — it stops a controller sweep from reaching +60 dB.
+     */
+    range?: [number, number];
+    /** Which switch, for the 'switch' action. */
+    switch?: ChannelSwitchAction;
   };
 }
 

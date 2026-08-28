@@ -346,6 +346,7 @@
   <a href="#mappings">Creating Mappings</a>
   <a href="#midi-modes">MIDI Modes</a>
   <a href="#context-menus">Right-Click Menus</a>
+  <a href="#channel-settings">Channel Settings</a>
   <a href="#modes">Edit &amp; Run Mode</a>
   <a href="#mute-groups">Mute Groups</a>
   <a href="#touch">Touch Control (TUIO)</a>
@@ -707,6 +708,66 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
       </tbody>
     </table>
     <p>Right-clicking anywhere outside an open menu dismisses it.</p>
+  </section>
+
+  <!-- ── Channel Settings ──────────────────────────────────────── -->
+  <section id="channel-settings">
+    <h2>Channel Settings Menu</h2>
+    <p>
+      Click a channel's <strong>instrument icon</strong> to open its settings. Everything
+      here is read live from the mixer and written straight back to it.
+    </p>
+    <div class="annotated">
+      <div>
+        <figure class="screenshot">
+          <img src="images/channel-menu.png" alt="Channel settings menu"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="img-placeholder" style="display:none; min-height:240px">
+            📸 <em>Channel Settings Menu</em>
+            <code>docs/images/channel-menu.png</code>
+          </div>
+          <figcaption>Opened from the instrument icon on channel 13.</figcaption>
+        </figure>
+      </div>
+      <ul class="callouts">
+        <li><span class="callout-num">1</span><span><strong>Input</strong> — 48V phantom power, polarity invert, and sum to mono.</span></li>
+        <li><span class="callout-num">2</span><span><strong>Processing</strong> — gate, compressor, EQ and limiter in/out.</span></li>
+        <li><span class="callout-num">3</span><span><strong>Preamp</strong> — gain in decibels, using the range the console publishes for itself (0–60 dB on a StudioLive III). Written on release, not on every drag.</span></li>
+        <li><span class="callout-num">4</span><span><strong>Console Presets</strong> — the mixer's own preset library, with the ones matching this channel's instrument listed first and shown in green.</span></li>
+      </ul>
+    </div>
+    <p>
+      A switch the mixer has not reported shows as <em>unavailable</em> rather than as
+      off, so an unknown state is never mistaken for a known one. Recalling a preset
+      replaces the <strong>entire channel strip</strong> — gain, EQ, compressor, gate and
+      limiter — so it always confirms first and cannot be undone from the app.
+    </p>
+
+    <h3>Locked in Run mode</h3>
+    <figure class="screenshot">
+      <img src="images/channel-menu-run-mode.png" alt="Channel settings menu in Run mode"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>Channel Menu in Run Mode</em>
+        <code>docs/images/channel-menu-run-mode.png</code>
+      </div>
+      <figcaption>Phantom power, polarity, gain and preset recall are held back while the interface is locked.</figcaption>
+    </figure>
+    <p>
+      Phantom power can damage ribbon microphones, and an accidental polarity flip on a
+      summed source is a silent, hard-to-trace way to gut the low end mid-set. Gain is a
+      setup control — you ride the fader, not the preamp — and it is the one change here
+      that can cause feedback. The processor switches stay available, because dropping a
+      gate or bypassing a compressor during a performance is normal and instantly
+      reversible.
+    </p>
+    <p>
+      Enabling 48V asks for confirmation even in Edit mode; turning it <em>off</em> never
+      does, since that is the safe direction. The lock is enforced in the main process
+      rather than only by greying out the control, so a stale window, a stray IPC
+      message, or a MIDI controller sending the wrong note cannot flip phantom power
+      during a show.
+    </p>
   </section>
 
   <!-- ── Edit & Run Mode ───────────────────────────────────────── -->

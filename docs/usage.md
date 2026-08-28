@@ -188,6 +188,31 @@ a stale window or a stray IPC message cannot flip phantom power during a show.
 A switch the mixer has not reported shows as **unavailable** rather than as *off*,
 so an unknown state is never mistaken for a known one.
 
+## Mapping Switches and Gain to MIDI
+
+Everything in the channel settings menu can also be driven from a controller.
+In the mapping dialog, **Mixer Action** offers:
+
+| Action | Control type | Notes |
+|--------|--------------|-------|
+| **Preamp Gain (dB)** | Continuous (CC or note-value) | Scales across the console's gain range, 0–60 dB by default |
+| **Channel Switch…** | On/off | A second dropdown picks which switch |
+
+![Mapping a channel switch to MIDI](images/mapping-modal-switch.png)
+
+Switch mappings behave like mute and solo: a CC crossing the threshold, or a
+note on/off, turns the switch on or off, and **Invert** flips the sense.
+
+> **Narrow the gain range.** A gain mapping defaults to the full 0–60 dB, so a
+> controller sweep reaches +60 dB at the top of its travel. Setting a range like
+> 10–40 dB keeps the whole fader useful and puts a ceiling on what a stray move
+> can do.
+
+The Run-mode locks apply here too, and are enforced in the main process: a
+controller sending the wrong note **cannot** flip phantom power or polarity, or
+change gain, while the app is in Run mode. It is the same interlock that greys
+those controls out in the channel menu, not a separate check that could drift.
+
 ## Visual Indicators
 
 ### Change Source Glow
