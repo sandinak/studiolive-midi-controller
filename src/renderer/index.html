@@ -1756,6 +1756,56 @@
       pointer-events: none;
       opacity: 0.4;
     }
+    /* Per-channel settings menu, opened from the instrument icon */
+    .fader-icon.channel-menu-trigger { cursor: pointer; }
+    .fader-icon.channel-menu-trigger:hover { filter: brightness(1.5); }
+
+    .channel-menu {
+      position: fixed; z-index: 3000; display: none;
+      min-width: 210px; padding: 6px 0;
+      background: #16191a; border: 1px solid #2f3635; border-radius: 6px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.6);
+    }
+    .channel-menu.show { display: block; }
+    .channel-menu-header {
+      padding: 7px 12px 8px; margin-bottom: 4px;
+      border-bottom: 1px solid #262b2a;
+      font-size: 0.72rem; font-weight: 700; color: #dfe4e1;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .channel-menu-section {
+      padding: 6px 12px 2px; font-size: 0.58rem; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase; color: #626b68;
+    }
+    .channel-menu-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 6px 12px; font-size: 0.74rem; color: #dfe4e1;
+      cursor: pointer; user-select: none;
+    }
+    .channel-menu-item:hover { background: rgba(255,255,255,.06); }
+    .channel-menu-item .switch-pip {
+      width: 26px; height: 14px; border-radius: 8px; flex: 0 0 auto;
+      background: #2a302e; border: 1px solid #3a423f; position: relative;
+      transition: background .15s;
+    }
+    .channel-menu-item .switch-pip::after {
+      content: ""; position: absolute; top: 1px; left: 1px;
+      width: 10px; height: 10px; border-radius: 50%; background: #7d8a86;
+      transition: transform .15s, background .15s;
+    }
+    .channel-menu-item.on .switch-pip { background: #2e7d5b; border-color: #4a9b7f; }
+    .channel-menu-item.on .switch-pip::after { transform: translateX(12px); background: #eafff5; }
+    .channel-menu-item.danger.on .switch-pip { background: #8c2f24; border-color: #c0392b; }
+    /* Unknown state: the mixer has not reported this parameter. */
+    .channel-menu-item.unknown { opacity: .45; cursor: not-allowed; }
+    .channel-menu-item.unknown:hover { background: none; }
+    /* Locked by Run mode. */
+    .channel-menu-item.locked { opacity: .45; cursor: not-allowed; }
+    .channel-menu-item.locked:hover { background: none; }
+    .channel-menu-item .lock-note {
+      margin-left: auto; font-size: 0.58rem; color: #8a6d3b; white-space: nowrap;
+    }
+    .channel-menu-empty { padding: 10px 12px; font-size: 0.72rem; color: #8a938f; }
   </style>
 </head>
 <body>
@@ -2201,6 +2251,11 @@
 
   <!-- Context Menus -->
   <!-- Fader Volume Context Menu -->
+  <div id="channel-menu" class="channel-menu">
+    <div class="channel-menu-header" id="channel-menu-header">Channel</div>
+    <div id="channel-menu-body"></div>
+  </div>
+
   <div id="fader-context-menu" class="context-menu">
     <div class="context-menu-header">🎚️ Volume Fader</div>
     <div class="context-menu-item" onclick="contextMenuEditFader()">✏️ Edit Volume Mapping</div>
@@ -3628,6 +3683,160 @@
 
       return ICON_MAP.default;
     }
+
+    // -----------------------------------------------------------------
+    // Per-channel settings menu
+    // -----------------------------------------------------------------
+
+    /**
+     * The switches offered in the channel menu, in display order.
+     *
+     * `runLocked` marks the ones the main process refuses while the app is in
+     * Run mode — phantom power because it can damage a ribbon mic, polarity
+     * because flipping it mid-performance is a silent, hard-to-diagnose way to
+     * gut the low end of a summed source. The processor in/out switches stay
+     * live in Run mode: bypassing a compressor or dropping a gate mid-set is a
+     * normal thing to want, and it is instantly reversible.
+     *
+     * Keep this in step with CHANNEL_SWITCHES in src/main/ipc-validators.ts —
+     * the main process validates against its own copy and will reject anything
+     * it does not recognise.
+     */
+    const CHANNEL_SWITCHES = [
+      { id: 'phantom',    label: '48V Phantom Power', section: 'Input',     runLocked: true, confirm:
+          'Enable 48V phantom power on this channel?\n\nPhantom power can damage ribbon microphones and some vintage gear.' },
+      { id: 'polarity',   label: 'Polarity Invert',   section: 'Input',     runLocked: true },
+      { id: 'mono',       label: 'Sum to Mono',       section: 'Input',     runLocked: false },
+      { id: 'gate',       label: 'Gate',              section: 'Processing', runLocked: false },
+      { id: 'compressor', label: 'Compressor',        section: 'Processing', runLocked: false },
+      { id: 'eq',         label: 'EQ',                section: 'Processing', runLocked: false },
+      { id: 'limiter',    label: 'Limiter',           section: 'Processing', runLocked: false },
+    ];
+
+    let channelMenuTarget = null;
+    // Where the menu was opened from, so it can be re-anchored once its real
+    // contents arrive — see the note in showChannelMenu().
+    let channelMenuAnchor = null;
+
+    /** Open the channel menu for a fader, anchored to the icon that was clicked. */
+    async function showChannelMenu(event, type, channel) {
+      event.stopPropagation();
+      const menu = document.getElementById('channel-menu');
+      const body = document.getElementById('channel-menu-body');
+      const header = document.getElementById('channel-menu-header');
+
+      channelMenuTarget = { type, channel };
+
+      const names = (channelDataCache[String(type).toLowerCase()] || {}).names || [];
+      const named = names.find(n => n.channel === channel);
+      header.textContent = `${channel}: ${named ? named.name : 'Channel ' + channel}`;
+
+      body.innerHTML = '<div class="channel-menu-empty">Reading channel…</div>';
+      channelMenuAnchor = { x: event.clientX, y: event.clientY };
+      positionChannelMenu(menu, channelMenuAnchor);
+      menu.classList.add('show');
+
+      const states = await ipcRenderer.invoke('get-channel-switches', type, channel);
+      // A second click elsewhere may have retargeted the menu while we waited.
+      if (!channelMenuTarget || channelMenuTarget.type !== type || channelMenuTarget.channel !== channel) return;
+
+      if (!states) {
+        body.innerHTML = '<div class="channel-menu-empty">Not connected to a mixer.</div>';
+        positionChannelMenu(menu, channelMenuAnchor);
+        return;
+      }
+      renderChannelMenu(states);
+      // The menu was placed while it still said "Reading channel…", so it is
+      // several times taller now. Re-anchor, or one opened near the bottom of
+      // the window hangs off the edge.
+      positionChannelMenu(menu, channelMenuAnchor);
+    }
+
+    function renderChannelMenu(states) {
+      const body = document.getElementById('channel-menu-body');
+      const runMode = window.appMode === 'run';
+      let html = '';
+      let section = null;
+
+      for (const sw of CHANNEL_SWITCHES) {
+        if (sw.section !== section) {
+          section = sw.section;
+          html += `<div class="channel-menu-section">${sanitizeHtml(section)}</div>`;
+        }
+        const state = states[sw.id];
+        // null means the mixer never reported it — show it as unavailable
+        // rather than as a confident "off" the user might act on.
+        const unknown = state === null || state === undefined;
+        const locked = runMode && sw.runLocked;
+        const classes = ['channel-menu-item'];
+        if (state === true) classes.push('on');
+        if (sw.id === 'phantom') classes.push('danger');
+        if (unknown) classes.push('unknown');
+        else if (locked) classes.push('locked');
+
+        const onclick = unknown || locked ? '' : ` onclick="toggleChannelSwitch('${sw.id}')"`;
+        const note = unknown
+          ? '<span class="lock-note">unavailable</span>'
+          : (locked ? '<span class="lock-note">Edit mode only</span>' : '');
+
+        html += `<div class="${classes.join(' ')}"${onclick} data-switch="${sw.id}">` +
+                `<span class="switch-pip"></span><span>${sanitizeHtml(sw.label)}</span>${note}</div>`;
+      }
+      body.innerHTML = html;
+    }
+
+    /** Keep the menu inside the window rather than letting it run off an edge. */
+    function positionChannelMenu(menu, anchor) {
+      if (!anchor) return;
+      menu.style.visibility = 'hidden';
+      menu.classList.add('show');
+      const rect = menu.getBoundingClientRect();
+      const pad = 8;
+      let left = anchor.x;
+      let top = anchor.y;
+      if (left + rect.width + pad > window.innerWidth) left = window.innerWidth - rect.width - pad;
+      if (top + rect.height + pad > window.innerHeight) top = window.innerHeight - rect.height - pad;
+      menu.style.left = Math.max(pad, left) + 'px';
+      menu.style.top = Math.max(pad, top) + 'px';
+      menu.style.visibility = '';
+    }
+
+    function hideChannelMenu() {
+      document.getElementById('channel-menu')?.classList.remove('show');
+      channelMenuTarget = null;
+      channelMenuAnchor = null;
+    }
+
+    async function toggleChannelSwitch(id) {
+      if (!channelMenuTarget) return;
+      const sw = CHANNEL_SWITCHES.find(s => s.id === id);
+      if (!sw) return;
+
+      const { type, channel } = channelMenuTarget;
+      const item = document.querySelector(`#channel-menu-body [data-switch="${id}"]`);
+      const next = !(item && item.classList.contains('on'));
+
+      // Only confirm on the way *on* — turning phantom power off is the safe
+      // direction and should never be slowed down.
+      if (next && sw.confirm && !confirm(sw.confirm)) return;
+
+      const result = await ipcRenderer.invoke('set-channel-switch', type, channel, id, next);
+      if (!result || !result.success) {
+        addStatusLog(`Could not set ${sw.label}: ${result?.error || 'unknown error'}`, 'error');
+        return;
+      }
+
+      if (item) item.classList.toggle('on', next);
+      addStatusLog(`${sw.label} ${next ? 'on' : 'off'} — ${type} ${channel}`, 'info');
+    }
+
+    // Any click outside the menu dismisses it, matching the context menus.
+    document.addEventListener('click', (e) => {
+      const menu = document.getElementById('channel-menu');
+      if (!menu || !menu.classList.contains('show')) return;
+      if (!menu.contains(e.target) && !e.target.closest('.channel-menu-trigger')) hideChannelMenu();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideChannelMenu(); });
 
     // Sidebar toggle
     function toggleSidebar() {
@@ -7663,7 +7872,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
+                  <div class="fader-icon channel-menu-trigger" data-type="${channelType}" data-channel="${channelNum}" title="Channel settings" onclick="showChannelMenu(event, '${channelType}', ${channelNum})" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number"><span class="fader-indicator-dot" id="fader-dot-${faderId}"></span>${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
                   ${dcaHtml}
@@ -7713,7 +7922,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="fader-icon" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
+                  <div class="fader-icon channel-menu-trigger" data-type="${channelType}" data-channel="${channelNum}" title="Channel settings" onclick="showChannelMenu(event, '${channelType}', ${channelNum})" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
                   <div class="fader-channel-number"><span class="fader-indicator-dot" id="fader-dot-${faderId}"></span>${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
                   ${dcaHtml}
@@ -8842,6 +9051,9 @@
 
     function toggleAppMode() {
       const btn = document.getElementById('mode-toggle-btn');
+      // The channel menu's Run-mode locks are decided when it renders, so a
+      // menu left open across a mode change would show stale affordances.
+      hideChannelMenu();
       if (window.appMode === 'edit') {
         window.appMode = 'run';
         document.body.classList.add('app-run-mode');
@@ -8857,6 +9069,9 @@
         btn.classList.remove('run-active');
         btn.title = 'Currently in Edit mode — click to switch to Run mode';
       }
+      // Mirror the mode into the main process, which enforces the same lock on
+      // the dangerous switches rather than trusting the UI to have hidden them.
+      ipcRenderer.invoke('set-app-mode', window.appMode).catch(() => {});
     }
 
     // Transport play/stop

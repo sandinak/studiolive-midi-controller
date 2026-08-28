@@ -8,7 +8,11 @@ import * as os from 'os';
 import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
-import { clampCount } from './ipc-validators';
+import {
+  clampCount,
+  asChannelSwitch,
+  RUN_MODE_BLOCKED_SWITCHES,
+} from './ipc-validators';
 import { compareVersions, pickLatestVersion } from './update-checker';
 import { buildLevelFeedback } from './midi-feedback';
 import { subnetHosts, isInSubnet } from './net-utils';
@@ -109,6 +113,15 @@ const mixerManager = new MixerManager();
 const mappingEngine = new MappingEngine();
 const tuioManager = new TuioManager();
 let currentPresetPath: string | null = null;
+
+/**
+ * Mirror of the renderer's Edit/Run mode, kept here so the main process can
+ * refuse a dangerous write on its own rather than trusting the UI to have
+ * disabled the control. The renderer greys those controls out too — this is
+ * the interlock behind that, for the case where a bug, a stale window, or a
+ * mis-sent IPC would otherwise flip phantom power mid-performance.
+ */
+let appMode: 'edit' | 'run' = 'edit';
 
 // Skip DCA polling when no DCA channels are mapped (saves CPU)
 mixerManager.setDcaMappingsChecker(() =>
@@ -1481,6 +1494,49 @@ ipcMain.handle('set-channel-input-source', async (_event, type: string, channel:
     return { success: false, error: errorMessage };
   }
 });
+
+ipcMain.handle('set-app-mode', async (_event, mode: string) => {
+  appMode = mode === 'run' ? 'run' : 'edit';
+  return { success: true, mode: appMode };
+});
+
+ipcMain.handle('get-channel-switches', async (_event, type: string, channel: number) => {
+  try {
+    if (!mixerManager.isConnected()) return null;
+    return mixerManager.getChannelSwitches(type, channel);
+  } catch (error) {
+    return null;
+  }
+});
+
+ipcMain.handle(
+  'set-channel-switch',
+  async (_event, type: string, channel: number, name: unknown, state: unknown) => {
+    try {
+      if (!mixerManager.isConnected()) {
+        return { success: false, error: 'Not connected to mixer' };
+      }
+
+      const switchName = asChannelSwitch(name);
+      if (!switchName) {
+        return { success: false, error: `Unknown channel switch: ${String(name)}` };
+      }
+
+      if (appMode === 'run' && RUN_MODE_BLOCKED_SWITCHES.includes(switchName)) {
+        return {
+          success: false,
+          error: `${switchName} cannot be changed in Run mode — switch to Edit mode first`,
+        };
+      }
+
+      mixerManager.setChannelSwitch(type, channel, switchName, Boolean(state));
+      return { success: true, state: Boolean(state) };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  }
+);
 
 ipcMain.handle('open-docs', async () => {
   const liveUrl = 'https://sandinak.github.io/studiolive-midi-controller/';

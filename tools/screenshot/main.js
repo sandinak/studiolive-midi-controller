@@ -64,6 +64,13 @@ async function capture(win, scene) {
   `);
   await sleep(120);
 
+  // A scene can undo state an earlier one left behind (app mode, say) before
+  // its own setup runs.
+  if (scene.reset) {
+    await win.webContents.executeJavaScript(`(async () => { ${scene.reset} })()`, true);
+    await sleep(150);
+  }
+
   if (scene.setup) {
     await win.webContents.executeJavaScript(`(async () => { ${scene.setup} })()`, true);
   }

@@ -582,4 +582,72 @@ describe('MixerManager', () => {
       MockClient.prototype.meterSubscribe = originalMock;
     }
   });
+
+  describe('channel switches', () => {
+    it('getChannelSwitch returns null when not connected', () => {
+      expect(manager.getChannelSwitch('line', 1, 'phantom')).toBeNull();
+    });
+
+    it('getChannelSwitch reads a switch the mixer has reported', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      client.state.__set('line.ch3.48v', true);
+      expect(manager.getChannelSwitch('line', 3, 'phantom')).toBe(true);
+    });
+
+    // The console reports 48v as a boolean but polarity and the processor
+    // switches as 1/0 numbers; both have to come back as booleans.
+    it('getChannelSwitch normalises numeric switch values', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      client.state.__set('line.ch3.polarity', 1);
+      client.state.__set('line.ch3.limit.limiteron', 0);
+      expect(manager.getChannelSwitch('line', 3, 'polarity')).toBe(true);
+      expect(manager.getChannelSwitch('line', 3, 'limiter')).toBe(false);
+    });
+
+    it('getChannelSwitch returns null for a parameter the mixer never reported', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      expect(manager.getChannelSwitch('line', 3, 'gate')).toBeNull();
+    });
+
+    it('getChannelSwitches returns every switch in one call', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      client.state.__set('line.ch1.48v', false);
+      client.state.__set('line.ch1.comp.on', 1);
+
+      const all = manager.getChannelSwitches('line', 1);
+      expect(Object.keys(all).sort()).toEqual(
+        ['compressor', 'eq', 'gate', 'limiter', 'mono', 'phantom', 'polarity']
+      );
+      expect(all.phantom).toBe(false);
+      expect(all.compressor).toBe(true);
+      // Unreported parameters stay null so the UI can show them as unavailable
+      // rather than as a confident "off".
+      expect(all.eq).toBeNull();
+    });
+
+    it('setChannelSwitch forwards to the client with an upper-cased type', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      const client: any = (manager as any).client;
+      manager.setChannelSwitch('line', 5, 'polarity', true);
+      expect(client.setSwitch).toHaveBeenCalledWith(
+        { type: 'LINE', channel: 5 }, 'polarity', true
+      );
+    });
+
+    it('setChannelSwitch is readable immediately afterwards', async () => {
+      await manager.connect('10.0.0.1', 'StudioLive 32');
+      manager.setChannelSwitch('line', 5, 'gate', true);
+      expect(manager.getChannelSwitch('line', 5, 'gate')).toBe(true);
+    });
+
+    it('setChannelSwitch throws when not connected', () => {
+      expect(() => manager.setChannelSwitch('line', 1, 'phantom', true)).toThrow(
+        /Not connected/
+      );
+    });
+  });
+
 });

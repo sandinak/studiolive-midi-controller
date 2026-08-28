@@ -119,6 +119,45 @@ Meter data comes from the mixer's UDP audio stream, so it reflects actual pre-fa
 
 LINE, FX and FX Return channels show a badge for their current input source — **Analog**, **Network**, **USB** or **SD Card**. Right-click the badge to switch sources; the change is sent directly to the mixer.
 
+## Channel Settings Menu
+
+Click a channel's **instrument icon** to open its settings. The switches read live
+from the mixer and are written straight back to it.
+
+| Switch | Group | Notes |
+|--------|-------|-------|
+| **48V Phantom Power** | Input | Confirms before switching on. Edit mode only. |
+| **Polarity Invert** | Input | Edit mode only. |
+| **Sum to Mono** | Input | |
+| **Gate** | Processing | |
+| **Compressor** | Processing | |
+| **EQ** | Processing | |
+| **Limiter** | Processing | |
+
+![The channel settings menu](images/channel-menu.png)
+
+### Why some switches lock in Run mode
+
+Phantom power and polarity are held back while the interface is locked, and shown
+greyed with an *Edit mode only* note:
+
+![The same menu in Run mode, with 48V and polarity locked](images/channel-menu-run-mode.png)
+
+Phantom power can damage ribbon microphones, and an accidental polarity flip on a
+summed source is a silent, hard-to-trace way to gut the low end mid-set. The
+processor switches stay available, because dropping a gate or bypassing a
+compressor during a performance is a normal thing to want and is instantly
+reversible.
+
+Switching on 48V asks for confirmation even in Edit mode. Turning it *off* never
+does — that is the safe direction and should not be slowed down.
+
+The lock is enforced in the main process, not just by greying out the control, so
+a stale window or a stray IPC message cannot flip phantom power during a show.
+
+A switch the mixer has not reported shows as **unavailable** rather than as *off*,
+so an unknown state is never mistaken for a known one.
+
 ## Visual Indicators
 
 ### Change Source Glow

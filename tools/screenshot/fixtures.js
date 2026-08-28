@@ -92,6 +92,13 @@ const MUTE_GROUPS = [
 const MUTED = new Set(['line:4', 'line:15', 'line:16']);
 const SOLOED = new Set(['line:13']);
 
+// Per-channel switch state for the channel menu. A vocal channel with phantom
+// on and its dynamics engaged is the representative case for the docs shot.
+const SWITCHES = {
+  'line:13': { phantom: true, polarity: false, mono: false, gate: true, compressor: true, eq: true, limiter: false },
+  'line:1': { phantom: false, polarity: false, mono: false, gate: true, compressor: true, eq: true, limiter: false },
+};
+
 const MIDI_DEVICES = ['Logic Pro Virtual Out', 'Launchkey 49 MK3', 'X-Touch Mini'];
 const CONNECTED_MIDI = ['Logic Pro Virtual Out', 'X-Touch Mini'];
 
@@ -201,6 +208,28 @@ const HANDLERS = {
   'get-channel-main-assign': () => true,
   'set-channel-main-assign': () => ({ success: true }),
   'set-channel-input-source': () => ({ success: true }),
+
+  // --- per-channel switches ------------------------------------------------
+  'get-channel-switches': (type, ch) => {
+    const c = entry(type, ch);
+    if (!c) return null;
+    const k = key(type, ch);
+    return {
+      phantom: SWITCHES[k]?.phantom ?? false,
+      polarity: SWITCHES[k]?.polarity ?? false,
+      mono: SWITCHES[k]?.mono ?? false,
+      gate: SWITCHES[k]?.gate ?? false,
+      compressor: SWITCHES[k]?.compressor ?? false,
+      eq: SWITCHES[k]?.eq ?? false,
+      limiter: SWITCHES[k]?.limiter ?? false,
+    };
+  },
+  'set-channel-switch': (type, ch, name, state) => {
+    const k = key(type, ch);
+    SWITCHES[k] = { ...(SWITCHES[k] || {}), [name]: Boolean(state) };
+    return { success: true, state: Boolean(state) };
+  },
+  'set-app-mode': () => ({ success: true }),
 
   // --- groups -------------------------------------------------------------
   'get-dca-group-assignments': (dca) => (DCA[dca - 1] ? DCA[dca - 1].members : []),

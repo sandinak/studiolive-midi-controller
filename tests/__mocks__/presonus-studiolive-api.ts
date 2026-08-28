@@ -23,6 +23,19 @@ export class MockState {
   }
 }
 
+// ---- Channel switch parameter paths, mirroring the real ChannelSwitch map ----
+export const ChannelSwitch = {
+  phantom: '48v',
+  polarity: 'polarity',
+  mono: 'mono',
+  gate: 'gate/on',
+  compressor: 'comp/on',
+  eq: 'eq/eqallon',
+  limiter: 'limit/limiteron',
+} as const;
+
+const CHANNEL_SWITCH_PATHS: Record<string, string> = ChannelSwitch;
+
 // ---- SimpleClient (imported as SimpleClient from 'presonus-studiolive-api/simple') ----
 export class SimpleClient extends EventEmitter {
   state: MockState;
@@ -33,6 +46,21 @@ export class SimpleClient extends EventEmitter {
   toggleSolo = jest.fn();
   setSolo = jest.fn();
   setPan = jest.fn();
+  // Mirrors the real setSwitch closely enough to test MixerManager against:
+  // it normalises the console's boolean/number split on read, and writes back
+  // into local state because the console does not echo the sender's change.
+  getSwitch = jest.fn((selector: any, name: string) => {
+    const value = this.state.get(
+      `${String(selector.type).toLowerCase()}.ch${selector.channel}.${CHANNEL_SWITCH_PATHS[name]}`
+    );
+    if (value === null || value === undefined) return null;
+    return typeof value === 'boolean' ? value : Number(value) > 0;
+  });
+  setSwitch = jest.fn((selector: any, name: string, state: boolean | 'toggle') => {
+    const path = `${String(selector.type).toLowerCase()}.ch${selector.channel}.${CHANNEL_SWITCH_PATHS[name]}`;
+    const value = state === 'toggle' ? !this.getSwitch(selector, name) : state;
+    this.state.set(path, value);
+  });
   getLevel = jest.fn().mockReturnValue(null);
   connect = jest.fn().mockResolvedValue(undefined);
   close = jest.fn().mockResolvedValue(undefined);
@@ -82,6 +110,8 @@ export type ChannelSelector = {
   type: string;
   channel: number;
 };
+
+export type ChannelSwitchName = keyof typeof ChannelSwitch;
 
 export type DiscoveryType = {
   ip: string;

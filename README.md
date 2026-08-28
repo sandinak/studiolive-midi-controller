@@ -23,6 +23,7 @@ MIDI control for Fender(PreSonus) StudioLive III mixers. Map DAW faders and auto
 - **Fader stacking** — wrap more than 16 channels into two compact rows
 - **Level metering** — per-channel indicator or live VU meter with peak hold
 - **Channel labels, colors & icons** — set based on mixer configuration, with per-DCA color coding
+- **Channel settings menu** — phantom power, polarity, mono, and gate/compressor/EQ/limiter in-out, straight from the fader; the destructive ones are locked in Run mode
 
 ## A Look Around
 
@@ -31,6 +32,13 @@ console, the meter shows live level with peak hold, and the badges underneath na
 channel, its DCA group, and any MIDI control bound to it.
 
 <img src="docs/images/channel-strip.png" alt="Four channel strips showing icons, meters, mute/solo and DCA badges" width="316">
+
+Clicking a channel's instrument icon opens its settings — phantom power, polarity,
+mono, and the four processor in/out switches, read live from the console. Phantom
+power and polarity are locked while the interface is in Run mode, and enabling 48V
+asks first, because it can damage a ribbon microphone.
+
+<img src="docs/images/channel-menu.png" alt="The channel settings menu" width="222"> <img src="docs/images/channel-menu-run-mode.png" alt="The same menu in Run mode with 48V and polarity locked" width="263">
 
 Mute groups sit along the top of the fader area — a lit ring means the group is
 currently muting its members.

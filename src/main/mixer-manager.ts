@@ -2,7 +2,8 @@
 
 import { SimpleClient as StudioLiveClient } from 'presonus-studiolive-api/simple';
 import { Client, Discovery } from 'presonus-studiolive-api';
-import type { ChannelSelector, DiscoveryType } from 'presonus-studiolive-api';
+import type { ChannelSelector, ChannelSwitchName, DiscoveryType } from 'presonus-studiolive-api';
+import { ChannelSwitch } from 'presonus-studiolive-api';
 import { EventEmitter } from 'events';
 import * as os from 'os';
 
@@ -292,6 +293,47 @@ export class MixerManager extends EventEmitter {
       const counts = (this.client as any)?.channelCounts;
       // Silently ignore volume errors — will retry on next MIDI message
     });
+  }
+
+  /**
+   * Read a per-channel switch (phantom, polarity, mono, or a processor in/out).
+   *
+   * Mirrors getChannelMute's contract: null when the mixer has not reported
+   * the parameter, so the renderer can tell "off" apart from "unknown" and
+   * grey the control rather than showing a confident wrong state.
+   */
+  getChannelSwitch(type: string, channel: number, name: ChannelSwitchName): boolean | null {
+    if (!this.client) {
+      return null;
+    }
+    try {
+      return this.client.getSwitch({ type: type.toUpperCase(), channel } as ChannelSelector, name);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /** Read every switch for a channel in one pass, for the channel menu. */
+  getChannelSwitches(type: string, channel: number): Record<string, boolean | null> {
+    const out: Record<string, boolean | null> = {};
+    for (const name of Object.keys(ChannelSwitch) as ChannelSwitchName[]) {
+      out[name] = this.getChannelSwitch(type, channel, name);
+    }
+    return out;
+  }
+
+  /**
+   * Set a per-channel switch.
+   *
+   * The console confirms the change with a ParamValue packet about 150ms
+   * later; the API seeds its cache on write so a read in that window still
+   * reports the new value.
+   */
+  setChannelSwitch(type: string, channel: number, name: ChannelSwitchName, state: boolean): void {
+    if (!this.client) {
+      throw new Error('Not connected to mixer');
+    }
+    this.client.setSwitch({ type: type.toUpperCase(), channel } as ChannelSelector, name, state);
   }
 
   /**

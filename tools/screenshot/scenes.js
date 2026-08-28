@@ -89,7 +89,41 @@ module.exports = [
     settle: 500,
   },
   {
+    name: 'channel-menu',
+    // Clicking a channel's instrument icon opens its settings. Lead Vox is the
+    // useful example: phantom on, gate and compressor engaged.
+    setup: `
+      const icon = document.querySelector('#faders-container .channel-menu-trigger[data-channel="13"]');
+      const r = icon.getBoundingClientRect();
+      await showChannelMenu(
+        { stopPropagation() {}, clientX: r.left + r.width / 2, clientY: r.bottom + 4 },
+        icon.dataset.type, 13);
+    `,
+    clip: '#channel-menu',
+    pad: 6,
+    settle: 500,
+  },
+  {
+    name: 'channel-menu-run-mode',
+    // The same menu with the interface locked for performance: phantom power
+    // and polarity are held back, the processor switches stay live.
+    setup: `
+      if (window.appMode !== 'run') toggleAppMode();
+      const icon = document.querySelector('#faders-container .channel-menu-trigger[data-channel="13"]');
+      const r = icon.getBoundingClientRect();
+      await showChannelMenu(
+        { stopPropagation() {}, clientX: r.left + r.width / 2, clientY: r.bottom + 4 },
+        icon.dataset.type, 13);
+    `,
+    clip: '#channel-menu',
+    pad: 6,
+    settle: 500,
+  },
+  {
     name: 'context-menus',
+    // Leaving Run mode has to happen before this scene, or the static context
+    // menus below render with the locked styling.
+    reset: `if (window.appMode === 'run') toggleAppMode();`,
     // Right-clicking a fader, mute, or solo button offers to edit, learn, or
     // clear that control's mapping. The menus are static markup, so showing one
     // beats synthesizing a contextmenu event at the right coordinates.
