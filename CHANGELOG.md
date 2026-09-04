@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Fixed the one vulnerability that reached users.** `brace-expansion` below 1.1.18 (GHSA-mh99-v99m-4gvg, GHSA-rgw5-rvv9-x895 — DoS via unbounded expansion), pulled in through `presonus-studiolive-api` → `bunyan` → `mv` → `rimraf` → `glob` → `minimatch`. It was the only finding in `npm audit --omit=dev`, which now reports none. The override is scoped to the 1.x line because the tree also carries 2.x and 5.x copies that a blanket override would have dragged backwards. Reachability was thin — it needs attacker-controlled glob patterns reaching bunyan's log rotation, which this app never exposes — but it is what shows up in a user-facing audit.
+- **Electron 43 → 44** (Chromium 152, Node 24.18.1). Electron ships inside the app, so its advisories are the ones that actually reach users. All three of its breaking changes were checked and none apply: 32-bit builds are gone but nothing published targets ia32 or armv7l, Unity desktop support is unused, and `openAsHidden` appears nowhere in `src/`.
+- **Build-tooling advisories pinned out** — `@xmldom/xmldom`, `fast-uri`, and the 6.x line of `undici`, all transitive with no direct parent to bump. These never leave the build machine.
+
+### Changed
+- **jest 29 → 30, `@types/node` 20 → 26, and CI actions to v7.** The action bumps also clear the "Node.js 20 is deprecated" warning every workflow run was emitting. `typescript` 5.9 → 7.0 was deliberately **not** taken: 7.x is the native compiler and does not expose the JavaScript compiler API ts-jest needs, so adopting it means carrying two TypeScript packages side by side — a migration to plan rather than a dependency update, and one that buys users nothing.
+
 ### Added
 - **About dialog.** Clicking the app icon in the header shows the version, author, licence, the pinned mixer-API tag, and the Electron/Chromium/Node versions — the things worth quoting in a bug report — plus links to the changelog, an update check, and the issue tracker. The values come from the main process reading `package.json`, so they cannot drift from what actually shipped.
 - **The channel switches and preamp gain are MIDI-mappable.** `Mixer Action` in the mapping dialog gains **Preamp Gain (dB)** and **Channel Switch…**, the latter with a second dropdown for which switch. Switches behave like mute and solo — a CC crossing the threshold or a note on/off — so they reuse the existing threshold and invert settings. Gain scales across the console's range and defaults to the full 0–60 dB; narrowing it per mapping is worth doing, since otherwise a controller sweep reaches +60 dB at the top of its travel. The Run-mode locks are enforced in the main process for MIDI exactly as for the UI, so a controller sending the wrong note cannot flip phantom power mid-performance.
