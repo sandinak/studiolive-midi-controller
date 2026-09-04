@@ -1418,6 +1418,27 @@ ipcMain.handle('save-preset-dialog', async (_event, currentPath?: string) => {
 
 ipcMain.handle('get-app-version', () => app.getVersion());
 
+/**
+ * Metadata for the About dialog, read from package.json rather than repeated in
+ * the renderer so the two cannot drift.
+ */
+ipcMain.handle('get-app-info', () => {
+  const pkg = require(path.join(app.getAppPath(), 'package.json'));
+  return {
+    name: pkg.build?.productName || pkg.name,
+    version: app.getVersion(),
+    description: pkg.description,
+    author: typeof pkg.author === 'string' ? pkg.author : pkg.author?.name,
+    license: pkg.license,
+    homepage: pkg.homepage,
+    electron: process.versions.electron,
+    node: process.versions.node,
+    chrome: process.versions.chrome,
+    platform: `${process.platform} ${process.arch}`,
+    apiLibrary: pkg.dependencies?.['presonus-studiolive-api'] || null,
+  };
+});
+
 ipcMain.handle('get-fader-filter', () => {
   return mappingEngine.getFaderFilter();
 });

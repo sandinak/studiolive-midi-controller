@@ -712,6 +712,15 @@
       flex-shrink: 0;
     }
 
+    /*
+     * A channel with no icon still needs a way into its settings menu, so it
+     * gets a dimmed "more" glyph rather than being hidden. `visibility: hidden`
+     * would keep the layout but swallow the click.
+     */
+    .fader-icon.no-icon { opacity: 0.3; }
+    .fader-icon.no-icon:hover { opacity: 0.75; }
+    .fader-icon.no-icon svg { width: 18px; height: 18px; }
+
     .fader-icon {
       font-size: 1.6rem;
       text-align: center;
@@ -1836,13 +1845,38 @@
     .channel-menu-preset.match { color: #eafff5; }
     .channel-menu-presets.locked { opacity: .45; }
     .channel-menu-presets.locked .channel-menu-preset { pointer-events: none; }
+    /* About dialog */
+    #app-icon { transition: filter .15s; border-radius: 6px; }
+    #app-icon:hover { filter: brightness(1.25); }
+
+    .about-head { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+    .about-head img { width: 56px; height: 56px; border-radius: 10px; }
+    .about-title { font-size: 1.05rem; font-weight: 700; color: #dfe4e1; }
+    .about-version {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.8rem; color: #4a9b7f; margin-top: 2px;
+    }
+    .about-desc { color: #9aa3a0; font-size: 0.8rem; margin: 10px 0 14px; line-height: 1.5; }
+    .about-rows { border-top: 1px solid #262b2a; padding-top: 10px; }
+    .about-row {
+      display: flex; justify-content: space-between; gap: 16px;
+      font-size: 0.76rem; padding: 3px 0; color: #dfe4e1;
+    }
+    .about-row .k { color: #626b68; }
+    .about-row .v {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      text-align: right; word-break: break-all;
+    }
+    .about-links { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .about-note { margin-top: 14px; font-size: 0.72rem; color: #626b68; line-height: 1.5; }
+    .about-note a { color: #4a9b7f; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
       <div class="header-left">
-        <h1><img src="../assets/icon.png" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;" /> StudioLive MIDI Controller</h1>
+        <h1><img src="../assets/icon.png" id="app-icon" title="About StudioLive MIDI Controller" onclick="showAbout()" style="width:32px;height:32px;vertical-align:middle;margin-right:8px;cursor:pointer;" /> StudioLive MIDI Controller</h1>
       </div>
       <div class="header-right">
         <button class="transport-btn" id="transport-btn" onclick="toggleTransport()" title="Send MIDI Start/Stop to DAW">&#9654; Play</button>
@@ -2297,6 +2331,34 @@
 
   <!-- Context Menus -->
   <!-- Fader Volume Context Menu -->
+  <div id="about-modal" class="modal">
+    <div class="modal-content" style="max-width: 460px;">
+      <div class="about-head">
+        <img src="../assets/icon.png" alt="" />
+        <div>
+          <div class="about-title" id="about-name">StudioLive MIDI Controller</div>
+          <div class="about-version" id="about-version">—</div>
+        </div>
+      </div>
+      <div class="about-desc" id="about-desc"></div>
+      <div class="about-rows" id="about-rows"></div>
+      <div class="about-links">
+        <button class="btn-small" onclick="showChangelogModal()">📋 Changelog</button>
+        <button class="btn-small" onclick="checkForUpdatesFromAbout()">⬆️ Check for Updates</button>
+        <button class="btn-small" onclick="openAboutLink('homepage')">🌐 Project</button>
+        <button class="btn-small" onclick="openAboutLink('issues')">🐛 Report an Issue</button>
+      </div>
+      <div class="about-note">
+        Built on <a href="#" onclick="openAboutLink('api'); return false;">presonus-studiolive-api</a>
+        by Andrew Wong. Not affiliated with or endorsed by PreSonus or Fender;
+        StudioLive is a trademark of PreSonus.
+      </div>
+      <div class="modal-buttons" style="margin-top: 16px;">
+        <button class="btn" onclick="hideAbout()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="channel-menu" class="channel-menu">
     <div class="channel-menu-header" id="channel-menu-header">Channel</div>
     <div id="channel-menu-body"></div>
@@ -3788,6 +3850,74 @@
         if (am !== bm) return am - bm;
         return String(a.title).localeCompare(String(b.title));
       });
+    }
+
+    // -----------------------------------------------------------------
+    // About dialog
+    // -----------------------------------------------------------------
+
+    let aboutInfo = null;
+
+    /**
+     * Everything shown here comes from the main process, which reads
+     * package.json — the version, author and licence are not repeated in the
+     * renderer, so they cannot drift from what actually shipped.
+     */
+    async function showAbout() {
+      const modal = document.getElementById('about-modal');
+      modal.classList.add('show');
+
+      const info = await ipcRenderer.invoke('get-app-info');
+      if (!info) return;
+      aboutInfo = info;
+
+      document.getElementById('about-name').textContent = info.name || 'StudioLive MIDI Controller';
+      document.getElementById('about-version').textContent = `Version ${info.version || '—'}`;
+      document.getElementById('about-desc').textContent = info.description || '';
+
+      // The API library is pinned as a git URL; show just the tag, which is the
+      // part anyone reporting a bug actually needs.
+      const apiTag = (info.apiLibrary || '').split('#')[1] || null;
+
+      const rows = [
+        ['Author', info.author],
+        ['Licence', info.license],
+        ['Mixer API', apiTag],
+        ['Electron', info.electron],
+        ['Chromium', info.chrome],
+        ['Node', info.node],
+        ['Platform', info.platform],
+      ].filter(([, v]) => v);
+
+      document.getElementById('about-rows').innerHTML = rows
+        .map(([k, v]) => `<div class="about-row"><span class="k">${sanitizeHtml(k)}</span>` +
+                         `<span class="v">${sanitizeHtml(String(v))}</span></div>`)
+        .join('');
+    }
+
+    function hideAbout() {
+      document.getElementById('about-modal')?.classList.remove('show');
+    }
+
+    /** Open one of the project links in the system browser. */
+    function openAboutLink(which) {
+      const home = (aboutInfo && aboutInfo.homepage) || 'https://github.com/sandinak/studiolive-midi-controller';
+      const url = {
+        homepage: home,
+        issues: `${home}/issues`,
+        api: 'https://github.com/featherbear/presonus-studiolive-api',
+      }[which];
+      if (url) window.electronAPI.openExternal(url);
+    }
+
+    async function checkForUpdatesFromAbout() {
+      const result = await ipcRenderer.invoke('check-for-updates');
+      if (result && result.updateAvailable) {
+        hideAbout();
+        showUpdateModal(result.currentVersion, result.latestVersion, result.downloadUrl, result.releaseNotes);
+      } else {
+        addStatusLog(`No update available — running ${result?.currentVersion || 'current version'}`, 'info');
+      }
     }
 
     // -----------------------------------------------------------------
@@ -8096,7 +8226,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="fader-icon channel-menu-trigger" data-type="${channelType}" data-channel="${channelNum}" title="Channel settings" onclick="showChannelMenu(event, '${channelType}', ${channelNum})" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
+                  <div class="fader-icon channel-menu-trigger${channelIcon ? '' : ' no-icon'}" data-type="${channelType}" data-channel="${channelNum}" title="Channel settings" onclick="showChannelMenu(event, '${channelType}', ${channelNum})">${channelIcon || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg>'}</div>
                   <div class="fader-channel-number"><span class="fader-indicator-dot" id="fader-dot-${faderId}"></span>${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
                   ${dcaHtml}
@@ -8146,7 +8276,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="fader-icon channel-menu-trigger" data-type="${channelType}" data-channel="${channelNum}" title="Channel settings" onclick="showChannelMenu(event, '${channelType}', ${channelNum})" style="${channelIcon ? '' : 'visibility: hidden;'}">${channelIcon || '🎵'}</div>
+                  <div class="fader-icon channel-menu-trigger${channelIcon ? '' : ' no-icon'}" data-type="${channelType}" data-channel="${channelNum}" title="Channel settings" onclick="showChannelMenu(event, '${channelType}', ${channelNum})">${channelIcon || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="5.5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="18.5" r="1.6"/></svg>'}</div>
                   <div class="fader-channel-number"><span class="fader-indicator-dot" id="fader-dot-${faderId}"></span>${channelNumber}</div>
                   <div class="fader-label" style="${labelStyle}">${channelLabel}</div>
                   ${dcaHtml}

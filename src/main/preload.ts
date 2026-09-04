@@ -39,6 +39,7 @@ const INVOKE_CHANNELS = new Set([
   'get-connected-midi-devices',
   'get-tuio-port',
   'get-app-version',
+  'get-app-info',
   'get-current-preset',
   'get-current-preset-path',
   'get-dca-colors',

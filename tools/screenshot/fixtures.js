@@ -41,7 +41,9 @@ const LINE = [
   { name: 'Lead Vox',   icon: 'vocals/leadvocals',     color: '#4a9b7f', level: 78, src: 13 },
   { name: 'BGV 1',      icon: 'vocals/backupvocals',   color: '#4a9b7f', level: 62, src: 14 },
   { name: 'Playback L', icon: 'other/computer',       color: '#7f8c8d', level: 55, src: 15, link: true },
-  { name: 'Playback R', icon: 'other/computer',       color: '#7f8c8d', level: 55, src: 16 },
+  // Deliberately icon-less: a channel the console has no icon for must still
+  // reach its settings menu. Matches ch16 "FOO" on the test rack.
+  { name: 'Spare',      icon: null,                   color: '#7f8c8d', level: 55, src: 16 },
 ];
 
 const SUB = [
@@ -172,6 +174,19 @@ const list = (type, count, build) => {
 const HANDLERS = {
   // --- status -------------------------------------------------------------
   'get-app-version': () => APP_VERSION,
+  'get-app-info': () => ({
+    name: 'StudioLive MIDI Controller',
+    version: APP_VERSION,
+    description: 'MIDI controller for PreSonus StudioLive mixers using Logic Pro',
+    author: 'sandinak',
+    license: 'MIT',
+    homepage: 'https://github.com/sandinak/studiolive-midi-controller',
+    electron: '43.1.1',
+    node: '22.9.0',
+    chrome: '140.0.7339.16',
+    platform: 'darwin arm64',
+    apiLibrary: 'git+https://github.com/sandinak/presonus-studiolive-api.git#v1.10.0',
+  }),
   'get-mixer-status': () => ({
     ...MIXER,
     name: MIXER.deviceName,

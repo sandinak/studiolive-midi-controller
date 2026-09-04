@@ -119,9 +119,19 @@ Meter data comes from the mixer's UDP audio stream, so it reflects actual pre-fa
 
 LINE, FX and FX Return channels show a badge for their current input source — **Analog**, **Network**, **USB** or **SD Card**. Right-click the badge to switch sources; the change is sent directly to the mixer.
 
+## About Dialog
+
+Click the **app icon** in the top-left of the header for version, author, licence,
+the pinned mixer-API tag, and the Electron/Chromium/Node versions — the details
+worth quoting in a bug report. It also links to the changelog, an update check,
+and the issue tracker.
+
+![The About dialog](images/about.png)
+
 ## Channel Settings Menu
 
-Click a channel's **instrument icon** to open its settings. The switches read live
+Click a channel's **instrument icon** to open its settings. A channel the console
+has no icon for shows a dimmed **⋮** in its place, which opens the same menu. The switches read live
 from the mixer and are written straight back to it.
 
 | Switch | Group | Notes |

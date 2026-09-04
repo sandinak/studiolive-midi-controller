@@ -31,6 +31,12 @@ module.exports = [
     ],
   },
   {
+    name: 'about',
+    setup: `await showAbout();`,
+    clip: '#about-modal .modal-content',
+    settle: 500,
+  },
+  {
     name: 'toolbar',
     // The app header: transport, profile buttons, MIDI/mixer status, mode lock.
     clip: '.header',
