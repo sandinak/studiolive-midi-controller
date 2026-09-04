@@ -168,15 +168,18 @@
     "presonus-studiolive-api": "git+https://github.com/sandinak/presonus-studiolive-api.git#v1.10.0"
   },
   "overrides": {
-    "brace-expansion@1": "^1.1.18"
+    "brace-expansion@1": "^1.1.18",
+    "@xmldom/xmldom": "^0.8.15",
+    "fast-uri": "^3.1.7",
+    "undici@6": "^6.28.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
-    "@types/node": "^20.11.0",
+    "@types/node": "^26.4.1",
     "electron": "^44.0.0",
     "electron-builder": "^26.15.3",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.4.6",
+    "jest": "^30.5.1",
+    "ts-jest": "^29.4.12",
     "typescript": "^5.3.3"
   }
 }
