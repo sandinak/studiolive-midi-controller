@@ -21,15 +21,15 @@ module.exports = {
     '!src/shared/types.ts',
   ],
   coverageReporters: ['text', 'lcov'],
-  // Ratchet, set just under the measured figures (41.3 / 43.3 / 40.9 / 41.6).
+  // Ratchet, set just under the measured figures (42.4 / 42.6 / 43.1 / 42.7).
   // Raise these as coverage improves; never lower them to make a failing run
   // pass. index.ts, still at 0%, is the bulk of what is left uncovered.
   coverageThreshold: {
     global: {
-      statements: 40,
+      statements: 42,
       branches: 42,
-      functions: 39,
-      lines: 40,
+      functions: 43,
+      lines: 42,
     },
   },
   transform: {

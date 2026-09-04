@@ -8,11 +8,14 @@ import * as os from 'os';
 import { MidiManager } from './midi-manager';
 import { MixerManager } from './mixer-manager';
 import { MappingEngine } from './mapping-engine';
+import { clampCount } from './ipc-validators';
 import {
-  clampCount,
-  asChannelSwitch,
-  RUN_MODE_BLOCKED_SWITCHES,
-} from './ipc-validators';
+  decideSwitchWrite,
+  decideGainWrite,
+  decidePresetRecall,
+  asAppMode,
+  type AppMode,
+} from './switch-policy';
 import { compareVersions, pickLatestVersion } from './update-checker';
 import { buildLevelFeedback } from './midi-feedback';
 import { subnetHosts, isInSubnet } from './net-utils';
@@ -121,7 +124,7 @@ let currentPresetPath: string | null = null;
  * the interlock behind that, for the case where a bug, a stale window, or a
  * mis-sent IPC would otherwise flip phantom power mid-performance.
  */
-let appMode: 'edit' | 'run' = 'edit';
+let appMode: AppMode = 'edit';
 
 // Skip DCA polling when no DCA channels are mapped (saves CPU)
 mixerManager.setDcaMappingsChecker(() =>
@@ -276,29 +279,28 @@ async function initializeApp() {
             }
             break;
           case 'switch': {
-            const switchName = asChannelSwitch(command.switchName);
-            if (!switchName || !('type' in command.channel) || command.channel.channel === undefined) break;
+            if (!('type' in command.channel) || command.channel.channel === undefined) break;
 
-            // A MIDI message is not exempt from the Run-mode interlock. A
-            // controller sending the wrong note must not be able to flip
-            // phantom power mid-performance any more than a stray click can.
-            if (appMode === 'run' && RUN_MODE_BLOCKED_SWITCHES.includes(switchName)) break;
+            // A MIDI message is not exempt from the Run-mode interlock — the
+            // same decision, from the same place, as a click in the UI.
+            const decision = decideSwitchWrite(appMode, command.switchName);
+            if (!decision.allowed) break;
 
-            const swKey = `switch-${switchName}-${command.channel.type}-${command.channel.channel}`;
+            const swKey = `switch-${decision.switchName}-${command.channel.type}-${command.channel.channel}`;
             if (shouldToggle(swKey)) {
               mixerManager.setChannelSwitch(
-                command.channel.type, command.channel.channel, switchName, Boolean(command.toggle)
+                command.channel.type, command.channel.channel, decision.switchName, Boolean(command.toggle)
               );
             }
             break;
           }
-          case 'gain':
-            // Gain is Edit-mode only from the UI, and the same applies here.
-            if (appMode === 'run') break;
-            if (command.value !== undefined && 'type' in command.channel && command.channel.channel !== undefined) {
-              mixerManager.setPreampGain(command.channel.type, command.channel.channel, command.value);
-            }
+          case 'gain': {
+            if (!('type' in command.channel) || command.channel.channel === undefined) break;
+            const decision = decideGainWrite(appMode, command.value);
+            if (!decision.allowed) break;
+            mixerManager.setPreampGain(command.channel.type, command.channel.channel, decision.decibels);
             break;
+          }
         }
       } catch (error) {
         console.error('Command failed:', command.action, error);
@@ -1540,8 +1542,8 @@ ipcMain.handle('set-channel-input-source', async (_event, type: string, channel:
   }
 });
 
-ipcMain.handle('set-app-mode', async (_event, mode: string) => {
-  appMode = mode === 'run' ? 'run' : 'edit';
+ipcMain.handle('set-app-mode', async (_event, mode: unknown) => {
+  appMode = asAppMode(mode);
   return { success: true, mode: appMode };
 });
 
@@ -1562,19 +1564,12 @@ ipcMain.handle(
         return { success: false, error: 'Not connected to mixer' };
       }
 
-      const switchName = asChannelSwitch(name);
-      if (!switchName) {
-        return { success: false, error: `Unknown channel switch: ${String(name)}` };
+      const decision = decideSwitchWrite(appMode, name);
+      if (!decision.allowed) {
+        return { success: false, error: decision.error };
       }
 
-      if (appMode === 'run' && RUN_MODE_BLOCKED_SWITCHES.includes(switchName)) {
-        return {
-          success: false,
-          error: `${switchName} cannot be changed in Run mode — switch to Edit mode first`,
-        };
-      }
-
-      mixerManager.setChannelSwitch(type, channel, switchName, Boolean(state));
+      mixerManager.setChannelSwitch(type, channel, decision.switchName, Boolean(state));
       return { success: true, state: Boolean(state) };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1605,14 +1600,11 @@ ipcMain.handle(
       if (!mixerManager.isConnected()) {
         return { success: false, error: 'Not connected to mixer' };
       }
-      if (appMode === 'run') {
-        return { success: false, error: 'Preamp gain cannot be changed in Run mode' };
+      const decision = decideGainWrite(appMode, decibels);
+      if (!decision.allowed) {
+        return { success: false, error: decision.error };
       }
-      const value = Number(decibels);
-      if (!Number.isFinite(value)) {
-        return { success: false, error: 'Gain must be a number' };
-      }
-      mixerManager.setPreampGain(type, channel, value);
+      mixerManager.setPreampGain(type, channel, decision.decibels);
       return { success: true, gain: mixerManager.getPreampGain(type, channel) };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1639,13 +1631,11 @@ ipcMain.handle(
       if (!mixerManager.isConnected()) {
         return { success: false, error: 'Not connected to mixer' };
       }
-      if (appMode === 'run') {
-        return { success: false, error: 'Channel presets cannot be recalled in Run mode' };
+      const decision = decidePresetRecall(appMode, presetFile);
+      if (!decision.allowed) {
+        return { success: false, error: decision.error };
       }
-      if (typeof presetFile !== 'string' || !presetFile.endsWith('.channel')) {
-        return { success: false, error: 'Invalid channel preset' };
-      }
-      await mixerManager.recallChannelPreset(type, channel, presetFile);
+      await mixerManager.recallChannelPreset(type, channel, decision.presetFile);
       return { success: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
