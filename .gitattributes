@@ -1,0 +1,16 @@
+# Normalise line endings on checkout everywhere.
+#
+# Windows checkouts default to core.autocrlf=true, which rewrites LF to CRLF.
+# Several tests read project files and match against them, and a regex
+# anchored on "\n" silently stops matching when the file arrives with "\r\n" —
+# which is exactly how the docs-consistency suite failed the first time CI ran
+# on Windows. Keeping the working tree LF everywhere removes the whole class.
+* text=auto eol=lf
+
+# Binary assets must never be touched.
+*.png binary
+*.icns binary
+*.ico binary
+*.node binary
+*.dmg binary
+*.zip binary

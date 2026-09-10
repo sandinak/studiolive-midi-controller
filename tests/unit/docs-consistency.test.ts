@@ -85,7 +85,10 @@ describe('version references', () => {
 
   it('building.md uses a placeholder rather than a pinned version', () => {
     // The artifact listing was left at 1.2.2 across five releases.
-    const listing = BUILDING.match(/```\n(release\/[\s\S]*?)```/)?.[1] ?? '';
+    // \r? so this keeps matching if the file is ever checked out with CRLF —
+    // without it the match fails, `?? ''` hides why, and the assertion reports
+    // a confusing empty string rather than a line-ending problem.
+    const listing = BUILDING.match(/```\r?\n(release\/[\s\S]*?)```/)?.[1] ?? '';
     expect(listing).toContain('<version>');
     expect(listing).not.toMatch(/\d+\.\d+\.\d+/);
   });
