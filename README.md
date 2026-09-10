@@ -98,6 +98,7 @@ a **DMG** for macOS, an **installer or portable .exe** for Windows, and an
 | [Usage](docs/usage.md) | Fader controls, mappings, visual indicators, troubleshooting |
 | [Logic Environment Reference](docs/LOGIC_ENVIRONMENT_QUICK_REFERENCE.md) | Detailed Logic Pro MIDI Environment settings |
 | [Building](docs/building.md) | Creating distributable DMG and Windows packages |
+| [Hardware Testing](docs/testing.md) | What needs a real console, and what each platform has actually been verified against |
 | [Changelog](CHANGELOG.md) | Release history |
 
 ## Acknowledgments
