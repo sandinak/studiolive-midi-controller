@@ -114,22 +114,11 @@ jobs:
       - name: Install app dependencies
         run: npm ci
 
-      # npm scripts use Unix shell commands so we bypass npm run build
-      # and replicate the steps directly through bash
-      - name: Build TypeScript
-        shell: bash
-        run: npx tsc -p tsconfig.main.json
-
-      - name: Copy assets
-        shell: bash
-        run: |
-          mkdir -p dist/renderer
-          cp src/renderer/index.html dist/renderer/
-          node -e "const fs=require('fs'),p='dist/renderer/index.html',v=require('./package.json').version;fs.writeFileSync(p,fs.readFileSync(p,'utf8').replace(/id=\"status-version\">[^<]*/,'id=\"status-version\">'+v))"
-          mkdir -p dist/renderer/icons
-          cp assets/icons/*.svg assets/icons/*.png dist/renderer/icons/ 2>/dev/null || true
-          mkdir -p dist/assets
-          cp assets/icon.icns assets/icon.png dist/assets/ 2>/dev/null || true
+      # copy-assets is a Node script rather than a shell pipeline, so the
+      # ordinary build works here — this job used to reimplement every step in
+      # bash because `mkdir -p` and `cp` are not available on Windows.
+      - name: Build application
+        run: npm run build
 
       - name: Build Windows packages
         run: npx electron-builder --win -p never

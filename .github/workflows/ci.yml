@@ -15,7 +15,15 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # The suite used to run on Linux only, which meant macOS and Windows —
+    # both of which the project ships — were never exercised by automation at
+    # all. Windows in particular had shipped for several versions on the
+    # strength of "it compiles".
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
 
@@ -27,6 +35,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      # The pinned presonus-studiolive-api git dependency builds itself on
+      # install and its build script shells out to yarn.
+      - name: Ensure yarn is available
+        run: corepack enable && yarn --version
 
       # presonus-studiolive-api is a pinned git dependency that builds itself
       # via its `prepare` script, so a plain install is all that's needed —
@@ -46,17 +59,21 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: coverage
+          name: coverage-${{ matrix.os }}
           path: coverage/
           retention-days: 14
 
   # A headless smoke test of the actual UI: boot the real renderer against the
   # fixture mixer in tools/screenshot/, drive every documented scene, and fail
-  # if any of them stops rendering. It is also how docs/images/ gets rebuilt —
-  # the PNGs are attached to the run so a UI change can be eyeballed in the PR
-  # without anyone having a mixer on their desk.
+  # if any of them stops rendering. Running it on all three platforms is what
+  # catches rendering differences between them — the Linux system font is wider
+  # than the macOS one, which silently truncated channel labels for a release.
   screenshots:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     # Electron pops a modal error box if the harness fails to load, which under
     # xvfb waits forever. Cap the job rather than burning a runner.
     timeout-minutes: 15
@@ -72,16 +89,14 @@ jobs:
           python-version: '3.11'
 
       # libasound2-dev for @julusian/midi's build; the rest are the shared
-      # libraries Electron itself needs on a bare runner.
+      # libraries Electron itself needs on a bare runner. xvfb gives it a
+      # display. macOS and Windows runners already have one.
       - name: Install system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y xvfb libasound2-dev libgtk-3-0 libnss3 libatk-bridge2.0-0 libgbm1
 
-      # The pinned presonus-studiolive-api git dependency builds itself on
-      # install and its build script shells out to yarn. GitHub's x64 Ubuntu
-      # images ship yarn preinstalled; the arm64 images carry a reduced
-      # toolset, so make it explicit rather than depend on the image.
       - name: Ensure yarn is available
         run: corepack enable && yarn --version
 
@@ -91,13 +106,18 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Capture UI screenshots
+      - name: Capture UI screenshots (Linux)
+        if: runner.os == 'Linux'
         run: xvfb-run -a --server-args="-screen 0 1600x1000x24" node tools/screenshot/run.js
+
+      - name: Capture UI screenshots
+        if: runner.os != 'Linux'
+        run: node tools/screenshot/run.js
 
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: ui-screenshots
+          name: ui-screenshots-${{ matrix.os }}
           path: docs/images/*.png
           retention-days: 14
