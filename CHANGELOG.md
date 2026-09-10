@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **CI runs the tests and the UI harness on all three platforms.** Both jobs were `ubuntu-latest` only, so macOS and Windows — both of which this project ships — were never exercised by automation; Windows had been released for several versions on the strength of "it compiles". They are now a matrix across ubuntu, macos and windows with `fail-fast` off, and the screenshot artifacts are per-OS so the three renderings can be compared. This is what catches cross-platform rendering differences: the Linux system font is wider than the macOS one and silently truncated channel labels through a release, found by eye rather than by CI.
+- **`copy-assets` is a Node script instead of a shell pipeline.** `mkdir -p` and `cp` do not exist on Windows, which is why `npm run build` could not run there and why the release workflow's Windows job reimplemented every build step by hand in bash. One implementation now serves all three platforms, and that duplicated block is gone.
+
+### Fixed
+- **Tests failed on a CRLF checkout.** The first run of the new matrix caught it: a docs-consistency assertion extracted a fenced block with a regex anchored on `` ```\n ``, which does not match the `` ```\r\n `` that Windows checkouts produce under `core.autocrlf`. The `?? ''` fallback then reported a missing substring rather than the real cause. Fixed at the call site and at the root — `.gitattributes` now pins the working tree to LF everywhere, since several suites read project files and match against them.
+
 ## [1.8.0] - 2026-09-10
 
 ### Security

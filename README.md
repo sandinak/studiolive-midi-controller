@@ -26,6 +26,7 @@ MIDI control for Fender(PreSonus) StudioLive III mixers. Map DAW faders and auto
 - **Channel settings menu** — phantom power, polarity, mono, gate/compressor/EQ/limiter in-out, and preamp gain in dB, straight from the fader; the destructive ones are locked in Run mode
 - **Console channel presets** — recall the mixer's own preset library, with the ones matching each channel's instrument listed first
 - **Everything MIDI-mappable** — including the channel switches and preamp gain, with the Run-mode locks enforced against MIDI too
+- **About dialog** — version, licence, and the Electron/Chromium/Node versions worth quoting in a bug report, from the app icon
 
 ## A Look Around
 

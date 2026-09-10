@@ -360,6 +360,7 @@
   <a href="#preferences">Preferences</a>
 
   <div class="nav-section">Reference</div>
+  <a href="#about">About</a>
   <a href="#troubleshooting">Troubleshooting</a>
   <a href="setup.md">Setup Guide ↗</a>
   <a href="usage.md">Usage Guide ↗</a>
@@ -640,6 +641,44 @@ npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
       <li>Click <strong>Save</strong>. The M button border now glows with the device colour when mapped.</li>
     </ol>
     <p>The same flow applies to solo (<strong>S</strong> button).</p>
+
+    <h3>Mixer actions</h3>
+    <p>
+      <strong>Mixer Action</strong> in the mapping dialog covers everything the app can
+      drive on the console, not just faders:
+    </p>
+    <table>
+      <thead><tr><th>Action</th><th>Control type</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Volume</strong></td><td>Continuous</td><td>0&ndash;100%, the default for a fader</td></tr>
+        <tr><td><strong>Pan</strong></td><td>Continuous</td><td>Pan for a mono channel, width for a stereo pair</td></tr>
+        <tr><td><strong>Preamp Gain (dB)</strong></td><td>Continuous</td><td>Scales across the console&rsquo;s own gain range, 0&ndash;60&nbsp;dB by default. Edit mode only.</td></tr>
+        <tr><td><strong>Mute</strong> / <strong>Solo</strong></td><td>On/off</td><td>CC threshold or note on/off, with optional invert</td></tr>
+        <tr><td><strong>Mute Group</strong></td><td>On/off</td><td>Toggles a whole group</td></tr>
+        <tr><td><strong>Channel Switch&hellip;</strong></td><td>On/off</td><td>A second dropdown picks 48V, polarity, mono, gate, compressor, EQ or limiter</td></tr>
+      </tbody>
+    </table>
+    <figure class="screenshot">
+      <img src="images/mapping-modal-switch.png" alt="Mapping a channel switch to MIDI"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>Mapping a Channel Switch</em>
+        <code>docs/images/mapping-modal-switch.png</code>
+      </div>
+      <figcaption>Choosing <em>Channel Switch</em> reveals the switch picker and the CC threshold used for on/off controls.</figcaption>
+    </figure>
+    <div class="tip">
+      <strong>Narrow the gain range</strong> A gain mapping defaults to the full
+      0&ndash;60&nbsp;dB, so a controller sweep reaches +60&nbsp;dB at the top of its
+      travel. Setting a range like 10&ndash;40&nbsp;dB keeps the whole fader useful and
+      puts a ceiling on what a stray move can do.
+    </div>
+    <p>
+      The Run-mode locks apply to MIDI as well, and are enforced in the main process: a
+      controller sending the wrong note <strong>cannot</strong> flip phantom power or
+      polarity, or change gain, while the app is locked for performance. It is the same
+      interlock that greys those controls out in the channel menu.
+    </p>
 
     <h3>MIDI Learn</h3>
     <p>Use right-click → <strong>🎹 Learn Volume / Mute / Solo</strong> on any channel to open the mapping dialog <em>and</em> immediately start listening. Move the intended knob or pad on your controller and it maps automatically.</p>
@@ -965,6 +1004,26 @@ Windows: %APPDATA%\StudioLive MIDI Controller\</code></pre>
       <figcaption>The MIDI connection panel — color swatches appear next to each connected device name.</figcaption>
     </figure>
     <p>Colors are stored in the preset so they persist across launches.</p>
+  </section>
+
+  <!-- ── About ──────────────────────────────────── -->
+  <section id="about">
+    <h2>About Dialog</h2>
+    <p>
+      Click the <strong>app icon</strong> in the top-left of the header for the version,
+      author, licence, the pinned mixer-API tag, and the Electron, Chromium and Node
+      versions &mdash; the details worth quoting in a bug report. It also links to the
+      changelog, an update check, and the issue tracker.
+    </p>
+    <figure class="screenshot">
+      <img src="images/about.png" alt="About dialog"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="img-placeholder" style="display:none">
+        📸 <em>About Dialog</em>
+        <code>docs/images/about.png</code>
+      </div>
+      <figcaption>Everything here is read from the build itself, so it cannot drift from what shipped.</figcaption>
+    </figure>
   </section>
 
   <!-- ── Troubleshooting ───────────────────────────────────────── -->
