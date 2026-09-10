@@ -193,9 +193,9 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=8192
 
       - name: Upload Linux build artifacts
-        # So a dispatch run, which publishes nothing, still leaves the packages
-        # somewhere they can be downloaded and checked.
-        if: "!startsWith(github.ref, 'refs/tags/')"
+        # Always: a dispatch run publishes nothing, and a tagged run does not
+        # attach Linux packages to the release either, so this is the only way
+        # to get at them.
         uses: actions/upload-artifact@v7
         with:
           name: linux-packages
@@ -205,14 +205,14 @@ jobs:
             release/*.tar.gz
           retention-days: 7
 
-      - name: Upload Linux release assets
-        # Tags only. A workflow_dispatch run is a build check — it must not
-        # publish a release named after whatever branch it was dispatched from.
+      # Linux packages are NOT attached to releases yet. The build runs on
+      # every tag so it cannot silently rot, and the packages are kept as a
+      # workflow artifact, but the Linux UI has only ever been exercised
+      # headlessly under xvfb and ALSA MIDI has never met real hardware.
+      # Publishing waits on that verification — see the 2.0 work.
+      - name: Note that Linux packages were not published
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          draft: true
-          files: |
-            release/*.AppImage
-            release/*.deb
-            release/*.tar.gz
+        run: |
+          echo "::notice::Linux packages built but not attached to the release." \
+               "They are available as the linux-packages artifact on this run." \
+               "Remove this step and restore the upload once Linux is verified on hardware."
