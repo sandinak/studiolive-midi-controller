@@ -22,7 +22,7 @@ jobs:
           node-version: '22'
 
       # node-gyp needs distutils to build @julusian/midi; Python 3.12+ removed it.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -74,7 +74,7 @@ jobs:
       # nothing unusable gets attached to the release.
       - name: Upload macOS release assets
         if: steps.build_mac.outputs.signed == 'true' && startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           files: |
@@ -107,7 +107,7 @@ jobs:
           node-version: '22'
 
       # node-gyp needs distutils to build @julusian/midi; Python 3.12+ removed it.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -129,7 +129,7 @@ jobs:
         # Tags only. A workflow_dispatch run is a build check — it must not
         # publish a release named after whatever branch it was dispatched from.
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           files: |
@@ -151,7 +151,7 @@ jobs:
 
       # node-gyp needs distutils to build @julusian/midi from source if a
       # prebuild is ever missing; Python 3.12+ removed it.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
