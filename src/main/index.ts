@@ -1622,8 +1622,8 @@ ipcMain.handle('get-channel-presets', async () => {
   }
 });
 
-// Recalling a preset rewrites the entire channel strip, so it is barred in Run
-// mode alongside phantom power and polarity.
+// Recalling a preset rewrites the channel's processing and cannot be undone, so
+// it is barred in Run mode alongside phantom power and polarity.
 ipcMain.handle(
   'recall-channel-preset',
   async (_event, type: string, channel: number, presetFile: unknown) => {

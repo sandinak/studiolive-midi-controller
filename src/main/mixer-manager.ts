@@ -408,8 +408,10 @@ export class MixerManager extends EventEmitter {
   /**
    * Recall a console channel preset onto a channel.
    *
-   * This overwrites the whole strip — gain, EQ, compressor, gate, the lot —
-   * which is why the UI confirms first and refuses it in Run mode.
+   * This overwrites the channel's processing — EQ, compressor, gate, limiter
+   * and the high-pass filter. Verified against a 16R across four presets:
+   * preamp gain, phantom power and polarity are left untouched. It still
+   * confirms first and is refused in Run mode, because there is no undo.
    */
   async recallChannelPreset(type: string, channel: number, presetFile: string): Promise<void> {
     if (!this.client) {

@@ -47,7 +47,7 @@ compiling. Linux has never been run interactively — only headless under xvfb.
 | # | Test | 16R | 32R | Notes |
 |---|------|-----|-----|-------|
 | A1 | UDP broadcast discovery finds the mixer | ⬜ | ⬜ | |
-| A2 | **Discovery with Universal Control running** | ⬜ | ⬜ | UC holds the discovery port; this is what the active TCP subnet sweep exists for. The sweep is also the least-tested code on the network path. |
+| A2 | **Discovery with Universal Control running** | ✅ | ⬜ | UC holds the discovery port; this is what the active TCP subnet sweep exists for. The sweep is also the least-tested code on the network path. |
 | A3 | Manual IP connect | ⬜ | ⬜ | |
 | A4 | Both mixers on the network at once | ⬜ | ⬜ | Discovery lists both with the right model, device name and serial |
 | A5 | Reconnect after mixer power cycle | ⬜ | ⬜ | |
@@ -73,11 +73,11 @@ compiling. Linux has never been run interactively — only headless under xvfb.
 | C1 | Fader moves mixer volume | ✅ | ⬜ | |
 | C2 | Mute / solo toggle | ✅ | ⬜ | |
 | C3 | Main assign toggle | ⬜ | ⬜ | |
-| C4 | Channel switches — 48V, polarity, mono | ✅ | ⬜ | Verified on 16R ch16, including across a reconnect |
+| C4 | Channel switches — 48V, polarity, mono | ✅ | ⬜ | Verified on 16R ch16 across a reconnect, and independently against Universal Control's own display |
 | C5 | Processor switches — gate, comp, EQ, limiter | ✅ | ⬜ | Nested paths such as `limit/limiteron` |
-| C6 | **Preamp gain reads correctly in dB** | ⬜ | ⬜ | Set 20 dB in the app, **look at the console** and confirm it shows 20 dB. Currently rests on the published range plus a self-consistent round-trip. |
+| C6 | **Preamp gain reads correctly in dB** | ✅ | ⬜ | App set 20 dB (wire value 0.33333), Universal Control showed 20 dB. Confirms the scale at a non-degenerate point — at 0 dB every candidate mapping agrees, which is why the earlier round-trip proved nothing. |
 | C7 | **Gain range is per-console, not assumed** | ⬜ | ⬜ | `getParameterRange` returned `{min:0,max:60}` on the 16R. If the 32R differs and the app follows it, the decision not to hard-code is proven. |
-| C8 | **Console channel preset recall** | ⬜ | ⬜ | **Never tested anywhere.** Replaces the whole strip — gain, EQ, comp, gate — and there is no save API to undo it. Needs a channel you are willing to lose. |
+| C8 | **Console channel preset recall** | ✅ | ⬜ | Applied cleanly; 7 of 16 watched parameters changed. **Scope is narrower than assumed:** across four presets it rewrote EQ, compressor, gate and HPF but never touched preamp gain, phantom power or polarity. Still no undo. |
 
 ## D. MIDI
 
@@ -125,6 +125,20 @@ every release and are kept as a workflow artifact, but are not attached to a
 release yet.
 
 ---
+
+## Calibrating a parameter with no published range
+
+Preamp gain is the only audio parameter the console publishes a range for.
+Everything else — HPF, delay, compressor threshold — arrives as a bare 0-1
+float with no units, so adding any of them needs the scale worked out first.
+
+The method that settled the gain question works generally: set a known wire
+value from the app, then read the label off Universal Control with the channel
+selected. One labelled point per parameter is not enough to fit a curve, but a
+handful across the range is.
+
+One point already collected: `line.ch16.filter.hpf` = **0.24314** displays as
+**59 Hz**.
 
 ## Running these unattended
 

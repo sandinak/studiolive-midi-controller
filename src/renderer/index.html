@@ -4084,13 +4084,17 @@
     }
 
     /**
-     * Recall a console channel preset. This rewrites the whole strip, so it
-     * always confirms — there is no undo on the console side.
+     * Recall a console channel preset.
+     *
+     * Verified against a 16R across four presets: this rewrites the channel's
+     * processing — EQ, compressor, gate, limiter and the high-pass filter —
+     * and leaves preamp gain, phantom power and polarity alone. It still
+     * always confirms, because there is no undo on the console side.
      */
     async function recallChannelPreset(file, title) {
       if (!channelMenuTarget || !file) return;
       const { type, channel } = channelMenuTarget;
-      if (!confirm(`Recall "${title}" onto channel ${channel}?\n\nThis replaces the entire channel strip — gain, EQ, compressor, gate and limiter. It cannot be undone from here.`)) return;
+      if (!confirm(`Recall "${title}" onto channel ${channel}?\n\nThis replaces the channel's processing — EQ, compressor, gate, limiter and high-pass filter. Preamp gain, phantom power and polarity are left alone. It cannot be undone from here.`)) return;
 
       const result = await ipcRenderer.invoke('recall-channel-preset', type, channel, file);
       if (!result || !result.success) {

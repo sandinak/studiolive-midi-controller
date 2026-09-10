@@ -144,7 +144,7 @@ from the mixer and are written straight back to it.
 | **EQ** | Processing | |
 | **Limiter** | Processing | |
 | **Preamp Gain** | Preamp | Slider in dB. Edit mode only. |
-| **Console Presets** | — | Recalls the whole strip. Confirms first. Edit mode only. |
+| **Console Presets** | — | Recalls the channel's processing. Confirms first. Edit mode only. |
 
 ![The channel settings menu](images/channel-menu.png)
 
@@ -167,9 +167,11 @@ first and shown in green; the rest follow alphabetically. The match only
 reorders the list, so every preset stays reachable whatever a channel's icon
 says, and a channel with no icon simply gets the full list alphabetically.
 
-Recalling a preset **replaces the entire channel strip** — gain, EQ, compressor,
-gate and limiter — so it always confirms first, and it cannot be undone from the
-app. Presets are Edit mode only.
+Recalling a preset **replaces the channel's processing** — EQ, compressor, gate,
+limiter and the high-pass filter. **Preamp gain, phantom power and polarity are
+left alone**, verified against a StudioLive 16R across four different presets. It
+still confirms first and cannot be undone from the app, and presets are Edit mode
+only.
 
 > The instrument match reads the channel's icon id, which the console publishes
 > as a free-form string with no fixed vocabulary — both `keyboards/piano` and a
