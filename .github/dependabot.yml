@@ -31,6 +31,16 @@ updates:
       # Pinned deliberately and updated by hand — bumping it changes what the
       # app is built against, which needs verification against real hardware.
       - dependency-name: presonus-studiolive-api
+      # TypeScript 7 is the native (Go) compiler and does not expose the
+      # JavaScript compiler API ts-jest builds on, so every test suite fails to
+      # run under it — `tsc --noEmit` is fine, the test path is not. Adopting it
+      # means carrying two TypeScript packages side by side (@typescript/native
+      # for checking, a 6.x alias for ts-jest), which is a migration to plan,
+      # not a dependency bump, and TypeScript never leaves the build machine.
+      # Minor and patch updates still come through. Revisit when ts-jest
+      # supports 7.x directly.
+      - dependency-name: typescript
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
