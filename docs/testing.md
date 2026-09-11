@@ -140,6 +140,27 @@ handful across the range is.
 One point already collected: `line.ch16.filter.hpf` = **0.24314** displays as
 **59 Hz**.
 
+## The probe
+
+`tools/hw-probe.js` fills in most of these rows without hand-rolling a script
+per machine. It is read-only unless explicitly told otherwise:
+
+```bash
+node tools/hw-probe.js                  # discover, then probe what it finds
+node tools/hw-probe.js 192.168.21.41    # skip discovery, go to a known mixer
+node tools/hw-probe.js --listen         # also wait 15s for MIDI input (D2-D5)
+node tools/hw-probe.js 192.168.21.41 --write --channel 16
+```
+
+It reports host and node versions, the MIDI backend and every port it can see,
+whether a port opens and closes cleanly, discovery results, connect time,
+channel counts, the published gain range, and a sample of channels with their
+gain in dB. `--write` flips one switch on the named channel and restores it —
+it refuses to guess a channel, and there is no default.
+
+On a virtual machine, discovery finding nothing almost always means NAT
+networking; bridged is required for UDP broadcast to reach the guest.
+
 ## Running these unattended
 
 Much of A, B and C can run over the network without anyone at the console —
