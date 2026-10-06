@@ -728,7 +728,8 @@ console state. Conflating them is a mistake users pay for.
 | ~~**P0**~~ | ~~**Schema from the artifact.**~~ **Done** — `src/shared/console-config.ts`: document kinds and their roots, `ChannelStrip`, ARGB colour, `iconid` paths, label prefixes, per-root channel counts, EQ band count. Fields that are reasoned about are named; everything else passes through an index signature, so an unrecognised key survives a round trip | — | — |
 | ~~**P1**~~ | ~~**Read a `.bak`.**~~ **Done** — `src/main/zip-reader.ts` (no new dependency) + `src/main/console-backup.ts` (classify, parse, summarise) + `tools/inspect-backup.js`. Verified against both reference archives; 109 unit tests | — | — |
 | ~~**P2**~~ | ~~**Instrumentation.**~~ **Code done** — `--dump-tree` / `--anonymise` on [tools/hw-probe.js](tools/hw-probe.js), with redaction in `src/shared/state-redaction.ts` (69 tests). **Still needs running against the 16R and 32R** — matrix row G1 | — | — |
-| **P3** | **Write a `.bak`.** Live tree → `.scene` JSON → ZIP. Tier 0 complete. Validate by round-trip: dump, author, restore via UC, re-dump, diff | 2–3 d | low |
+| ~~**P3a**~~ | ~~**Author a `.bak`.**~~ **Done** — `src/main/zip-writer.ts` (real CRC-32), `src/shared/console-json.ts` (the console's own JSON style), `src/main/console-backup-writer.ts`. Round-trips both reference archives: 133/133 documents equal, 133/133 bytes identical, `unzip -t` clean | — | — |
+| **P3b** | **Capture from the live tree.** The remaining half of tier 0: map live state onto document fields. **Blocked on G1** — see §3.4 | 1–2 d | medium |
 | **A** | **`StorePreset`.** Implement + verify via `StoredPreset`. Snapshot-to-console and pre-restore undo | 1–2 d | low |
 | **S1** | **Spike: document transfer.** Capture UC doing `sendToDisk` / `createBackup` on the wire | 1–2 d | **decides tier B** |
 | **B** | **Document transfer.** Pull/push, fix the `UInt16` chunk sizing, wire up `createBackup`/`restoreBackup` | 3–5 d | gated on S1 |
@@ -871,3 +872,50 @@ does not carry, and the backup archive layout. Also the cause of row C8.
 - Is `iconid` portable across firmware, or are icon ids versioned?
 - How does `global.scene_safe_*` interact with direct parameter writes as opposed
   to document recalls?
+
+## 3.4 Why capturing from the live tree is blocked on G1
+
+P3a can author a byte-exact archive. P3b — filling one in from a connected
+console rather than from another archive — needs one fact that no amount of
+offline work will produce: **what scale the live state tree reports a value on.**
+
+The document side is settled (§1.4). A scene stores `volume: -0.566` and
+`preampgain: 13.8`, both decibels; `filter.hpf: 24.0`, hertz. The wire side is
+not the same. `Client.getPreampGain` computes `min + value * (max - min)` from
+the console's published range, so **the wire carries a 0–1 fraction** there. And
+`docs/testing.md` records `line.ch16.filter.hpf` arriving as `0.24314` while
+Universal Control displayed 59 Hz — another fraction.
+
+What is unknown is whether the **tree** agrees with the **wire**. They are
+different encodings of the same console: the tree arrives as UBJSON inside a
+`ZB` packet, the wire as a float in a `PV` packet, and `transformers.ts` applies
+a *different* table to each (`fromUB` versus `fromPV`). Several parameters have
+a `fromPV` entry and no `fromUB` entry at all, which means their tree values pass
+through untouched — and if those untouched values are already in real units, then
+most of the mapping is the identity function and there is nothing to convert.
+
+That would be a very different piece of work from the alternative, which is
+inverting `logVolumeToLinear` — a cubic polynomial fit, invertible only
+numerically — for every level in the console.
+
+So the two candidate mappings differ by more than a constant, and picking wrong
+is not a visible failure. It is a restored board whose faders are all in
+plausible but incorrect positions, and whose preamps are wrong by an amount that
+depends on the parameter. Writing it on inference and finding out later is the
+expensive order to do this in.
+
+**One dump settles it.** Compare, for the same console in the same state:
+
+```bash
+node tools/hw-probe.js --dump-tree          # the live tree
+# then in Universal Control: store a scene, create a backup
+node tools/inspect-backup.js --channels backup.bak
+```
+
+If `line.ch1.volume` reads −0.566 in both, the mapping is identity and P3b is an
+afternoon. If the tree says 72.4 or 0.724, it is the polynomial, and the
+conversion needs calibrating at several points rather than assumed from one.
+
+Everything else P3b needs is already resolved: the string, colour and icon fields
+are identity, booleans are a `0`/`1` coercion, and the float registry in
+`console-json.ts` reported no unknown keys across all 202 reference documents.
