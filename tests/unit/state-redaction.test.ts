@@ -9,6 +9,7 @@
 import {
   redactStateDump,
   pathMatchesGlob,
+  logicalPath,
   REDACTED,
   REDACTED_ROOTS,
   REDACTED_PATHS,
@@ -301,5 +302,86 @@ describe('redactStateDump', () => {
       );
       expect(JSON.stringify(out)).toContain('SENTINEL');
     });
+  });
+});
+
+// The structure the tree actually has. Both the raw UBJSON payload and
+// `dumpNode`'s rendering interleave `children` / `values` between a node and its
+// contents, so a rule written as `global/mixer_serial` describes a path that
+// never literally occurs.
+//
+// This is a regression test for a real leak: the first dump taken from a live
+// 16R wrote the serial, the registered owner and the device name into the file.
+// Every rule was anchored on the logical path, every real path had `children` in
+// the middle, nothing matched, and the redactor reported "redacted fields: 0" —
+// a leak that looked exactly like success.
+describe('the nesting a real dump has', () => {
+  const realShape = () => ({
+    internal: {
+      children: {
+        global: {
+          children: {
+            mixer_serial: 'RA1E24090034',
+            registered_user: 'Jane Smith',
+            devicename: 'Stage Rack',
+            mixer_version: '3.4.0.111374',
+          },
+        },
+        sdrecorder: {
+          children: { session: { children: { artist: 'The Band', location: 'Village Hall' } } },
+        },
+        line: { children: { ch1: { children: { username: 'Vocal - Dana', color: 4278190335 } } } },
+        permissions: { children: { access_code: 's3cret' } },
+        networksetup: { children: { ipaddress: '192.168.1.50' } },
+        users: { children: { user1: { children: { name: 'Jane' } } } },
+      },
+    },
+    cache: { global: { mixer_serial: 'RA1E24090034' } },
+  });
+
+  describe('logicalPath', () => {
+    it.each([
+      ['internal/children/global/children/mixer_serial', 'internal/global/mixer_serial'],
+      ['global/values/mixer_serial', 'global/mixer_serial'],
+      ['line/children/ch1/values/username', 'line/ch1/username'],
+      ['a/ranges/b/strings/c/states/d', 'a/b/c/d'],
+    ])('reduces %s', (input, expected) => {
+      expect(logicalPath(input)).toBe(expected);
+    });
+
+    it('leaves a path with no structural segments alone', () => {
+      expect(logicalPath('global/mixer_serial')).toBe('global/mixer_serial');
+    });
+  });
+
+  it.each([
+    ['the serial', 'RA1E24090034'],
+    ['the registered user', 'Jane Smith'],
+    ['the device name', 'Stage Rack'],
+    ['the access code', 's3cret'],
+    ['the IP address', '192.168.1.50'],
+    ['session metadata', 'Village Hall'],
+  ])('redacts %s through the children nesting', (_label, secret) => {
+    expect(JSON.stringify(redactStateDump(realShape()).dump)).not.toContain(secret);
+  });
+
+  it('reports what it redacted rather than claiming zero', () => {
+    const { report } = redactStateDump(realShape());
+    expect(report.redactedPaths.length).toBeGreaterThan(0);
+    expect(report.removedRoots.length).toBeGreaterThan(0);
+  });
+
+  it('still keeps the diagnostically useful fields', () => {
+    const { dump } = redactStateDump(realShape());
+    const serialised = JSON.stringify(dump);
+    expect(serialised).toContain('3.4.0.111374');
+    expect(serialised).toContain('4278190335');
+  });
+
+  it('anonymises a channel label through the nesting', () => {
+    const plain = JSON.stringify(redactStateDump(realShape()).dump);
+    expect(plain).toContain('Vocal - Dana');
+    const anon = JSON.stringify(redactStateDump(realShape(), { anonymise: true }).dump);
+    expect(anon).not.toContain('Vocal - Dana');
   });
 });

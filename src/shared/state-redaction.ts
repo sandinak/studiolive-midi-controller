@@ -90,6 +90,36 @@ export const ANONYMISED_PATHS: readonly string[] = [
 ];
 
 /**
+ * Segments the tree uses as structure rather than as parameter names.
+ *
+ * Both the raw UBJSON payload and `dumpNode`'s rendering of it interleave these
+ * between a node and its contents, so `global.mixer_serial` is really
+ * `global/children/mixer_serial` — or `global/values/mixer_serial`, depending on
+ * which representation is in hand. Rules are written against the logical path
+ * and these are dropped before matching.
+ *
+ * This was not a theoretical concern. The first dump taken from a real console
+ * wrote the serial, the registered owner and the device name straight into the
+ * file: every rule was anchored on the logical path, every real path had a
+ * `children` segment in the middle, and so nothing matched. The redactor
+ * reported "redacted fields: 0" and looked like it had worked.
+ */
+export const STRUCTURAL_SEGMENTS: readonly string[] = [
+  'children', 'values', 'ranges', 'strings', 'states',
+];
+
+/**
+ * Drop structural segments so a rule written against the logical path matches
+ * either representation of the tree.
+ */
+export function logicalPath(path: string): string {
+  return path
+    .split('/')
+    .filter((segment) => segment && !STRUCTURAL_SEGMENTS.includes(segment))
+    .join('/');
+}
+
+/**
  * Match a `/`-delimited path against a glob supporting `*` (one segment) and
  * `**` (any number, including none).
  *
@@ -195,6 +225,9 @@ export function redactStateDump<T>(dump: T, options: RedactOptions = {}): Redact
     for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
       const nextPath = [...path, key];
       const joined = nextPath.join('/');
+      // Matched against the logical path so a `children` or `values` wrapper
+      // between a node and its contents cannot hide a rule's target.
+      const forMatching = logicalPath(joined);
 
       // A sensitive root is dropped wherever it appears, not only at depth 0:
       // `dumpState()` nests the tree under `internal` and `cache`, so anchoring
@@ -204,7 +237,7 @@ export function redactStateDump<T>(dump: T, options: RedactOptions = {}): Redact
         continue;
       }
 
-      if (globs.some((glob) => pathMatchesGlob(joined, glob))) {
+      if (globs.some((glob) => pathMatchesGlob(forMatching, glob))) {
         redactedPaths.push(joined);
         // Objects are emptied rather than stringified, so the shape survives.
         out[key] = value !== null && typeof value === 'object' ? {} : REDACTED;
