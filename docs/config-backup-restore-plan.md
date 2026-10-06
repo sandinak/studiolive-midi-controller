@@ -919,3 +919,146 @@ conversion needs calibrating at several points rather than assumed from one.
 Everything else P3b needs is already resolved: the string, colour and icon fields
 are identity, booleans are a `0`/`1` coercion, and the float registry in
 `console-json.ts` reported no unknown keys across all 202 reference documents.
+
+---
+
+# Part 4 — G1 results, and what they settle
+
+Run against a StudioLive 16R (`192.168.21.41`, firmware 3.4.0) on 2026-10-06.
+**11,643 value leaves** in the live tree. These are measurements, not inferences.
+
+## 4.1 A blocking bug in the pinned protocol library
+
+The probe could not connect at all: `Handshake timeout: mixer did not complete
+initialization`. The console was answering correctly — a packet trace showed the
+complete state tree and a `SubscriptionReply` arriving within 2 s — so the fault
+was ours.
+
+`DataClient`'s TCP reframer decided what to do with each segment by testing
+`PacketHeader.matches(frame)`, which needs four bytes to say yes. **A segment
+ending with one to three bytes of the next packet's header matched nothing, had
+no outstanding byte count, and was discarded** as an unrecognised header. Every
+later packet was then read at the wrong offset, and the packets lost included the
+`SubscriptionReply` the handshake waits for — so the connection failed with a
+timeout that said nothing about the cause.
+
+Reproduced live: a segment arrived carrying exactly `55 43`, which is `UC`, the
+first half of a header. Four desync errors in one handshake.
+
+It needs a large packet to be likely, which is why it surfaces on this console
+now: with two projects stored, the state tree is 19 KB compressed across two `CK`
+packets, followed by an 8 KB `BO` — enough segments for a boundary to land inside
+a header. A console with nothing stored may never trip it, which is consistent
+with the 16R having passed rows C1–C6 previously.
+
+Fixed in the fork by accumulating into a carry buffer and consuming only complete
+packets, so nothing is ever discarded for being incomplete, plus resynchronising
+on the next header rather than flushing everything. Nine new regression tests;
+all nine fail against the original implementation. After the fix the same console
+connects in 1.7 s with correct channel counts.
+
+**This is not specific to the backup work — the app itself cannot connect to this
+console without the fix.** It needs a release of the fork and a pin bump.
+
+## 4.2 A leak in the redactor, found by using it
+
+The first real dump wrote the console's serial, its registered owner and its
+device name into the file, and reported `redacted fields: 0`.
+
+Every rule was anchored on the logical path (`global/mixer_serial`), and every
+real path has a structural segment in the middle
+(`internal/children/global/children/mixer_serial`). Nothing matched. The
+synthetic test fixtures had been written to the logical shape, so they passed.
+
+Fixed by stripping the structural segments — `children`, `values`, `ranges`,
+`strings`, `states` — before matching, with the regression test built from the
+real dump's shape rather than an idealised one. The same dump now reports 12
+redacted fields and contains neither the serial nor the IP.
+
+The general lesson is in the first sentence: a redactor that silently matches
+nothing looks exactly like a redactor that works. Both failures here were of that
+shape.
+
+## 4.3 The scale question, answered — and it closes off P3b
+
+**Every numeric parameter in the live tree is a normalised 0–1 fraction. The
+document stores real engineering units.** Measured on the same console:
+
+| Parameter | Live tree (raw UBJSON) | Document |
+|---|---|---|
+| `volume` | `0.8461538553237915` | dB |
+| `preampgain` | `0.3333333432674408` | dB (× 60 = 20 dB ✓) |
+| `pan` | `0.5` | 0–1 |
+| `aux2` send | `0.06599999219179153` | dB |
+| `filter/hpf` | `0.24313688278198242` | Hz |
+| `gate/threshold` | `0.14068439602851868` | dB |
+| `gate/release` | `0.000003155024160150788` | seconds |
+| `comp/threshold` | `0.756862998008728` | dB |
+| `comp/ratio` | `0.395222544670105` | ratio |
+| `eq/eqfreq1` | `0.134745791554451` | Hz |
+| `eq/eqq1` | `0.18713966012001038` | Q |
+
+The transformed view is no better: `transformersUB` turns `volume` into the 0–100
+"pseudo-intensity" scale (`0.846` → `84.6`), which is not dB either.
+
+So authoring a document from live state needs a conversion for **every** value,
+and the curves differ per parameter.
+
+**The console does not publish them.** Of 9,887 value leaves, 425 carry a range —
+and 191 of those are routing source selectors (`mix1_src`, `avb1_src`, with units
+`analog_source` / `digital_source`), which are enum indices. **`preampgain` is the
+only continuous audio parameter that publishes a range anywhere in the tree.** Not
+volume, not pan, not sends, not HPF, EQ, compressor, gate or limiter.
+
+### What this means
+
+P3b as scoped — fill a scene document from the live tree — would require
+reverse-engineering roughly fifteen conversion curves (fader taper, send taper,
+HPF and EQ frequency, EQ gain and Q, four compressor parameters, four gate
+parameters, limiter threshold) with no published metadata, each needing hardware
+calibration at several points, per model. The existing calibration note in
+`docs/testing.md` took two datapoints for one parameter.
+
+That is a project in its own right, and the payoff is a document the console can
+already produce correctly by itself.
+
+**So P3b should not be built as specified.** The architecture that follows from
+this data is:
+
+1. **Tier A (`StorePreset`) becomes the primary backup mechanism, not just undo.**
+   Ask the console to write the scene; it applies its own conversions. This is now
+   the highest-value unbuilt item.
+2. **Tier B (document transfer)** carries the result off the console. Together,
+   A + B is a complete backup and restore that never needs a conversion curve.
+3. **Tier 0 keeps its value** for reading, diffing, migrating and authoring
+   archives — all document-to-document, all in real units already.
+4. **A live-tree capture is still worth building for cosmetics only** — `username`,
+   `iconid` are strings and `color` is an integer, so those are identity mappings
+   with no curve. Labels, colours and icons were the top of the original request,
+   and they are reachable without any of the above.
+
+Revision 3 said the remaining unknown was "only the transport". That was right,
+and this is why it matters: the transport is not a convenience over authoring
+documents ourselves, it is the thing that avoids needing fifteen calibration
+curves.
+
+## 4.4 Incidental findings
+
+- `color` arrives from UBJSON as a **BigInt** (type `L`, int64BE), e.g.
+  `4294770098n`, not the int32 the library's `fromUB` transform assumes first.
+- Channel labels on the live console carry the `N:` index prefix (`1:Piano`,
+  `2:Keys`) exactly as the documents do.
+- 16R shape confirmed: LINE 16, AUX 6, FX 2, FXRETURN 2, RETURN 1, TALKBACK 1,
+  MAIN 1, DCA 8, **SUB 0**, MASTER 0, MONO 0.
+- The dump is 322 KB of JSON for 11,643 leaves.
+- `preampgain`'s published range is
+  `{min: 0, max: 60, def: 0, units: "gain.0", curve: "linear", mid: 1}` — note
+  `mid`, which the library's type declares but never reads.
+
+## 4.5 Matrix rows settled
+
+- **G1 — state tree dumps and the redaction holds: ✅ 16R.** Two bugs found and
+  fixed in the process (§4.1, §4.2). Not yet run on the 32R —
+  `192.168.20.207` did not answer on port 53000.
+- **G2 — tree covers every field a scene carries:** structurally yes, but the
+  values are on the wrong scale, so the answer that matters is §4.3.
