@@ -727,7 +727,7 @@ console state. Conflating them is a mistake users pay for.
 |---|---|---|---|
 | ~~**P0**~~ | ~~**Schema from the artifact.**~~ **Done** — `src/shared/console-config.ts`: document kinds and their roots, `ChannelStrip`, ARGB colour, `iconid` paths, label prefixes, per-root channel counts, EQ band count. Fields that are reasoned about are named; everything else passes through an index signature, so an unrecognised key survives a round trip | — | — |
 | ~~**P1**~~ | ~~**Read a `.bak`.**~~ **Done** — `src/main/zip-reader.ts` (no new dependency) + `src/main/console-backup.ts` (classify, parse, summarise) + `tools/inspect-backup.js`. Verified against both reference archives; 109 unit tests | — | — |
-| **P2** | **Instrumentation.** `--dump-tree` on [tools/hw-probe.js](tools/hw-probe.js); capture live trees from the 16R and 32R; sanitized fixtures | 0.5–1 d | none |
+| ~~**P2**~~ | ~~**Instrumentation.**~~ **Code done** — `--dump-tree` / `--anonymise` on [tools/hw-probe.js](tools/hw-probe.js), with redaction in `src/shared/state-redaction.ts` (69 tests). **Still needs running against the 16R and 32R** — matrix row G1 | — | — |
 | **P3** | **Write a `.bak`.** Live tree → `.scene` JSON → ZIP. Tier 0 complete. Validate by round-trip: dump, author, restore via UC, re-dump, diff | 2–3 d | low |
 | **A** | **`StorePreset`.** Implement + verify via `StoredPreset`. Snapshot-to-console and pre-restore undo | 1–2 d | low |
 | **S1** | **Spike: document transfer.** Capture UC doing `sendToDisk` / `createBackup` on the wire | 1–2 d | **decides tier B** |

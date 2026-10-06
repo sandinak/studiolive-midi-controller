@@ -7,12 +7,20 @@
  *
  *   node tools/hw-probe.js                 discover, then probe what it finds
  *   node tools/hw-probe.js 192.168.21.41   skip discovery, go straight to a mixer
+ *   node tools/hw-probe.js --dump-tree     also save the live state tree
+ *   node tools/hw-probe.js --dump-tree --anonymise   ...safe to commit
  *
  * Read-only by default. It never writes to the console unless --write is
  * passed, and then only to the channel named by --channel.
+ *
+ * --dump-tree writes the console's whole published state to a JSON file,
+ * redacted (see src/shared/state-redaction.ts). It needs a build, because it
+ * uses the project's redactor rather than a second copy of those rules.
  */
 
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(`--${name}`);
@@ -29,6 +37,100 @@ const info = (s) => `         ${s}`;
 
 function heading(s) {
   console.log(`\n=== ${s} ${'='.repeat(Math.max(0, 58 - s.length))}`);
+}
+
+/**
+ * Write the console's live state tree to a file.
+ *
+ * This is the only way to see what a particular console and firmware actually
+ * publish. Nothing else in the project has ever captured one: the protocol
+ * library's state-tree type was generated from somebody else's console in 2021
+ * and is already missing parameters that appear in real documents, and every
+ * test fixture here is synthetic. A dump from each model is what the backup work
+ * is designed against.
+ *
+ * The dump is redacted before it touches the disk, not on the way out of it —
+ * the raw tree holds the console's serial, its registered owner, its network
+ * configuration and its remote-access code, and a file that lands unredacted is
+ * a file somebody will attach to an issue. `--anonymise` additionally strips
+ * channel labels and scene names, which is required before committing one as a
+ * fixture because labels on a working board name the people behind them.
+ */
+function dumpTree(client, counts) {
+  heading('STATE TREE');
+
+  let redactStateDump;
+  try {
+    ({ redactStateDump } = require(path.join(__dirname, '..', 'dist', 'shared', 'state-redaction')));
+  } catch (err) {
+    console.log(no('--dump-tree needs a build; run `npm run build` first'));
+    console.log(info(err.message));
+    return;
+  }
+
+  // dumpState() is marked @internal in the library, which is accurate: it is a
+  // debugging hook, and the shape it returns is not part of the public contract.
+  // That is acceptable for a probe and would not be for shipped code.
+  let raw;
+  try {
+    raw = client.dumpState();
+  } catch (err) {
+    console.log(no(`could not dump state: ${err.message}`));
+    return;
+  }
+
+  const anonymise = flag('anonymise');
+  const { dump, report } = redactStateDump(raw, { anonymise });
+
+  const tree = dump && dump.internal ? dump.internal : dump;
+  const roots = Object.keys(tree || {}).sort();
+  console.log(info(`roots (${roots.length}): ${roots.join(', ')}`));
+
+  // Leaf count is the figure that matters for a restore: it is how many
+  // parameter writes a full replay would be.
+  const leaves = (node) =>
+    node && typeof node === 'object'
+      ? Object.values(node).reduce((n, v) => n + leaves(v), 0)
+      : 1;
+  console.log(info(`leaf parameters: ${leaves(tree)}`));
+
+  // Which parameters publish a range — only preamp gain was known to.
+  const ranged = [];
+  const findRanges = (node, trail) => {
+    if (!node || typeof node !== 'object') return;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'range' && value && typeof value === 'object') ranged.push(trail.join('/'));
+      else findRanges(value, [...trail, key]);
+    }
+  };
+  findRanges(tree, []);
+  console.log(info(`parameters publishing a range: ${ranged.length}`));
+  if (ranged.length) console.log(info(`  e.g. ${ranged.slice(0, 6).join(', ')}`));
+
+  const model = (client.state.get('global.mixer_name') || 'console')
+    .toString().replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'console';
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+  const file = opt('dump-tree', '').startsWith('--') || !opt('dump-tree', '')
+    ? `state-dump-${model}${anonymise ? '-anon' : ''}-${stamp}.json`
+    : opt('dump-tree', '');
+
+  try {
+    fs.writeFileSync(file, JSON.stringify(dump, null, 1));
+  } catch (err) {
+    console.log(no(`could not write ${file}: ${err.message}`));
+    return;
+  }
+
+  console.log(ok(`wrote ${file} (${(fs.statSync(file).size / 1024).toFixed(0)} KB)`));
+  console.log(info(`removed roots:   ${report.removedRoots.join(', ') || 'none'}`));
+  console.log(info(`redacted fields: ${report.redactedPaths.length}`));
+  if (!anonymise) {
+    console.log(info('channel labels and scene names are PRESENT — pass --anonymise'));
+    console.log(info('before committing this as a fixture or attaching it to an issue'));
+  }
+  if (counts && counts.LINE) {
+    console.log(info(`console shape: ${JSON.stringify(counts)}`));
+  }
 }
 
 async function probeMidi() {
@@ -123,6 +225,8 @@ async function probeMixer() {
 
   const presets = await c.getChannelPresets().catch(() => []);
   console.log(info(`channel presets on console: ${presets.length}`));
+
+  if (flag('dump-tree')) dumpTree(c, counts);
 
   // Optional, explicitly opt-in, and restored afterwards.
   if (flag('write')) {
