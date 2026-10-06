@@ -124,6 +124,30 @@ lives in the main process precisely so a controller cannot bypass it.
 every release and are kept as a workflow artifact, but are not attached to a
 release yet.
 
+## G. Configuration backup and restore
+
+Planned work, scoped in [config-backup-restore-plan.md](config-backup-restore-plan.md).
+G1 is reachable now with `--dump-tree`; the rest need code that does not exist
+yet and are listed so the sequencing is visible.
+
+| # | Test | 16R | 32R | Notes |
+|---|------|-----|-----|-------|
+| G1 | **State tree dumps and the redaction holds** | ⬜ | ⬜ | `--dump-tree`. Check the file for the serial, owner, IP and access code before sharing it — the probe prints what it removed, but read the file too the first time. |
+| G2 | Dumped tree covers every field a scene document carries | ⬜ | ⬜ | Decides whether tier 0 can author a complete scene from live state |
+| G3 | `StorePreset` creates a scene on the console | ⬜ | ⬜ | Gates the undo story. Watch for a `StoredPreset` reply |
+| G4 | Snapshot → change → recall restores prior state | ⬜ | ⬜ | The undo C8 says does not exist |
+| G5 | App-authored `.bak` restores through Universal Control | ⬜ | ⬜ | **The main tier-0 risk.** Round-trip: dump → author → restore → re-dump → diff |
+| G6 | `PS` write sets a channel label | ⬜ | ⬜ | Unproven. Only needed if `presetChannelNames` does not cover it |
+| G7 | `PS` write sets `iconid`; colour via `PC` | ⬜ | ⬜ | |
+| G8 | 16R → 32R migration, preflight diff accurate | — | ⬜ | 16 → 32 line, 6 → 16 aux, 8 → 24 DCA |
+| G9 | 32R → 16R migration, overflow channels dropped | ⬜ | — | |
+| G10 | Restore with Universal Control connected | ⬜ | ⬜ | Detect and warn; do not arbitrate |
+| G11 | Permissions-restricted restore reports refusals | ⬜ | ⬜ | Rather than failing quietly |
+
+A dump from each console is the prerequisite for most of the rest, so G1 is
+worth doing before anything else here — including before deciding whether the
+plan's later tiers are worth building.
+
 ---
 
 ## Calibrating a parameter with no published range
@@ -150,6 +174,7 @@ node tools/hw-probe.js                  # discover, then probe what it finds
 node tools/hw-probe.js 192.168.21.41    # skip discovery, go to a known mixer
 node tools/hw-probe.js --listen         # also wait 15s for MIDI input (D2-D5)
 node tools/hw-probe.js 192.168.21.41 --write --channel 16
+node tools/hw-probe.js --dump-tree      # also save the live state tree (G1)
 ```
 
 It reports host and node versions, the MIDI backend and every port it can see,
@@ -160,6 +185,35 @@ it refuses to guess a channel, and there is no default.
 
 On a virtual machine, discovery finding nothing almost always means NAT
 networking; bridged is required for UDP broadcast to reach the guest.
+
+### Dumping the state tree
+
+`--dump-tree` writes everything the console publishes to a JSON file, and prints
+the root list, the leaf-parameter count, and which parameters carry a published
+range. It needs a build first (`npm run build`), because it uses the project's
+own redactor rather than a second copy of those rules.
+
+This matters more than it looks. Nothing in this project has ever captured a
+real state tree: the protocol library's type was generated from someone else's
+console in 2021 and is already missing parameters that appear in real documents
+(`sub`, `mapping`, `global.mastermixlock`), and every fixture here is synthetic.
+A dump from each model is what the backup work in
+[config-backup-restore-plan.md](config-backup-restore-plan.md) is designed
+against.
+
+The file is redacted before it is written, not after: the raw tree carries the
+console's serial, its registered owner, its network configuration and its
+remote-access code. `--anonymise` additionally strips channel labels, DCA and
+mute-group names and loaded scene names.
+
+```bash
+node tools/hw-probe.js --dump-tree                  # debugging your own console
+node tools/hw-probe.js --dump-tree --anonymise      # safe to commit or attach
+```
+
+**Use `--anonymise` before committing a dump as a fixture or attaching one to an
+issue.** Channel labels on a working board name the people standing behind them.
+Without it the probe says so explicitly rather than leaving you to remember.
 
 ## Running these unattended
 
