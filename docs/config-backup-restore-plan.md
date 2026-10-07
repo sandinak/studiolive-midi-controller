@@ -1233,3 +1233,112 @@ Running `sudo tcpdump -i <iface> -s0 -w uc.pcap 'host <console> and tcp port
 
 Each step wants a few seconds of quiet either side so the boundaries are obvious
 in the decode.
+
+---
+
+# Part 7 — Tier B solved: the download path
+
+Captured Universal Control taking a backup of the 16R on 2026-10-07 and decoded
+it with [tools/ucnet-decode.js](tools/ucnet-decode.js). **The download path is now
+fully known and validated.** It is simpler than feared and needs no new
+reverse engineering.
+
+## 7.1 The mechanism
+
+One `FR` request per document, with a verb the project had not seen:
+
+```
+--> FR id=256 verb="ZRtr" path="presets/proj/01.PHS-Choir.proj/01.Starting.scn"
+<-- FD id=256 body=4096  total=5195
+<-- FD id=256 body=1099  total=5195
+```
+
+- **Verb `ZRtr`** — the download. 84 `FR` requests, 94 `FD` replies, 69 documents.
+- `id` was **256 for every request**, not a per-request nonce. The library's random
+  ids work too, so this is UC's habit rather than a requirement.
+- `FD` bodies are **4096 bytes** maximum, reassembled until `total` is reached.
+- The console path namespace, which maps onto the archive layout:
+
+  | Console path | Archive directory |
+  |---|---|
+  | `presets/channel/NN.Title.Category.channel` | `Fat/` |
+  | `presets/fx/NN.Title.Type.fx` | `FX/` |
+  | `presets/scene/NN.Title.scene` | `Scene/` |
+  | `presets/proj/NN.Name.proj/NN.Scene.scn` | `Project/NN.Name.proj/` |
+  | `presets/proj/NN.Name.proj/Name.cnfg` | `Project/NN.Name.proj/` |
+
+## 7.2 The `UInt16` worry was unfounded
+
+§6.2 predicted the library's `UInt16LE` read of `FD`'s `total` would overflow on a
+~110 KB scene. It does not, because **`ZRtr` returns the document compressed**:
+`01.Starting.scn` moved as 5,195 bytes. Every transfer in the capture was between
+354 and 7,021 bytes, comfortably inside 16 bits.
+
+It is still the wrong width — a larger console's scene could approach the limit —
+but it is not the blocker it looked like.
+
+## 7.3 The console's native format is UBJSON, not JSON
+
+This is the finding that matters. A document on the wire is **zlib-compressed
+UBJSON** — the same encoding as the `ZB` state tree. The JSON in a `.bak` is
+Universal Control's own re-serialisation.
+
+```
+01.Starting.scn:  5,195 bytes compressed
+                 82,831 bytes UBJSON
+                131,134 bytes as the JSON UC writes into the archive
+```
+
+So the full pipeline is:
+
+```
+FR ZRtr <path>  →  FD chunks  →  concat  →  zlib.inflate  →  UBJSON  →  decode
+                                                                          ↓
+                                            .bak entry  ←  serialiseConsoleDocument
+```
+
+Every stage of that already exists in this repo except the UBJSON decode, and the
+JSON serialiser written in P3a turns out to be exactly the step UC performs.
+
+## 7.4 The library's UBJSON reader is incomplete
+
+Pointed at a real preset document it throws **`Unknown type 73`** — that is `I`,
+int16, which documents contain and the state tree evidently does not. It also
+assumes every string and key length is a one-byte `i`, which holds only while
+keys and strings stay under 128 bytes.
+
+`src/shared/ubjson.ts` is a complete implementation: every UBJSON value type,
+integer-typed length prefixes, and an **encoder**, which has no counterpart
+anywhere in the library. The encoder is what a restore will need — the console
+speaks UBJSON, so pushing a document back means producing it.
+
+## 7.5 Validated against all 69 documents
+
+Not a sample — every document in the captured transfer:
+
+| | |
+|---|---|
+| UBJSON decoded from the wire | **69 / 69** |
+| Round-tripped through the encoder | **69 / 69** |
+| Semantically identical to UC's `.bak` entry | **69 / 69** |
+| Re-serialised to JSON structurally identical to UC's | **69 / 69** |
+
+**Matrix row G5 is effectively answered from the other direction:** rather than
+hoping the console accepts a document we authored, we now know we can reproduce
+UC's archive byte-structure from the console's own bytes.
+
+## 7.6 What is left for restore
+
+Download is done. Upload is not, and was deliberately not captured — restoring a
+backup overwrites a console with real shows on it. What remains:
+
+1. **The upload verb.** `ZRtr` is read; its write counterpart is unknown. Likely
+   discoverable from a capture of a single-document "send to mixer", which is
+   reversible in a way a whole-archive restore is not.
+2. **The delete verb** (§6.1), still unknown for the same reason.
+3. Whether upload expects the same compressed-UBJSON framing in reverse. The
+   encoder exists either way.
+
+So tier B is half built and the half that matters for *backup* is complete: the
+app can now pull every document off a console and write a Universal
+Control-compatible archive without UC involved.
