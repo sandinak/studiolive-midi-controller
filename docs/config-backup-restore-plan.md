@@ -1062,3 +1062,101 @@ curves.
   `192.168.20.207` did not answer on port 53000.
 - **G2 — tree covers every field a scene carries:** structurally yes, but the
   values are on the wrong scale, so the answer that matters is §4.3.
+
+---
+
+# Part 5 — Tier A verified on hardware
+
+Run against the 16R (`192.168.21.41`, firmware 3.4.0.111374) on 2026-10-07.
+
+## 5.1 `StorePreset` exists and works
+
+The symmetric payload, inferred in §1.3 from the string table, is correct:
+
+```
+->  {id:"StorePreset", url:"presets", presetTarget:"", presetTargetSlave:0,
+     presetFile:"presets/proj/02.Camp Evo.proj/02.APITest.scn"}
+<-  {id:"StoredPreset", presetFile:"...", presetName:"APITest",
+     presetType:"scn", url:"presets"}
+```
+
+Confirmed in 3.2 s; the scene then appeared in the project listing with its
+title taken from the filename. `presetName` and `presetType` come from the path,
+so naming is done by choosing the slot.
+
+Implemented in the fork as `storePreset` / `storeProjectScene` / `storeProject`,
+resolving on the `StoredPreset` notification rather than returning immediately —
+a store that silently did nothing would otherwise be indistinguishable from
+success. **Matrix row G3: ✅ 16R.**
+
+## 5.2 Snapshot plus recall gives undo
+
+**Matrix row G4: ✅ 16R.** Snapshot, change `mute` and `polarity` on one channel,
+recall the snapshot: both reverted, and the console was left as found.
+
+So tier A delivers the undo that row C8 records as missing, and it is cheap.
+A restore should take a snapshot first, unconditionally.
+
+## 5.3 The finding that matters most: read-back through the library lies
+
+The undo test failed twice before it passed, and both failures were measurement
+artifacts rather than console behaviour.
+
+`setSwitch` and `_setLevel` seed the local cache immediately after writing,
+because the console's echo lags. **`setMute`, `setSolo`, `setLink`, `setPan` and
+`setColor` do not.** So reading a value straight back through the same client
+returns whatever the console last echoed, which after a write is the *previous*
+value. Both "failures" were that: the console had done the right thing and the
+cache had not caught up.
+
+This is a direct hazard for §2.3, which proposes verifying a restore by diffing
+intent against `client.state`. **That design would report false failures, retry
+writes that already succeeded, and declare a correct restore broken.**
+
+Verification must therefore not trust the library's cache. Either:
+
+- wait for the console's `PV`/`PS`/`PC` echo for each written path and compare
+  that, rather than reading the cache at an arbitrary moment; or
+- re-sync and compare against a fresh state tree, which is what the rigorous
+  test did — every measurement on a new connection, since a new connection
+  brings a new `Synchronize`.
+
+The second is slower and unambiguous; the first is what a progress UI needs.
+A restore probably wants both: echo-based progress, and a fresh-sync diff at the
+end for the report.
+
+Worth fixing in the fork too, so the setters are consistent about seeding.
+
+## 5.4 Corrections to earlier parts of this document
+
+- **§1.7(5) overstated the scene filters.** This console has `fltrpreamps = 0`
+  and `fltr48v = 0`, with every other `fltr*` flag at 1, and `polarity`
+  nonetheless reverted on recall. The flag values are real, but there is **no
+  evidence here that they gated the recall**, and an earlier draft of this
+  section claimed they explained a failed undo. They did not; a stale cache did.
+  Treat the filters as an open question (§3.3), not a known constraint.
+- Excluding preamps from a scene recall is normal live-sound practice, so
+  `fltrpreamps = 0` is likely deliberate on this console and should not be
+  "corrected" by the app.
+
+## 5.5 Console state left behind
+
+Two scenes were created during testing and **are still on the console**, because
+the library has no delete (`DeletedPreset` exists in the protocol and is not
+implemented):
+
+- `02.Camp Evo.proj / 02.APITest.scn`
+- `02.Camp Evo.proj / 03.UndoTest.scn`
+
+Both are snapshots of the board as it already was, so neither is harmful, but
+they are clutter and should be deleted from the console's own preset browser.
+
+Also, **the loaded-scene pointer changed** from `01.New Scene.scn` to
+`03.UndoTest.scn` as a result of the recall. The live settings are unchanged —
+`03.UndoTest.scn` was a snapshot of exactly that state, and mutes and polarity
+were verified back to their original values. Recalling `01.New Scene.scn` to
+restore the pointer would apply that scene's *stored* state, which may be older
+than the current board, so it is deliberately not done here.
+
+A `deletePreset` wrapper is the obvious next small addition, both to clean up
+after tests and because any backup UI that can store will be expected to delete.

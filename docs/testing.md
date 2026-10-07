@@ -132,10 +132,10 @@ yet and are listed so the sequencing is visible.
 
 | # | Test | 16R | 32R | Notes |
 |---|------|-----|-----|-------|
-| G1 | **State tree dumps and the redaction holds** | ⬜ | ⬜ | `--dump-tree`. Check the file for the serial, owner, IP and access code before sharing it — the probe prints what it removed, but read the file too the first time. |
+| G1 | **State tree dumps and the redaction holds** | ✅ | ⬜ | `--dump-tree`. Check the file for the serial, owner, IP and access code before sharing it — the probe prints what it removed, but read the file too the first time. |
 | G2 | Dumped tree covers every field a scene document carries | ⬜ | ⬜ | Decides whether tier 0 can author a complete scene from live state |
-| G3 | `StorePreset` creates a scene on the console | ⬜ | ⬜ | Gates the undo story. Watch for a `StoredPreset` reply |
-| G4 | Snapshot → change → recall restores prior state | ⬜ | ⬜ | The undo C8 says does not exist |
+| G3 | **`StorePreset` creates a scene on the console** | ✅ | ⬜ | Gates the undo story. Watch for a `StoredPreset` reply |
+| G4 | **Snapshot → change → recall restores prior state** | ✅ | ⬜ | The undo C8 says does not exist |
 | G5 | App-authored `.bak` restores through Universal Control | ⬜ | ⬜ | **The main tier-0 risk.** Round-trip: dump → author → restore → re-dump → diff |
 | G6 | `PS` write sets a channel label | ⬜ | ⬜ | Unproven. Only needed if `presetChannelNames` does not cover it |
 | G7 | `PS` write sets `iconid`; colour via `PC` | ⬜ | ⬜ | |
