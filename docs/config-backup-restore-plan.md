@@ -1342,3 +1342,88 @@ backup overwrites a console with real shows on it. What remains:
 So tier B is half built and the half that matters for *backup* is complete: the
 app can now pull every document off a console and write a Universal
 Control-compatible archive without UC involved.
+
+---
+
+# Part 8 — The transfer verbs, and upload
+
+Verified against the 16R (firmware 3.4.0.111374) on 2026-10-07.
+
+## 8.1 The verb set, and why it was hard to find
+
+The verbs are stored in Universal Control's binaries as **little-endian uint32
+immediates**, not readable strings — `ZRtr` appears as `rtRZ`. An earlier search
+for them (§6.1) found nothing for exactly that reason and wrongly concluded they
+were computed at runtime.
+
+They are **FTP command names**, which makes the set legible once seen: LIST,
+RETR, STOR, DELE, RNFR, with a `Z` prefix for the zlib-compressed variant.
+
+| Verb | Meaning | Status |
+|---|---|---|
+| `List` | directory listing, replies JSON | confirmed |
+| `ZRtr` | compressed RETR — download | **confirmed, any size** |
+| `ZStr` | compressed STOR — upload | **confirmed, ≤ 4096 bytes** |
+| `Dele` | delete | **confirmed** |
+| `Retr` / `Stor` | uncompressed variants | present, unexercised |
+| `Rena` | rename | present, unexercised |
+| `Ftbr` | keep-alive, empty path | confirmed |
+
+So §6.1's conclusion that delete "needs a traffic capture" was wrong. It needed a
+better search.
+
+## 8.2 Two bugs that made transfer impossible
+
+Neither is specific to this feature; both silently destroyed data.
+
+**`handleFDPacket` discarded the payload.** It ran `JSON.parse` on the
+reassembled buffer and returned only the parsed result. A directory listing is
+JSON, so listings worked; a document is compressed UBJSON, so `JSON.parse` threw,
+`data` became `undefined`, and the transfer **completed and then vanished**. The
+raw bytes are now carried alongside. The constructor's `FileData` listener
+dropped them a second time by forwarding only `data`.
+
+**`parseChunk` read the sizes as 16-bit.** `bytesRead` and `totalSize` were each
+read as `UInt16LE` followed by an "unknown" pair. Those cannot be distinguished
+from single 32-bit fields while the values stay small — and they have, because
+documents travel compressed. Now read as 32-bit, which still works when they do
+not.
+
+## 8.3 Upload works, within one packet
+
+`FR ZStr <path>` to announce, then the data in `FD` packets built the way the
+console builds them. A channel preset round-tripped **byte-identically**: 516
+bytes of UBJSON, 354 compressed, uploaded, downloaded, identical — and
+semantically identical after decode.
+
+## 8.4 The 4096-byte wall
+
+The console caps an `FD` payload at 4096 bytes and then ends the transfer.
+Measured three ways:
+
+| Attempt | Result |
+|---|---|
+| One packet declaring 4501 bytes | stored at length 4501, **first wrong byte at exactly 4096** |
+| 4096-byte chunks, `bytesRead` counting *after* each chunk | only the first chunk kept; stored length became 4096 |
+| 2048-byte chunks, `bytesRead` counting *before* | only the first chunk kept; stored length became 2048 |
+
+So the console takes the first chunk and stops, regardless of how the header is
+framed. Something sequences a multi-chunk upload that is not in the header —
+plausibly an acknowledgement to wait for, or a per-chunk request.
+
+The practical consequence, against the real document sizes (354–7,021 bytes
+compressed):
+
+- **Channel presets and FX presets upload today.**
+- **Scenes and project configs do not** — they compress to 4,501–7,021 bytes.
+
+Finding the missing piece needs a capture of Universal Control performing a
+single-document upload, which is reversible in a way a whole-archive restore is
+not. That is now the one remaining unknown in the whole backup/restore path.
+
+## 8.5 Matrix rows settled
+
+- **G6/G7 are moot for labels and icons.** With document transfer working there
+  is no need for a `PS` write to set a channel label — a scene carries it.
+- Delete confirmed; rows for it should be added.
+- Upload confirmed within one packet; the multi-chunk case is the open item.
