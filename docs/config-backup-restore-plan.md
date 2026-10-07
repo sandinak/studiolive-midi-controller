@@ -1160,3 +1160,76 @@ than the current board, so it is deliberately not done here.
 
 A `deletePreset` wrapper is the obvious next small addition, both to clean up
 after tests and because any backup UI that can store will be expected to delete.
+
+---
+
+# Part 6 — Delete, and the tier B spike
+
+## 6.1 There is no `DeletePreset` command
+
+Searched Universal Control's `studiolivepanel` for it directly. The complete set
+of preset *commands* in the string table is:
+
+```
+StorePreset   RestorePreset   ReorderPreset   CopyPreset   SetPresetAccess
+RestoreFactoryPresets
+```
+
+`DeletedPreset` and `RenamedPreset` exist, but alongside `StoredPreset` and
+`RecalledPreset` — they are **notifications**, not commands. UC's UI has
+`removePreset`, and nothing in the string table says what it sends.
+
+Some 4-character strings looked promising, having the same shape as the known
+`Ftbr` file-request verb — `Gacd`, `Kljl`, `Rajh`, `Smrp`, `Tazx`, `Thyj`. All
+were false positives: random bytes inside compiled code, or Revelator product
+codenames (`Tito`, `Taryll`, `Michael`, `Marlon`, next to
+`JacksonMixManagement`).
+
+So delete is most likely an `FR` request with a verb we do not know. **It was
+deliberately not guessed.** Firing an unidentified command at a console that has
+real shows stored, on the chance it means "delete this slot", is not a reasonable
+way to find out — and a wrong guess might not be confined to the slot named.
+
+Delete therefore needs the same traffic capture as tier B, which is why the two
+are now one piece of work.
+
+## 6.2 The FR channel, as observed
+
+Confirmed by capturing our own client (`tools/ucnet-decode.js`):
+
+```
+--> FR id=62724 verb="Ftbr" path=""                        keep-alive
+--> FR id=50529 verb="List" path="presets/proj"            directory listing
+<-- FD id=50529 body=4096  read:0    total:6899  size:4096
+<-- FD id=50529 body=2803  read:4096 total:6899  size:2803
+```
+
+So `FR` is `id(uint16 BE) + verb(4 chars) + path + \0\0`, and `FD` replies in
+**4096-byte chunks** with a 14-byte header. Two known verbs, `List` and `Ftbr`,
+neither of which transfers or deletes anything.
+
+**This also confirms the suspected `UInt16` bug.** `FD`'s `total` is read as
+`UInt16LE` by the library, which caps it at 65535. A directory listing fits —
+6,899 bytes here — but a scene document is around 110 KB, so `total` would
+overflow and reassembly would fail. The decoder prints the field read both ways
+so the capture will show which is correct the first time a real document moves.
+
+## 6.3 What the capture needs to contain
+
+Running `sudo tcpdump -i <iface> -s0 -w uc.pcap 'host <console> and tcp port
+53000'` while Universal Control performs, in order:
+
+1. **Connect** to the console — gives a known-good handshake to anchor the
+   timeline.
+2. **Send to Disk** on one stored scene — the download path. This is the one that
+   decides tier B, and it should reveal both a new `FR` verb and whether `FD`'s
+   size fields are 16- or 32-bit.
+3. **Send to Mixer** for a scene from the computer — the upload path. Needed for
+   restore, and likely a different mechanism from download rather than a mirror
+   of it.
+4. **Delete** a preset — §6.1.
+5. *(optional)* **Create Backup** — shows whether the full-archive operation is
+   its own command or just a loop over the per-document transfer.
+
+Each step wants a few seconds of quiet either side so the boundaries are obvious
+in the decode.
