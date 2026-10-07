@@ -1427,3 +1427,62 @@ not. That is now the one remaining unknown in the whole backup/restore path.
   is no need for a `PS` write to set a channel label — a scene carries it.
 - Delete confirmed; rows for it should be added.
 - Upload confirmed within one packet; the multi-chunk case is the open item.
+
+---
+
+# Part 9 — Backup without Universal Control
+
+Built and verified against the 16R on 2026-10-07. **Tier 0 and the backup half of
+tier B are complete.**
+
+`node tools/backup-console.js <mixer-ip>` enumerates the console's stored
+documents, downloads each with `ZRtr`, converts the UBJSON to the JSON UC writes,
+and emits a `.bak`.
+
+| Measure | Result |
+|---|---|
+| Documents captured | 69, in 33 s |
+| Same set as UC's archive | yes — 0 missing, 0 extra |
+| **Semantically identical to UC's entries** | **69 / 69** |
+| Byte-identical to UC's entries | 0 — by design, see below |
+| Two consecutive runs of our own | 69 / 69 byte-identical |
+
+The zero is expected and is the thing §7.3 predicted: the console prints the full
+decimal expansion of a float32 and JavaScript prints the shortest form that
+round-trips, so the JSON text differs in its last digits while every value is the
+same. Our archive is 60 KB against UC's 62 KB for that reason.
+
+## 9.1 Design notes worth keeping
+
+**The transport is an interface, not a `Client`.** Enumeration, path mapping,
+progress and failure handling are testable with a fake transport, which matters
+because the only other way to exercise them is against hardware with real shows
+stored on it. 34 unit tests, no console required.
+
+**It does its own directory listing.** The library's `sendList` filters out
+`.cnfg` entries, and a project config is the only document carrying `global`
+(§1.4). Using the helper would have produced an archive silently missing sample
+rate, DCA and pan mode, and the scene-filter flags — a backup that looks complete
+and is not.
+
+**A failed document does not abort the run.** It is recorded and reported. A
+backup that omits one unreadable preset and says so is worth far more than no
+backup; `continueOnError: false` is available for a caller that disagrees.
+
+**It reports when there is no user content.** A console whose operator never
+stored a project has only its factory library to back up, and an archive of that
+is not a record of how the board was set up. This is the condition §1.4's closing
+section describes, and it is stated in the output rather than left to be noticed.
+
+## 9.2 What this does and does not give you
+
+**Does:** a trustworthy, reproducible, UC-compatible backup taken directly from
+the console, with no dependence on Universal Control's own backup path.
+
+**Does not:** restore a scene. Upload is capped at one 4096-byte packet (§8.4),
+and scenes compress to 4,501–7,021 bytes. Channel and FX presets can be
+restored today; scenes and project configs cannot.
+
+So the honest summary is that **backup is solved and restore is half solved**. For
+the problem that started this work — not being able to trust a backup — the half
+that is solved is the half that matters.
