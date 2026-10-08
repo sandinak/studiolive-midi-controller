@@ -370,6 +370,9 @@ async function initializeApp() {
   mixerManager.on('meter', (data: any) => {
     const inputLevels = data[MG_INPUT_SIGNAL];
     if (!inputLevels || !mainWindow) return;
+    // Silence during a document transfer. Sixty IPC messages a second to the
+    // renderer is the bulk of what starves a backup (plan §12).
+    if (mixerManager.isQuiet()) return;
     const now = Date.now();
     if (now - lastMeterSend < 16) return;
     lastMeterSend = now;
@@ -1812,13 +1815,14 @@ ipcMain.handle('backup-console', async () => {
       return { success: false, cancelled: true };
     }
 
-    const capture = await captureBackup(transportFromClient(resolved.client), {
+    const capture = await mixerManager.withQuietConsole(() =>
+      captureBackup(transportFromClient(resolved.client), {
       onProgress: (progress) => {
         mainWindow?.webContents.send('console-transfer-progress', {
           operation: 'backup', ...progress,
         });
-      },
-    });
+        },
+      }));
 
     fs.writeFileSync(result.filePath, capture.archive);
 
@@ -1917,15 +1921,16 @@ ipcMain.handle('apply-console-restore', async (_event, confirmation?: { allowOve
 
   try {
     const base = transportFromClient(resolved.client);
-    const result = await executeRestore(plan, restoreTransportFromClient(base, resolved.client), {
+    const result = await mixerManager.withQuietConsole(() =>
+      executeRestore(plan, restoreTransportFromClient(base, resolved.client), {
       allowOverwrite: confirmation?.allowOverwrite === true,
       onProgress: (progress) => {
         mainWindow?.webContents.send('console-transfer-progress', {
           operation: 'restore', done: progress.done, total: progress.total,
           path: progress.consolePath,
         });
-      },
-    });
+        },
+      }));
     return { success: true, path: file, written: result.written, failures: result.failures };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };

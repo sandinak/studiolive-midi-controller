@@ -1723,7 +1723,25 @@ MixerManager's own polling is therefore not sufficient to cause it — that runs
 both. What is unique to the failing case is the renderer and the IPC traffic
 that comes with it.
 
-## 12.4 Where to look next
+## 12.4 The poller pause: tried, and it is not the fix
+
+The first suspicion in §12.3 was the renderer's chatter, and the cheap test was
+to suspend it. `MixerManager.withQuietConsole()` now stops the DCA poll, the
+mute-group poll and the 60 fps meter forwarding for the duration of a transfer,
+and both the backup and restore handlers hold it.
+
+**It did not fix the stall.** The backup still stops at document 1 of 70.
+
+So the leading hypothesis was wrong, and the remaining one is the better fit
+anyway: the main process event loop stops dead — its own timers do not fire —
+which points at synchronous work rather than contention. The capture inflates
+and UBJSON-decodes 70 documents on the main thread, and a plain Node process
+doing the same work has no UI to starve.
+
+The quiet period is kept regardless. A 35-second document transfer competing
+with level meters is wrong on its own terms, whatever is causing this.
+
+## 12.5 Where to look next
 
 In rough order of suspicion:
 
@@ -1741,7 +1759,7 @@ In rough order of suspicion:
 The first is cheap and would be a sensible design anyway: a long document
 transfer has no business competing with level meters.
 
-## 12.5 Testing practice this established
+## 12.6 Testing practice this established
 
 **Take a restore point outside the harness before any hardware session**, in a
 real directory rather than a temp one:
