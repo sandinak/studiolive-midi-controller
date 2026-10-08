@@ -142,7 +142,7 @@ yet and are listed so the sequencing is visible.
 | G8 | 16R → 32R migration, preflight diff accurate | — | ⬜ | 16 → 32 line, 6 → 16 aux, 8 → 24 DCA |
 | G9 | 32R → 16R migration, overflow channels dropped | ⬜ | — | |
 | G10 | Restore with Universal Control connected | ⬜ | ⬜ | Detect and warn; do not arbitrate |
-| G15 | **Backup from the app UI, with a console connected** | ⬜ | ⬜ | The IPC handlers and dialogs have never run against hardware — the screenshot harness uses a mock |
+| G15 | **Backup from the app UI, with a console connected** | ❌ | ⬜ | **Stalls at document 1 of 70 and wedges the main process.** The same modules complete in 33s from the CLI. See plan §12.2 |
 | G16 | **Restore from the app UI, including the overwrite confirmation** | ⬜ | ⬜ | |
 | G17 | Progress bar moves during a backup | ⬜ | ⬜ | `console-transfer-progress` reaching the renderer |
 | G18 | Restore refused in Run mode, from the UI | ⬜ | ⬜ | Policy is verified; the UI message is not |
@@ -218,6 +218,42 @@ node tools/hw-probe.js --dump-tree --anonymise      # safe to commit or attach
 **Use `--anonymise` before committing a dump as a fixture or attaching one to an
 issue.** Channel labels on a working board name the people standing behind them.
 Without it the probe says so explicitly rather than leaving you to remember.
+
+### The hardware integration harness
+
+`tools/hw-integration/run.js` exercises the app itself against a console with
+nobody clicking anything:
+
+```bash
+npm run test:hardware -- 192.168.21.41
+node tools/hw-integration/run.js 192.168.21.41 --keep   # leave the artifacts
+```
+
+It loads the **real main process** — the same `ipcMain` handlers, the same
+preload allowlist, the same renderer functions the buttons call — with only two
+things replaced: the file dialogs answer from a queue instead of waiting for a
+human, and the window is hidden. That is the gap nothing else closes. The unit
+suite covers the modules, the CLI tools cover the protocol against hardware, and
+the screenshot harness preloads a *mock* `electronAPI`, so it proves the dialog
+renders and nothing about whether the IPC behind it works.
+
+It checks the backup handler end to end, that progress events reach the
+renderer, that a cancelled dialog is reported rather than erroring, that restore
+planning writes nothing, that applying without acknowledging overwrites is
+refused, that a consumed plan cannot be re-applied, and that Run mode blocks
+restore while still allowing backup.
+
+**It leaves the console as it found it.** A backup is taken before anything
+else, and the console's documents are compared against it at the end; if they
+differ the run says so and prints the command to put them back. Nothing is
+written to a slot the harness did not create.
+
+Keep a restore point outside the harness too, somewhere that is not a temporary
+directory:
+
+```bash
+node tools/backup-console.js 192.168.21.41 -o ~/Documents/16R-restorepoint.bak
+```
 
 ## Running these unattended
 
