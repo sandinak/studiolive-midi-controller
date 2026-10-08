@@ -1486,3 +1486,101 @@ restored today; scenes and project configs cannot.
 So the honest summary is that **backup is solved and restore is half solved**. For
 the problem that started this work — not being able to trust a backup — the half
 that is solved is the half that matters.
+
+---
+
+# Part 10 — Feature complete
+
+Verified against the 16R (firmware 3.4.0.111374) on 2026-10-08. **The protocol is
+fully understood and both halves work.**
+
+## 10.1 The 4096-byte wall was not a wall
+
+§8.4 concluded that multi-chunk upload needed a capture of Universal Control. It
+did not — it needed one more look at the console's own download headers.
+
+The 14-byte `FD` header carries a **more-follows flag at bytes 10–11**:
+
+```
+chunk 1:  offset=0     total=6899  flag=1  size=4096
+chunk 2:  offset=4096  total=6899  flag=0  size=2803
+```
+
+Every single-packet transfer has flag 0. **The console commits the file the
+moment it sees a zero there**, which is why the first attempt — sending zero on
+every chunk — stored only the first chunk and replied `StoredPreset`
+immediately. The capture of our own upload showed it unambiguously:
+`StoredPreset` arrived 0.8 s after chunk 0 and 0.7 s *before* chunk 1 was sent.
+
+Full header layout:
+
+| Bytes | Field |
+|---|---|
+| 0–1 | request id, uint16 **big**-endian |
+| 2–5 | offset of this chunk, uint32 little-endian |
+| 6–9 | total size, uint32 little-endian |
+| 10–11 | more-follows: 1, or 0 on the last chunk |
+| 12–13 | this chunk's size, uint16 little-endian |
+
+Chunks are still capped at 4096 — that is what the console reads from one packet,
+and a larger one is stored at the declared length with everything past 4096 left
+as whatever was there.
+
+## 10.2 Round trips, measured
+
+| Document | Size | Chunks | Result |
+|---|---|---|---|
+| scene | 82,627 B | multi | byte-identical |
+| project config | 49,102 B | multi | byte-identical |
+| channel preset | 516 B | one | byte-identical |
+| FX preset | 160 B | one | byte-identical |
+
+And the path that matters more — download, decode to an object, **re-encode with
+our own UBJSON encoder**, upload, download again: stored byte-identically to what
+was sent, and semantically identical to the original. Our encoding is *smaller*
+than the console's (72,111 against 82,627, from choosing narrower integer types)
+and the console accepts it. **So documents can be authored, not merely copied** —
+which is what cross-model migration needs.
+
+## 10.3 The complete verb set
+
+| Verb | Operation | Status |
+|---|---|---|
+| `List` | enumerate a directory | confirmed |
+| `ZRtr` | download, compressed | confirmed, any size |
+| `ZStr` | upload, compressed | **confirmed, any size** |
+| `Dele` | delete | confirmed |
+| `Retr` / `Stor` / `Rena` | uncompressed read/write, rename | present, unexercised |
+| `Ftbr` | keep-alive | confirmed |
+
+## 10.4 Restore, and how it is guarded
+
+Replacing a stored document is irreversible without another backup, so:
+
+- **Planning and execution are separate**, and `executeRestore` requires a plan
+  as input. There is no path that writes without having first worked out what it
+  would write.
+- **Dry run is the default** in the CLI. `--apply` is needed to write at all, and
+  `--allow-overwrite` on top of that to replace anything. Two deliberate steps.
+- **An unlistable directory counts as occupied.** Claiming a write is a safe
+  create when the check failed is the wrong way to be wrong.
+- **A missing project blocks the run** rather than failing document by document.
+- **The factory library is skipped by default** — 64 of 69 documents, identical on
+  every console, most of the transfer time, and not what a restore is for.
+
+## 10.5 What is left
+
+Nothing in the protocol. What remains is product work:
+
+1. **Wire both into the app UI** — currently CLI only. §2.5 has the design.
+2. **Cross-model migration** (tier M) — now unblocked, because documents can be
+   authored. A 16R scene becomes a 32R scene by transforming JSON in real units.
+3. **Release the fork and bump the pin.** Everything here runs against a locally
+   built `dist`; none of it reaches a user until that happens, and the TCP
+   reframer fix (§4.1) is a bug the app hits on any console with stored content.
+
+Earlier parts of this document reasoned carefully about parameter replay, fifteen
+calibration curves and an allowlist of writable paths. **None of that is needed.**
+The console serialises itself, hands over the document, takes it back, and
+converts the units in both directions. The whole of Part 1's tier C exists only
+as a fallback nobody now needs.
