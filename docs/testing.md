@@ -142,6 +142,10 @@ yet and are listed so the sequencing is visible.
 | G8 | 16R → 32R migration, preflight diff accurate | — | ⬜ | 16 → 32 line, 6 → 16 aux, 8 → 24 DCA |
 | G9 | 32R → 16R migration, overflow channels dropped | ⬜ | — | |
 | G10 | Restore with Universal Control connected | ⬜ | ⬜ | Detect and warn; do not arbitrate |
+| G15 | **Backup from the app UI, with a console connected** | ⬜ | ⬜ | The IPC handlers and dialogs have never run against hardware — the screenshot harness uses a mock |
+| G16 | **Restore from the app UI, including the overwrite confirmation** | ⬜ | ⬜ | |
+| G17 | Progress bar moves during a backup | ⬜ | ⬜ | `console-transfer-progress` reaching the renderer |
+| G18 | Restore refused in Run mode, from the UI | ⬜ | ⬜ | Policy is verified; the UI message is not |
 | G11 | Permissions-restricted restore reports refusals | ⬜ | ⬜ | Rather than failing quietly |
 
 A dump from each console is the prerequisite for most of the rest, so G1 is
