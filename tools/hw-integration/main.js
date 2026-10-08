@@ -43,6 +43,16 @@ if (!host) {
 const workDir = fs.mkdtempSync(path.join(os.tmpdir(), 'slhw-'));
 const backupPath = path.join(workDir, 'harness-backup.bak');
 
+// Run against an empty settings directory.
+//
+// Two reasons, and the second is why the first run on a shared test box failed.
+// A harness has no business reading or writing somebody's real profiles. And the
+// app auto-loads `default.json` on startup and connects to the mixer it names —
+// on a machine that has been used with another console, that profile wins the
+// race against the connect this harness asks for, and every check then runs
+// against the wrong console or none at all.
+app.setPath('userData', path.join(workDir, 'userData'));
+
 // ─── Dialog stubs ──────────────────────────────────────────────────────────
 //
 // Replaced before the app's handlers are loaded, so they close over these and
@@ -105,14 +115,41 @@ async function evaluate(win, expression) {
 
 async function run(win) {
   heading('CONNECT');
-  const connected = await invoke(win, 'connect-mixer', host);
-  check('connect-mixer', connected && connected.success !== false,
-    JSON.stringify(connected).slice(0, 80));
+  // The app auto-connects to whatever its saved profile or discovery offers, and
+  // on a test box that is often a different console. Drop that first, or the
+  // connect below races it and times out.
+  // There is no disconnect-mixer channel; connect-mixer supersedes whatever is
+  // in progress. It can still lose the first race against an auto-connect that
+  // is already dialling, which is why this retries.
+  const existing = await invoke(win, 'get-mixer-status');
+  if (existing?.connected && existing.ip !== host) {
+    console.log(`  (app had auto-connected to ${existing.ip}; taking it over)`);
+  }
+
+  let connected = null;
+  for (let attempt = 1; attempt <= 3 && !(connected && connected.success); attempt++) {
+    connected = await invoke(win, 'connect-mixer', host);
+    if (connected?.success) break;
+    console.log(`  (connect attempt ${attempt} failed: ${connected?.error})`);
+    await wait(2000);
+  }
+  check('connect-mixer', connected?.success === true,
+    connected?.error || JSON.stringify(connected).slice(0, 60));
+
   // The state tree lands asynchronously after the handshake.
   await wait(3000);
   const status = await invoke(win, 'get-mixer-status');
-  check('mixer reports connected', status && status.connected === true,
-    status && status.ip);
+  check('mixer reports connected', status?.connected === true, status?.ip);
+  // Connected to something else is worse than not connected: every later check
+  // would pass or fail against the wrong console.
+  check('connected to the console we asked for', status?.ip === host,
+    `asked ${host}, got ${status?.ip}`);
+
+  if (!status?.connected || status.ip !== host) {
+    throw new Error(
+      `not connected to ${host} (got ${status?.ip || 'nothing'}) — ` +
+      'refusing to run the rest against the wrong console');
+  }
 
   heading('BACKUP THROUGH THE REAL IPC HANDLER');
   saveQueue.push(backupPath);
