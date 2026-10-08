@@ -1584,3 +1584,73 @@ calibration curves and an allowlist of writable paths. **None of that is needed.
 The console serialises itself, hands over the document, takes it back, and
 converts the units in both directions. The whole of Part 1's tier C exists only
 as a fallback nobody now needs.
+
+---
+
+# Part 11 — What has actually been tested against hardware
+
+Written because the question is worth being able to answer precisely, and the
+line is not where the amount of work would suggest.
+
+All of it against a **StudioLive 16R**, firmware 3.4.0.111374. **The 32R has
+never answered** on `192.168.20.207` — no ping, no ARP entry, despite being
+on-subnet — so nothing here has been tested on a second model.
+
+## 11.1 Verified on real hardware
+
+| | |
+|---|---|
+| State tree dump, and the redaction | ✅ twice, including the leak fix |
+| `StorePreset` + `StoredPreset` confirmation | ✅ |
+| Snapshot → change → recall → revert | ✅ |
+| `ZRtr` download | ✅ all 69 documents |
+| `ZStr` upload, single and multi-chunk | ✅ all four document types, byte-identical |
+| Encoder path: decode → re-encode → upload → download | ✅ semantically identical |
+| `Dele` delete | ✅ for `.scn` and `.channel` — **not `.cnfg`**, see §11.3 |
+| Full backup via `tools/backup-console.js` | ✅ 69 docs, 69/69 semantically identical to UC's |
+| Restore via `tools/restore-console.js` | ✅ dry run, and applied to the factory scene slot |
+| `MixerManager.getDocumentClient()` | ✅ |
+| `captureBackup` / `planRestore` through the app's own modules | ✅ |
+| `decideConsoleTransfer` Run-mode policy | ✅ |
+
+## 11.2 NOT tested on hardware
+
+**The app's UI and IPC handlers have never run against a console.** The
+screenshot harness preloads `tools/screenshot/fixtures.js`, a mock
+`electronAPI` — it proves the dialog renders and the JavaScript parses, and
+nothing more. Specifically untested:
+
+- the four IPC handlers (`backup-console`, `inspect-backup`,
+  `plan-console-restore`, `apply-console-restore`) in a real Electron session
+- the save and open dialogs
+- `console-transfer-progress` events reaching the renderer and moving the bar
+- the Run-mode refusal arriving as a UI message rather than a policy return
+- the pending-plan handoff between planning and applying across two IPC calls
+
+The modules underneath are the same ones the CLI tools drive and that path is
+well covered (§11.1), so what is unproven is the plumbing: dialogs, IPC,
+progress events, and the renderer wiring. That still needs somebody to click
+the buttons with a console connected.
+
+## 11.3 `Dele` does not delete a project config
+
+Found by leaving one behind. `Dele` removes `.scn` and `.channel` documents
+reliably — verified repeatedly — but against
+`presets/proj/02.Camp Evo.proj/10.E2Ecfg.cnfg` it returns an empty reply, sends
+no `DeletedPreset`, and the file remains: still listed, still downloadable, 49
+KB. Retried across fresh connections with the same result.
+
+Most likely a project is not allowed to be without a config, and the console
+refuses rather than erroring. Either way **the delete path should not be
+offered for `.cnfg` in any UI**, because it silently does nothing.
+
+The stray file is harmless but it is litter: the console looks for the config
+named after its project — `Camp Evo.cnfg` for `02.Camp Evo.proj` — and that one
+is intact, so the extra file is ignored. It needs removing through Universal
+Control or the console's own browser.
+
+**And the reason it went unnoticed is worth more than the finding.** The cleanup
+check used `getScenesOfProject`, which filters `.cnfg` out of its results, so it
+reported the project clean while the file sat there. Any verification of a
+delete has to use an unfiltered listing — `sendFileRequest('List', …)` — or it
+will confirm whatever the filter happens to hide.
