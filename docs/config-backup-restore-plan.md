@@ -1654,3 +1654,76 @@ check used `getScenesOfProject`, which filters `.cnfg` out of its results, so it
 reported the project clean while the file sat there. Any verification of a
 delete has to use an unfiltered listing — `sendFileRequest('List', …)` — or it
 will confirm whatever the filter happens to hide.
+
+---
+
+# Part 12 — The harness, and the bug it found immediately
+
+`tools/hw-integration/run.js` drives the app against a real console with nobody
+clicking. It loads the **real main process** — same `ipcMain` handlers, same
+preload allowlist, same renderer functions the buttons call — replacing only the
+file dialogs (answered from a queue) and hiding the window.
+
+It is the only thing that can close the §11.2 gap. The unit suite covers the
+modules, the CLI tools cover the protocol against hardware, and the screenshot
+harness preloads a mock `electronAPI` — so it proves the dialog renders and
+nothing about whether the IPC behind it works.
+
+## 12.1 What it confirmed
+
+- `connect-mixer` and `get-mixer-status` through the real handlers ✅
+- The dialog stubs are seen by the compiled handler ✅ — `electron_1.dialog` goes
+  through a getter returning the same object the harness patched.
+- Progress events are emitted by the handler ✅
+
+## 12.2 What it found: backup stalls inside the app
+
+**A backup that takes 33 seconds from the CLI stalls at document 1 of 70 inside
+the running app**, and does not recover. Reproduced across several runs.
+
+The same modules are not at fault. Driving `MixerManager` → `getDocumentClient`
+→ `captureBackup` from a plain Node process completes all 70 documents at normal
+speed (§11.1). What differs in the app is everything around the connection: the
+renderer's level and mute polling, metering, and the IPC traffic that comes with
+a live UI.
+
+Worse than slow — the main process stops responding altogether. A watchdog armed
+with `Promise.race` against a 180-second timer never fired, which means the
+event loop itself was blocked rather than merely waiting on the console.
+
+**This is a real user-facing bug, not a harness artifact.** The UI always polls,
+so any backup started from the button would hit whatever this is.
+
+## 12.3 Where to look next
+
+In rough order of suspicion:
+
+1. **The renderer's polling competing with the transfer.** Easiest test: have the
+   backup handler pause the app's pollers for its duration and see whether the
+   stall goes away. If it does, pausing them is the fix as well as the diagnosis.
+2. **Something synchronous blocking the main process.** The event loop stopping
+   points at a tight loop or a blocking call rather than contention. Worth
+   checking what runs per FD chunk — the capture inflates and decodes on the main
+   thread, and 70 documents at 4 KB a chunk is a lot of synchronous work in a
+   process that is also servicing a UI.
+3. **`_idPool` interaction with the keep-alive**, which also requests ids every
+   second and intercepts FD replies.
+
+The first is cheap and would be a sensible design anyway: a long document
+transfer has no business competing with level meters.
+
+## 12.4 Testing practice this established
+
+**Take a restore point outside the harness before any hardware session**, in a
+real directory rather than a temp one:
+
+```bash
+node tools/backup-console.js 192.168.21.41 -o ~/Documents/16R-restorepoint.bak
+```
+
+The harness takes its own backup and compares at the end, but its artifacts live
+in a temp directory it cleans up — which is the wrong place for the one copy of
+somebody's show.
+
+After every session, verify with an **unfiltered** listing (§11.3): `getScenes…`
+hides `.cnfg`, so a check built on it will report a console clean that is not.
