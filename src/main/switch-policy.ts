@@ -88,3 +88,27 @@ export function decidePresetRecall(
 export function asAppMode(value: unknown): AppMode {
   return value === 'run' ? 'run' : 'edit';
 }
+
+/**
+ * Whether a console backup or restore may run right now.
+ *
+ * A restore replaces stored documents and is the most destructive thing this
+ * app can do — it is refused in Run mode outright, on the same reasoning as
+ * phantom power: the interface is locked because somebody is mid-performance,
+ * and this is not a decision to make by accident then.
+ *
+ * Backup is read-only and allowed in either mode. Being able to capture the
+ * board as it stands, during a show, is precisely when you most want to.
+ */
+export function decideConsoleTransfer(
+  mode: AppMode,
+  operation: 'backup' | 'restore',
+): { allowed: true } | { allowed: false; error: string } {
+  if (operation === 'restore' && mode === 'run') {
+    return {
+      allowed: false,
+      error: 'A console restore cannot run in Run mode — switch to Edit mode first',
+    };
+  }
+  return { allowed: true };
+}

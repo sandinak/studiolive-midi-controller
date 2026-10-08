@@ -15,12 +15,21 @@ import {
   decidePresetRecall,
   asAppMode,
   type AppMode,
+  decideConsoleTransfer,
 } from './switch-policy';
 import { compareVersions, pickLatestVersion } from './update-checker';
 import { buildLevelFeedback } from './midi-feedback';
 import { subnetHosts, isInSubnet } from './net-utils';
 import { slugifyPresetName, presetPathFor, isWithinDirectory } from './preset-paths';
 import { TuioManager } from './tuio-manager';
+import { captureBackup, transportFromClient } from './console-backup-capture';
+import { readBackupFile, summariseBackup } from './console-backup';
+import {
+  planRestore,
+  executeRestore,
+  restoreTransportFromClient,
+  type RestorePlan,
+} from './console-backup-restore';
 import type { MidiMapping } from '../shared/types';
 import type { DiscoveryType } from 'presonus-studiolive-api';
 
@@ -1759,3 +1768,166 @@ ipcMain.handle('check-for-updates', async () => {
   }
 });
 
+// ─── Console configuration backup and restore ──────────────────────────────
+//
+// These are the only handlers that move whole documents rather than single
+// parameters, and restore is the most destructive operation in the app. The
+// shape reflects that: a restore is planned and applied in two separate calls,
+// and the plan is held here between them so the renderer cannot hand back
+// something it has edited.
+
+/** The plan from the last `plan-console-restore`, awaiting an apply. */
+let pendingRestore: { plan: RestorePlan; file: string } | null = null;
+
+/** Resolve the transfer client, or an error explaining why not. */
+function documentClient() {
+  if (!mixerManager.isConnected()) {
+    return { error: 'Not connected to a mixer' } as const;
+  }
+  const client = mixerManager.getDocumentClient();
+  if (!client) {
+    return { error: 'This build of the mixer API does not support document transfer' } as const;
+  }
+  return { client } as const;
+}
+
+ipcMain.handle('backup-console', async () => {
+  const gate = decideConsoleTransfer(appMode, 'backup');
+  if (!gate.allowed) return { success: false, error: gate.error };
+
+  const resolved = documentClient();
+  if ('error' in resolved) return { success: false, error: resolved.error };
+
+  try {
+    const model = String(mixerManager.getMixerModel() || 'console')
+      .replace(/[^A-Za-z0-9]+/g, '') || 'console';
+    const stamp = new Date().toISOString().slice(0, 10);
+
+    const result = await dialog.showSaveDialog(mainWindow!, {
+      title: 'Back Up Console',
+      defaultPath: path.join(app.getPath('documents'), `${model}_${stamp}.bak`),
+      filters: [{ name: 'Console Backup', extensions: ['bak'] }],
+    });
+    if (result.canceled || !result.filePath) {
+      return { success: false, cancelled: true };
+    }
+
+    const capture = await captureBackup(transportFromClient(resolved.client), {
+      onProgress: (progress) => {
+        mainWindow?.webContents.send('console-transfer-progress', {
+          operation: 'backup', ...progress,
+        });
+      },
+    });
+
+    fs.writeFileSync(result.filePath, capture.archive);
+
+    return {
+      success: true,
+      path: result.filePath,
+      documents: capture.paths.length,
+      projects: capture.projects,
+      hasUserContent: capture.hasUserContent,
+      failures: capture.failures,
+      unknownFloatKeys: capture.unknownFloatKeys,
+      bytes: capture.archive.length,
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('inspect-backup', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Open Console Backup',
+      properties: ['openFile'],
+      filters: [{ name: 'Console Backup', extensions: ['bak'] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return { success: false, cancelled: true };
+    const file = result.filePaths[0];
+    const summary = summariseBackup(readBackupFile(file));
+    return { success: true, path: file, summary };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('plan-console-restore', async (_event, options?: { includeFactoryLibrary?: boolean }) => {
+  const gate = decideConsoleTransfer(appMode, 'restore');
+  if (!gate.allowed) return { success: false, error: gate.error };
+
+  const resolved = documentClient();
+  if ('error' in resolved) return { success: false, error: resolved.error };
+
+  try {
+    const chosen = await dialog.showOpenDialog(mainWindow!, {
+      title: 'Restore Console From Backup',
+      properties: ['openFile'],
+      filters: [{ name: 'Console Backup', extensions: ['bak'] }],
+    });
+    if (chosen.canceled || !chosen.filePaths[0]) return { success: false, cancelled: true };
+    const file = chosen.filePaths[0];
+
+    const backup = readBackupFile(file);
+    const base = transportFromClient(resolved.client);
+    const plan = await planRestore(backup, restoreTransportFromClient(base, resolved.client), {
+      includeFactoryLibrary: options?.includeFactoryLibrary === true,
+    });
+
+    pendingRestore = { plan, file };
+
+    // The buffers are megabytes and the renderer has no use for them; it needs
+    // enough to describe the change and ask for confirmation.
+    return {
+      success: true,
+      path: file,
+      writes: plan.writes.map((w) => ({
+        consolePath: w.consolePath,
+        kind: w.kind,
+        overwrites: w.overwrites,
+        existingTitle: w.existingTitle,
+        bytes: w.ubjson.length,
+      })),
+      skipped: plan.skipped,
+      projects: plan.projects,
+      missingProjects: plan.missingProjects,
+      totalBytes: plan.totalBytes,
+    };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});
+
+ipcMain.handle('apply-console-restore', async (_event, confirmation?: { allowOverwrite?: boolean }) => {
+  const gate = decideConsoleTransfer(appMode, 'restore');
+  if (!gate.allowed) return { success: false, error: gate.error };
+
+  if (!pendingRestore) {
+    return { success: false, error: 'No restore has been planned — choose a backup first' };
+  }
+
+  const resolved = documentClient();
+  if ('error' in resolved) return { success: false, error: resolved.error };
+
+  const { plan, file } = pendingRestore;
+  // Consumed either way: a plan is a snapshot of the console as it was listed,
+  // and re-applying a stale one would report creates for slots now occupied.
+  pendingRestore = null;
+
+  try {
+    const base = transportFromClient(resolved.client);
+    const result = await executeRestore(plan, restoreTransportFromClient(base, resolved.client), {
+      allowOverwrite: confirmation?.allowOverwrite === true,
+      onProgress: (progress) => {
+        mainWindow?.webContents.send('console-transfer-progress', {
+          operation: 'restore', done: progress.done, total: progress.total,
+          path: progress.consolePath,
+        });
+      },
+    });
+    return { success: true, path: file, written: result.written, failures: result.failures };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : String(error) };
+  }
+});

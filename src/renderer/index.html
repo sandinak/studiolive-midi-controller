@@ -1884,6 +1884,7 @@
         <button class="btn-small" onclick="showPreferences()" title="Preferences">⚙️</button>
         <button class="btn-small" onclick="showSavePreset()" title="Save Profile">💾 Save</button>
         <button class="btn-small" onclick="showLoadPreset()" title="Load Profile">📂 Load</button>
+        <button class="btn-small" onclick="showConsoleConfig()" title="Back up or restore the console&apos;s own configuration">🗄️ Console</button>
         <button class="btn-small" onclick="showMappingsList()" title="View All Mappings">📋 Mappings</button>
         <button class="btn-small" onclick="toggleMidiLog()" title="Show MIDI Log">📊 MIDI Log</button>
         <div class="connection-status" onclick="openConnectionPanel('midi')" id="midi-connection-status" title="">
@@ -2245,6 +2246,38 @@
       <div class="modal-buttons">
         <button class="btn" onclick="hideSavePreset()">Cancel</button>
         <button class="btn" onclick="savePreset()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="console-config-modal" class="modal">
+    <div class="modal-content" style="max-width: 680px;">
+      <h2>🗄️ Console Configuration</h2>
+      <p style="color:#999;font-size:12px;margin:-8px 0 14px;">
+        The console's own scenes, projects and presets — not this app's MIDI profile.
+        Backup reads the console; restore replaces what is stored on it.
+      </p>
+
+      <!-- .btn is width:100%, so these only sit in a row while the flex container
+           is allowed to shrink them — no wrapping. -->
+      <div id="console-config-actions" class="modal-buttons" style="justify-content:flex-start;gap:8px;margin-top:0;">
+        <button class="btn" onclick="backupConsole()" id="console-backup-btn">⬇️ Back Up Console…</button>
+        <button class="btn" onclick="planConsoleRestore()" id="console-restore-btn">⬆️ Restore From Backup…</button>
+        <button class="btn" onclick="inspectBackup()">🔍 Inspect a Backup…</button>
+      </div>
+
+      <div id="console-config-progress" style="display:none;margin-top:14px;">
+        <div style="font-size:12px;color:#bbb;margin-bottom:6px;" id="console-progress-label">Working…</div>
+        <div style="background:#2a2a2a;border-radius:3px;height:6px;overflow:hidden;">
+          <div id="console-progress-bar" style="background:#4caf50;height:100%;width:0;transition:width .15s;"></div>
+        </div>
+        <div style="font-size:11px;color:#777;margin-top:5px;" id="console-progress-detail"></div>
+      </div>
+
+      <div id="console-config-result" style="display:none;margin-top:14px;font-size:12px;line-height:1.55;"></div>
+
+      <div class="modal-buttons" style="margin-top:16px;">
+        <button class="btn" onclick="hideConsoleConfig()">Close</button>
       </div>
     </div>
   </div>
@@ -5194,6 +5227,212 @@
       const defaultCC = getDefaultCC(channelNum);
       midiCCSelect.value = defaultCC;
     }
+
+    // ─── Console configuration backup and restore ──────────────────────────
+    //
+    // Deliberately separate from Profiles in the UI as well as the code: a
+    // profile is this app's MIDI mappings, a console backup is the console's own
+    // scenes, projects and presets. Conflating them is a mistake users pay for.
+
+    /** The plan from the last planConsoleRestore, awaiting confirmation. */
+    let pendingRestorePlan = null;
+
+    function showConsoleConfig() {
+      pendingRestorePlan = null;
+      document.getElementById('console-config-result').style.display = 'none';
+      document.getElementById('console-config-progress').style.display = 'none';
+      document.getElementById('console-config-modal').classList.add('show');
+      // Restore is refused in Run mode by the main process; say so here rather
+      // than letting someone click and be told no.
+      const restoreBtn = document.getElementById('console-restore-btn');
+      const locked = document.body.classList.contains('app-run-mode');
+      restoreBtn.disabled = locked;
+      restoreBtn.title = locked
+        ? 'Switch to Edit mode to restore — a restore replaces stored documents'
+        : 'Restore the console from a backup file';
+    }
+
+    function hideConsoleConfig() {
+      document.getElementById('console-config-modal').classList.remove('show');
+    }
+
+    function consoleBusy(busy, label) {
+      const progress = document.getElementById('console-config-progress');
+      progress.style.display = busy ? 'block' : 'none';
+      if (busy) {
+        document.getElementById('console-progress-label').textContent = label || 'Working…';
+        document.getElementById('console-progress-bar').style.width = '0';
+        document.getElementById('console-progress-detail').textContent = '';
+      }
+      for (const id of ['console-backup-btn', 'console-restore-btn']) {
+        document.getElementById(id).disabled = busy;
+      }
+    }
+
+    function consoleResult(html) {
+      const box = document.getElementById('console-config-result');
+      box.innerHTML = html;
+      box.style.display = 'block';
+    }
+
+    function consoleError(message) {
+      consoleResult(`<div style="color:#f44336">${escapeHtml(String(message))}</div>`);
+    }
+
+    async function backupConsole() {
+      consoleBusy(true, 'Backing up — reading every document from the console');
+      document.getElementById('console-config-result').style.display = 'none';
+      try {
+        const r = await window.electronAPI.invoke('backup-console');
+        if (r.cancelled) return;
+        if (!r.success) { consoleError(r.error); return; }
+
+        let html = `<div style="color:#4caf50">Backed up ${r.documents} documents `
+          + `(${Math.round(r.bytes / 1024)} KB)</div>`
+          + `<div style="color:#999;margin-top:4px">${escapeHtml(r.path)}</div>`;
+        if (r.projects.length) {
+          html += `<div style="margin-top:8px">Projects: ${r.projects.map(escapeHtml).join(', ')}</div>`;
+        } else {
+          // The case most easily mistaken for a working backup.
+          html += `<div style="margin-top:8px;color:#ff9800">This console has no stored `
+            + `project, so the backup holds only its factory library — not how the `
+            + `board is currently set up. Store a scene on the console first.</div>`;
+        }
+        if (r.failures.length) {
+          html += `<div style="margin-top:8px;color:#ff9800">${r.failures.length} document(s) `
+            + `could not be read:<br>`
+            + r.failures.map(f => `&nbsp;&nbsp;${escapeHtml(f.path)}: ${escapeHtml(f.reason)}`).join('<br>')
+            + `</div>`;
+        }
+        consoleResult(html);
+      } catch (err) {
+        consoleError(err.message || err);
+      } finally {
+        consoleBusy(false);
+      }
+    }
+
+    async function inspectBackup() {
+      try {
+        const r = await window.electronAPI.invoke('inspect-backup');
+        if (r.cancelled) return;
+        if (!r.success) { consoleError(r.error); return; }
+        const s = r.summary;
+        const counts = Object.entries(s.counts).filter(([, n]) => n > 0)
+          .map(([k, n]) => `${n} ${k}`).join(', ');
+        let html = `<div><strong>${escapeHtml(r.path.split('/').pop())}</strong></div>`
+          + `<div style="color:#999">${escapeHtml(counts)}</div>`;
+        if (s.channelCounts) {
+          html += `<div style="margin-top:6px;color:#999">Console: `
+            + Object.entries(s.channelCounts).map(([k, n]) => `${k} ${n}`).join(', ') + `</div>`;
+        }
+        if (s.hasUserContent) {
+          html += `<div style="margin-top:8px">Projects:<br>` + s.projects.map(p =>
+            `&nbsp;&nbsp;<strong>${escapeHtml(p.name)}</strong> — `
+            + (p.scenes.length ? escapeHtml(p.scenes.join(', ')) : 'no scenes')
+            + (p.hasConfig ? '' : ' <span style="color:#ff9800">(no project config)</span>')
+          ).join('<br>') + `</div>`;
+        } else {
+          html += `<div style="margin-top:8px;color:#ff9800">No user project in this `
+            + `archive — it holds only the factory library.</div>`;
+        }
+        if (s.failures.length) {
+          html += `<div style="margin-top:8px;color:#ff9800">${s.failures.length} unreadable entry(s)</div>`;
+        }
+        consoleResult(html);
+      } catch (err) {
+        consoleError(err.message || err);
+      }
+    }
+
+    async function planConsoleRestore() {
+      document.getElementById('console-config-result').style.display = 'none';
+      try {
+        const r = await window.electronAPI.invoke('plan-console-restore');
+        if (r.cancelled) return;
+        if (!r.success) { consoleError(r.error); return; }
+
+        pendingRestorePlan = r;
+        const overwrites = r.writes.filter(w => w.overwrites);
+        const creates = r.writes.filter(w => !w.overwrites);
+
+        let html = `<div><strong>${escapeHtml(r.path.split('/').pop())}</strong></div>`
+          + `<div style="color:#999">${r.writes.length} document(s), `
+          + `${Math.round(r.totalBytes / 1024)} KB</div>`;
+
+        if (r.missingProjects.length) {
+          html += `<div style="margin-top:10px;color:#f44336">Cannot restore: the console `
+            + `has no project directory for ${r.missingProjects.map(escapeHtml).join(', ')}. `
+            + `Create the project on the console first.</div>`;
+          consoleResult(html);
+          return;
+        }
+
+        if (creates.length) {
+          html += `<div style="margin-top:10px">Will create ${creates.length}:<br>`
+            + creates.map(w => `&nbsp;&nbsp;${escapeHtml(w.consolePath)}`).join('<br>') + `</div>`;
+        }
+        if (overwrites.length) {
+          html += `<div style="margin-top:10px;color:#ff9800">Will <strong>replace</strong> `
+            + `${overwrites.length} existing document(s):<br>`
+            + overwrites.map(w => `&nbsp;&nbsp;${escapeHtml(w.consolePath)}`
+              + (w.existingTitle ? ` <span style="color:#999">(currently "${escapeHtml(w.existingTitle)}")</span>` : '')
+            ).join('<br>') + `</div>`;
+          html += `<div style="margin-top:10px;padding:8px;background:#2a2118;border-radius:4px">`
+            + `<label style="display:flex;align-items:center;gap:8px;cursor:pointer">`
+            + `<input type="checkbox" id="console-allow-overwrite" />`
+            + `<span>I understand this replaces the documents above. There is no undo `
+            + `without another backup.</span></label></div>`;
+        }
+        const skippedFactory = r.skipped.filter(x => x.reason === 'factory library').length;
+        if (skippedFactory) {
+          html += `<div style="margin-top:8px;color:#777">Skipping ${skippedFactory} factory `
+            + `preset(s) — identical on every console.</div>`;
+        }
+        html += `<div class="modal-buttons" style="margin-top:14px;justify-content:flex-start">`
+          + `<button class="btn" onclick="applyConsoleRestore()">Apply Restore</button></div>`;
+        consoleResult(html);
+      } catch (err) {
+        consoleError(err.message || err);
+      }
+    }
+
+    async function applyConsoleRestore() {
+      if (!pendingRestorePlan) { consoleError('No restore planned'); return; }
+      const needsConfirm = pendingRestorePlan.writes.some(w => w.overwrites);
+      const box = document.getElementById('console-allow-overwrite');
+      if (needsConfirm && !(box && box.checked)) {
+        consoleError('Tick the confirmation box before replacing existing documents');
+        return;
+      }
+      consoleBusy(true, 'Restoring — writing documents to the console');
+      try {
+        const r = await window.electronAPI.invoke('apply-console-restore', {
+          allowOverwrite: needsConfirm,
+        });
+        if (!r.success) { consoleError(r.error); return; }
+        let html = `<div style="color:#4caf50">Restored ${r.written.length} document(s)</div>`;
+        if (r.failures.length) {
+          html += `<div style="margin-top:8px;color:#f44336">${r.failures.length} failed:<br>`
+            + r.failures.map(f => `&nbsp;&nbsp;${escapeHtml(f.consolePath)}: ${escapeHtml(f.reason)}`).join('<br>')
+            + `</div>`;
+        }
+        consoleResult(html);
+      } catch (err) {
+        consoleError(err.message || err);
+      } finally {
+        pendingRestorePlan = null;
+        consoleBusy(false);
+      }
+    }
+
+    window.electronAPI.on('console-transfer-progress', (p) => {
+      const bar = document.getElementById('console-progress-bar');
+      if (!bar) return;
+      bar.style.width = `${Math.round((p.done / p.total) * 100)}%`;
+      document.getElementById('console-progress-detail').textContent =
+        `${p.done} of ${p.total} — ${p.path}`;
+    });
 
     async function showSavePreset() {
       try {
