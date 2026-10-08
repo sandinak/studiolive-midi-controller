@@ -642,6 +642,55 @@ export class MixerManager extends EventEmitter {
    * @param count Number of channels to fetch (default: 16)
    * @returns Array of channel info with channel number and name
    */
+  /** Nesting depth of active quiet periods. */
+  private quietDepth = 0;
+
+  /**
+   * Whether the console should be left alone right now.
+   *
+   * Read by the meter forwarding in the main process, which otherwise pushes an
+   * IPC message to the renderer about sixty times a second.
+   */
+  isQuiet(): boolean {
+    return this.quietDepth > 0;
+  }
+
+  /**
+   * Run `fn` with the app's routine console chatter suspended.
+   *
+   * A document transfer moves tens of megabytes across the same connection the
+   * UI uses for level meters, DCA polling at 100 ms and mute-group polling at
+   * 200 ms. Those exist to keep faders looking live, which is worth nothing
+   * during a backup and actively harmful: a 35-second transfer that completes
+   * in plain Node stalls after one document inside the running app, with the
+   * main process event loop blocked hard enough that its own timers stop firing
+   * (see docs/config-backup-restore-plan.md §12).
+   *
+   * Nested, so a restore that internally takes a backup does not have the quiet
+   * period ended underneath it by the inner call.
+   *
+   * The pollers are stopped rather than made to skip work, because the cost is
+   * the traffic and the IPC, not the loop body.
+   */
+  async withQuietConsole<T>(fn: () => Promise<T>): Promise<T> {
+    this.quietDepth++;
+    if (this.quietDepth === 1) {
+      this.stopMuteGroupPolling();
+      this.stopDCALevelPolling();
+    }
+    try {
+      return await fn();
+    } finally {
+      this.quietDepth--;
+      if (this.quietDepth === 0 && this.client) {
+        // Only restart what this connection had running; a disconnect during
+        // the transfer leaves `client` null and nothing to restart.
+        this.startMuteGroupPolling();
+        this.startDCALevelPolling();
+      }
+    }
+  }
+
   /**
    * The connected client, narrowed to the document-transfer calls.
    *
