@@ -312,6 +312,52 @@ Creating one clears the mappings and DCA colors, which belong to the mixer, whil
 
 This matters because channel layouts differ between models — a 32-channel profile applied to a 16-channel mixer would map faders onto channels that don't exist.
 
+## Console Configuration
+
+**🗄️ Console** in the header backs up and restores the console's own stored
+documents — its scenes, projects, channel presets and FX presets. This is not the
+same thing as a Profile: a profile is this app's MIDI mappings, a console backup
+is what the mixer itself holds.
+
+It exists because Universal Control's backup cannot be relied on. UC will report
+success and write a plausible archive while holding no live connection to the
+console at all — verified with a packet capture covering the whole operation,
+which showed one TCP reset and no data. If UC's backup has ever surprised you,
+that is the likely reason, and restarting Universal Control is the workaround.
+
+### Back Up Console
+
+Reads every document off the console and writes a `.bak` archive in Universal
+Control's own format, so UC can still open it. Read-only — it never writes to the
+mixer. A 16R takes about 30 seconds for 69 documents.
+
+**Watch for the warning about user content.** If the console has no stored
+project, the archive contains only the factory library — not how the board is
+currently set up. That is a successful backup of nothing you wanted, and it is
+the case most easily mistaken for a working one. Store a scene on the console
+first.
+
+### Restore From Backup
+
+Shows a plan before it writes anything: every slot it would create, and every
+slot it would **replace**, naming what currently occupies each one. Replacing a
+stored document cannot be undone without another backup, so a restore that would
+replace anything needs the confirmation box ticked before it will run.
+
+The factory channel and FX presets are skipped — they are identical on every
+console, account for most of the transfer time, and are not what a restore is
+for.
+
+Restore is refused in Run mode. It is the most destructive thing the app can do,
+and the interface is locked precisely because somebody is mid-performance.
+
+### Inspect a Backup
+
+Opens an archive and reports what is in it without touching a console at all —
+document counts, the shape of the console that wrote it, and which projects and
+scenes it holds. Useful for answering "is this backup actually any good?" before
+trusting it.
+
 ## Preferences
 
 Click **⚙️ Preferences** to configure:

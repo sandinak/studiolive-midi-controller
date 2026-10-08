@@ -11,6 +11,7 @@ import {
   decideGainWrite,
   decidePresetRecall,
   asAppMode,
+  decideConsoleTransfer,
 } from '../../src/main/switch-policy';
 
 describe('decideSwitchWrite', () => {
@@ -132,5 +133,25 @@ describe('asAppMode', () => {
     for (const v of ['edit', 'RUN', '', undefined, null, 1, {}]) {
       expect(asAppMode(v)).toBe('edit');
     }
+  });
+});
+
+describe('decideConsoleTransfer', () => {
+  // A restore replaces stored documents, so it is refused while the interface
+  // is locked for performance — the same reasoning as phantom power.
+  it('refuses a restore in Run mode', () => {
+    const decision = decideConsoleTransfer('run', 'restore');
+    expect(decision.allowed).toBe(false);
+    expect((decision as { error: string }).error).toMatch(/Run mode/);
+  });
+
+  it('allows a restore in Edit mode', () => {
+    expect(decideConsoleTransfer('edit', 'restore').allowed).toBe(true);
+  });
+
+  // Backup is read-only, and capturing the board as it stands mid-show is
+  // exactly when you most want to.
+  it.each(['edit', 'run'] as const)('allows a backup in %s mode', (mode) => {
+    expect(decideConsoleTransfer(mode, 'backup').allowed).toBe(true);
   });
 });

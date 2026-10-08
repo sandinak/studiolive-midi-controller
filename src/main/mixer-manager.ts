@@ -643,6 +643,33 @@ export class MixerManager extends EventEmitter {
    * @returns Array of channel info with channel number and name
    */
   /**
+   * The connected client, narrowed to the document-transfer calls.
+   *
+   * Backup and restore need `List`, `ZRtr`, `ZStr` and `Dele`, which live on the
+   * protocol client rather than on this wrapper — there is no per-parameter
+   * translation to do, so wrapping each one would add a layer that only forwards.
+   * Narrowing the type keeps the rest of the client out of reach of callers who
+   * only mean to transfer documents.
+   *
+   * Returns null when no console is connected.
+   */
+  getDocumentClient(): {
+    sendFileRequest(verb: string, path: string, options?: { timeout?: number }): Promise<Buffer>;
+    downloadDocument(path: string, options?: { timeout?: number }): Promise<Buffer>;
+    uploadDocument(path: string, ubjson: Buffer, options?: { timeout?: number }): Promise<unknown>;
+    deleteDocument(path: string, options?: { timeout?: number }): Promise<Buffer>;
+  } | null {
+    if (!this.client) return null;
+    const client = this.client as unknown as Record<string, unknown>;
+    // A console reached through an older build of the protocol library will not
+    // have these; saying so beats a TypeError three frames deeper.
+    for (const method of ['sendFileRequest', 'downloadDocument', 'uploadDocument']) {
+      if (typeof client[method] !== 'function') return null;
+    }
+    return this.client as never;
+  }
+
+  /**
    * Get channel counts from the connected mixer
    */
   getChannelCounts(): Record<string, number> | null {

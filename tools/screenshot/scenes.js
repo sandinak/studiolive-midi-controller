@@ -110,6 +110,47 @@ module.exports = [
     settle: 500,
   },
   {
+    name: 'console-config',
+    setup: `
+      if (typeof showConsoleConfig === 'function') showConsoleConfig();
+      // Render a planned restore, which is the state worth showing: it is where
+      // the overwrite warning and its confirmation live, and the whole point of
+      // the screen is that replacing a stored document is deliberate.
+      if (typeof consoleResult === 'function') {
+        pendingRestorePlan = {
+          path: '/Users/you/Documents/StudioLive16R_2026-10-08.bak',
+          writes: [
+            { consolePath: 'presets/proj/01.Sunday.proj/02.Backup.scn', overwrites: false },
+            { consolePath: 'presets/proj/01.Sunday.proj/01.Starting.scn', overwrites: true,
+              existingTitle: 'Starting' },
+            { consolePath: 'presets/proj/01.Sunday.proj/Sunday.cnfg', overwrites: true,
+              existingTitle: 'Sunday.cnfg' },
+          ],
+          totalBytes: 287000,
+        };
+        consoleResult(
+          '<div><strong>StudioLive16R_2026-10-08.bak</strong></div>' +
+          '<div style="color:#999">3 document(s), 280 KB</div>' +
+          '<div style="margin-top:10px">Will create 1:<br>' +
+          '&nbsp;&nbsp;presets/proj/01.Sunday.proj/02.Backup.scn</div>' +
+          '<div style="margin-top:10px;color:#ff9800">Will <strong>replace</strong> 2 existing document(s):<br>' +
+          '&nbsp;&nbsp;presets/proj/01.Sunday.proj/01.Starting.scn <span style="color:#999">(currently "Starting")</span><br>' +
+          '&nbsp;&nbsp;presets/proj/01.Sunday.proj/Sunday.cnfg <span style="color:#999">(currently "Sunday.cnfg")</span></div>' +
+          '<div style="margin-top:10px;padding:8px;background:#2a2118;border-radius:4px">' +
+          '<label style="display:flex;align-items:center;gap:8px;cursor:pointer">' +
+          '<input type="checkbox" id="console-allow-overwrite" />' +
+          '<span>I understand this replaces the documents above. There is no undo without another backup.</span>' +
+          '</label></div>' +
+          '<div style="margin-top:8px;color:#777">Skipping 64 factory preset(s) — identical on every console.</div>' +
+          '<div class="modal-buttons" style="margin-top:14px;justify-content:flex-start">' +
+          '<button class="btn">Apply Restore</button></div>'
+        );
+      }
+    `,
+    clip: '#console-config-modal .modal-content',
+    settle: 500,
+  },
+  {
     name: 'channel-menu',
     // Clicking a channel's instrument icon opens its settings. Lead Vox is the
     // useful example: phantom on, gate and compressor engaged.

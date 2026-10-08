@@ -903,6 +903,31 @@ Windows: %APPDATA%\StudioLive MIDI Controller\</code></pre>
 
   <!-- ── Logic Pro ─────────────────────────────────────────────── -->
   <section id="logic-pro">
+    <h2>Console Configuration</h2>
+    <p><strong>🗄️ Console</strong> in the header backs up and restores the console's own
+    stored documents — scenes, projects, channel presets and FX presets. This is not a
+    Profile: a profile is this app's MIDI mappings, a console backup is what the mixer
+    itself holds.</p>
+    <p>It exists because Universal Control's backup cannot be relied on. UC will report
+    success and write a plausible archive while holding no live connection to the console,
+    which a packet capture of the whole operation confirmed. Restarting Universal Control
+    is the workaround.</p>
+    <img src="images/console-config.png" alt="The Console Configuration dialog showing a planned restore" />
+    <h3>Back Up Console</h3>
+    <p>Reads every document off the console and writes a <code>.bak</code> in Universal
+    Control's own format, so UC can still open it. Read-only. About 30 seconds for a 16R.
+    If the console has no stored project the archive holds only the factory library — the
+    dialog says so, because that is a successful backup of nothing you wanted.</p>
+    <h3>Restore From Backup</h3>
+    <p>Shows a plan first: every slot it would create, and every slot it would
+    <strong>replace</strong>, naming the current occupant. Replacing a stored document
+    cannot be undone without another backup, so a restore that would replace anything
+    needs the confirmation box ticked. The factory presets are skipped — identical on
+    every console and not what a restore is for. Refused in Run mode.</p>
+    <h3>Inspect a Backup</h3>
+    <p>Opens an archive and reports what is in it without touching a console — counts,
+    the shape of the console that wrote it, and which projects and scenes it holds.</p>
+
     <h2>Logic Pro Setup</h2>
     <p>Logic Pro exposes a built-in virtual MIDI port called <strong>Logic Pro Virtual Out</strong> that is visible to all CoreMIDI apps on the same Mac — no extra setup required.</p>
 

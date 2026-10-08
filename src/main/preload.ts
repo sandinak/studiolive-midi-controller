@@ -10,6 +10,8 @@ import { isSafeExternalUrl } from '../shared/url-safety';
 /** Whitelisted request/response channels (ipcRenderer.invoke) */
 const INVOKE_CHANNELS = new Set([
   'add-mapping',
+  'apply-console-restore',
+  'backup-console',
   'check-for-updates',
   'connect-midi-device',
   'connect-mixer',
@@ -24,6 +26,8 @@ const INVOKE_CHANNELS = new Set([
   'identify-mixer-ip',
   'get-autofilter-group-names',
   'get-channel-counts',
+  'inspect-backup',
+  'plan-console-restore',
   'get-channel-colors',
   'get-fader-stacking',
   'get-channel-icons',
@@ -89,6 +93,7 @@ const INVOKE_CHANNELS = new Set([
 /** Whitelisted push-event channels (ipcRenderer.on) */
 const ON_CHANNELS = new Set([
   'connection-restored',
+  'console-transfer-progress',
   'discovery-result',
   'midi-activity',
   'midi-device-lost',
