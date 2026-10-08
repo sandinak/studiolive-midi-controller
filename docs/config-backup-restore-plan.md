@@ -1694,7 +1694,36 @@ event loop itself was blocked rather than merely waiting on the console.
 **This is a real user-facing bug, not a harness artifact.** The UI always polls,
 so any backup started from the button would hit whatever this is.
 
-## 12.3 Where to look next
+## 12.3 Narrowed: it is the Electron main process, not the harness
+
+The obvious suspicion was that the harness was at fault — that driving a
+long-running IPC call through `executeJavaScript` was itself the problem. It is
+not.
+
+A second probe ran the capture **from the main process directly**, with the full
+app loaded, connected and live: no `executeJavaScript`, no renderer involvement
+in the call at all. It stalled the same way, and its own `setTimeout` watchdog
+never fired either.
+
+So two independent drive paths produce the same stall, and in both cases a timer
+armed before the call fails to fire. **The Electron main process event loop
+stops.** That rules out slow console I/O, which would leave timers running, and
+rules out the harness.
+
+What differs between the environment that works and the one that does not:
+
+| | plain Node (works, 70 docs in ~35s) | Electron main (stalls at 1) |
+|---|---|---|
+| MixerManager and its pollers | yes | yes |
+| Renderer | no | yes |
+| Meter forwarding at ~60 fps via `webContents.send` | no | yes |
+| Level/mute IPC from a live UI | no | yes |
+
+MixerManager's own polling is therefore not sufficient to cause it — that runs in
+both. What is unique to the failing case is the renderer and the IPC traffic
+that comes with it.
+
+## 12.4 Where to look next
 
 In rough order of suspicion:
 
@@ -1712,7 +1741,7 @@ In rough order of suspicion:
 The first is cheap and would be a sensible design anyway: a long document
 transfer has no business competing with level meters.
 
-## 12.4 Testing practice this established
+## 12.5 Testing practice this established
 
 **Take a restore point outside the harness before any hardware session**, in a
 real directory rather than a temp one:
