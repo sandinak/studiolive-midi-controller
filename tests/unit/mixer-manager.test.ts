@@ -740,3 +740,97 @@ describe('MixerManager', () => {
   });
 
 });
+
+// ---- overlapping connects ----
+//
+// Four code paths call connect(): startup, the discovery fallback, the
+// renderer's connect-mixer IPC and the reconnect loop. A connect takes seconds,
+// so they overlap. These cover what that used to do to a console transfer:
+// against a 16R, a slow attempt failing after a later one had succeeded nulled
+// the live client, isConnected() went false, and the next reconnect destroyed
+// the socket a backup was reading documents over — every remaining document
+// timed out.
+describe('MixerManager overlapping connects', () => {
+  let manager: MixerManager;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    SimpleClient.nextConnectImpl = null;
+    manager = new MixerManager();
+    (manager as any).stateSettleMs = 0;
+  });
+
+  afterEach(async () => {
+    SimpleClient.nextConnectImpl = null;
+    if (manager.isConnected()) await manager.disconnect();
+  });
+
+  it('is a no-op when already connected to the same mixer', async () => {
+    await manager.connect('10.0.0.1', 'SL32');
+    const client = (manager as any).client;
+
+    await manager.connect('10.0.0.1', 'SL32');
+
+    // Same client object: nothing was torn down and nothing reconnected.
+    expect((manager as any).client).toBe(client);
+    expect(manager.isConnected()).toBe(true);
+  });
+
+  it('still switches when asked for a different mixer', async () => {
+    await manager.connect('10.0.0.1');
+    const first = (manager as any).client;
+
+    await manager.connect('10.0.0.2');
+
+    expect((manager as any).client).not.toBe(first);
+    expect(manager.getMixerIp()).toBe('10.0.0.2');
+  });
+
+  it('a failing connect does not tear down a newer one that succeeded', async () => {
+    // The first attempt hangs, then rejects — a slow console that is not there.
+    let failSlow: (err: Error) => void = () => {};
+    SimpleClient.nextConnectImpl = () => new Promise<void>((_res, rej) => { failSlow = rej; });
+
+    const slow = manager.connect('10.0.0.1').catch(() => 'rejected');
+
+    // A second connect lands first and succeeds.
+    await manager.connect('10.0.0.2');
+    const live = (manager as any).client;
+    expect(manager.isConnected()).toBe(true);
+
+    // Now the first one gives up.
+    failSlow(new Error('timed out'));
+    await expect(slow).resolves.toBe('rejected');
+
+    // The connection that succeeded is untouched.
+    expect((manager as any).client).toBe(live);
+    expect(manager.isConnected()).toBe(true);
+    expect(manager.getMixerIp()).toBe('10.0.0.2');
+  });
+
+  it('a superseded connect that succeeds announces nothing and starts no pollers', async () => {
+    let finishSlow: () => void = () => {};
+    SimpleClient.nextConnectImpl = () => new Promise<void>((res) => { finishSlow = res; });
+
+    const slow = manager.connect('10.0.0.1');
+
+    await manager.connect('10.0.0.2');
+    const live = (manager as any).client;
+    const dcaTimer = (manager as any).dcaLevelPollInterval;
+
+    const connected = jest.fn();
+    manager.on('connected', connected);
+
+    // The attempt for 10.0.0.1 now completes, having already lost.
+    finishSlow();
+    await slow;
+
+    // It must not announce a mixer we are not on, and must not replace the
+    // pollers belonging to the connection that won — the old timer would be
+    // left running and the renderer would be told the wrong IP.
+    expect(connected).not.toHaveBeenCalled();
+    expect((manager as any).dcaLevelPollInterval).toBe(dcaTimer);
+    expect((manager as any).client).toBe(live);
+    expect(manager.getMixerIp()).toBe('10.0.0.2');
+  });
+});

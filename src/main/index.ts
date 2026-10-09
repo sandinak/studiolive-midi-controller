@@ -34,6 +34,16 @@ import type { MidiMapping } from '../shared/types';
 import type { DiscoveryType } from 'presonus-studiolive-api';
 
 /**
+ * Run without ever showing or focusing a window.
+ *
+ * Set by the hardware and screenshot harnesses. It is a main-process
+ * environment flag rather than a command-line switch because Electron reads its
+ * own switches before the app does, and the window is created from
+ * `whenReady`.
+ */
+const HEADLESS = process.env.SLMC_HEADLESS === '1';
+
+/**
  * Send MIDI feedback for a channel at `percentage` (0-100) via `mapping`.
  * MidiManager takes a 1-16 Logic channel and converts to wire 0-15 itself,
  * so the value from buildLevelFeedback is passed through untouched.
@@ -164,6 +174,11 @@ function createWindow() {
     width: 1400,
     height: 900,
     icon: iconPath,
+    // Headless runs must not appear in the developer's session at all.
+    // `show: false` is only half of it — see the dock handling in whenReady;
+    // without that, macOS activates the app and steals focus before any window
+    // has had the chance to hide itself.
+    show: !HEADLESS,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -491,7 +506,17 @@ async function initializeApp() {
         discoveredMixers = await MixerManager.discover(10000);
       }
 
-      if (discoveredMixers.length > 0) {
+      // Discovery above can take ten seconds, and the `isConnected()` test that
+      // let us in here was made before it. In that window the user — or the
+      // renderer restoring a saved mixer — may already have connected to a
+      // specific console, and connecting to `discoveredMixers[0]` would then
+      // tear that down in favour of whichever mixer happened to answer first.
+      //
+      // With two consoles on the network that is not hypothetical: a backup of
+      // the 16R at 192.168.21.41 was severed ten seconds in by this branch
+      // connecting to a 32R at 192.168.20.210, and every remaining document
+      // failed. Re-check now that the wait is over.
+      if (discoveredMixers.length > 0 && !mixerManager.isConnected()) {
         // Auto-connect to first discovered mixer
         const mixer = discoveredMixers[0];
         await mixerManager.connect(mixer.ip, mixer.name, undefined, mixer.serial);
@@ -501,7 +526,7 @@ async function initializeApp() {
       } else {
         // Fall back to environment variable or default IP
         const mixerIp = process.env.MIXER_IP;
-        if (mixerIp) {
+        if (mixerIp && !mixerManager.isConnected()) {
           await mixerManager.connect(mixerIp).catch(() => {
             // Silent fail
           });
@@ -557,6 +582,12 @@ function startReconnectionLoop() {
   if (!mixerReconnectTimer) {
     mixerReconnectTimer = setInterval(async () => {
       if (mixerConnecting) return; // Previous attempt still in progress
+      // A console file transfer owns the connection while it runs. Reconnecting
+      // under it destroys the socket its downloads are waiting on, and each one
+      // then sits until its own timeout — a backup that reconnects halfway
+      // through loses every document after that point. The transfer has its own
+      // timeouts, so a genuinely dead connection still fails fast.
+      if (mixerManager.isQuiet()) return;
       if (!mixerManager.isConnected()) {
         const preferredIp = mappingEngine.getPreferredMixerIp();
         if (preferredIp) {
@@ -600,9 +631,14 @@ function stopReconnectionLoop() {
 }
 
 app.whenReady().then(() => {
-  // Set dock icon as early as possible so it takes effect before any window appears
-  // Use PNG — nativeImage reliably parses it regardless of ICNS subformat (ic12 etc.)
-  if (process.platform === 'darwin') {
+  // Headless: no dock icon, so the app is never activated and never takes the
+  // foreground. The automated harness drives the renderer through
+  // `executeJavaScript`, which does not need a visible — or even showable —
+  // window, and a test run that steals the screen is not usable while anyone is
+  // working in that session.
+  if (HEADLESS) {
+    app.dock?.hide();
+  } else if (process.platform === 'darwin') {
     const { nativeImage } = require('electron');
     const pngPath = path.join(app.getAppPath(), 'assets', 'icon.png');
     const dockImage = nativeImage.createFromPath(pngPath);

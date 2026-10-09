@@ -21,6 +21,9 @@ args.push(path.join(__dirname, 'main.js'), ...process.argv.slice(2));
 
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
+// Headless, always, and not as a flag the caller can forget: an Electron that
+// activates steals the foreground from whoever is working in that session.
+env.SLMC_HEADLESS = '1';
 
 spawn(electron, args, { stdio: 'inherit', env })
   .on('close', (code) => process.exit(code ?? 1));

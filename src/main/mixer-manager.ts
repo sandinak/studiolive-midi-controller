@@ -13,6 +13,13 @@ export class MixerManager extends EventEmitter {
   // Guards against isConnected() lying while a connect attempt is mid-flight
   // (long TCP timeout to an offline mixer) or after the remote side drops us.
   private handshakeComplete: boolean = false;
+  // Which connect attempt is current. Four code paths call connect() — startup,
+  // the discovery fallback, the renderer's IPC and the reconnect loop — and they
+  // can overlap, because a connect takes seconds. Without this, a slow attempt
+  // that eventually failed would run its teardown over whatever connection had
+  // succeeded in the meantime: the client was nulled, isConnected() went false,
+  // and the next reconnect destroyed the socket a backup was mid-transfer on.
+  private connectGen: number = 0;
   private mixerIp: string | null = null;
   private mixerModel: string | null = null;
   private mixerDeviceName: string | null = null;
@@ -46,15 +53,45 @@ export class MixerManager extends EventEmitter {
    * Connect to the StudioLive mixer
    */
   async connect(ipAddress: string, model?: string, deviceName?: string, serial?: string): Promise<void> {
+    const alreadyHere = this.isConnected() && this.mixerIp === ipAddress;
+    if (process.env.SLMC_TRACE_CONNECT) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[connect ${new Date().toISOString().slice(11, 23)}] ${ipAddress}`
+        + ` ${alreadyHere ? 'SKIPPED (already connected)' : 'TEARING DOWN AND RECONNECTING'}\n`
+        + (new Error().stack || '').split('\n').slice(2, 6).join('\n'),
+      );
+    }
+    // Already here. Reconnecting to the console we are connected to costs a
+    // teardown and gains nothing — and during a file transfer it is actively
+    // destructive: `disconnect()` destroys the socket, so every download in
+    // flight is left waiting on a connection that no longer exists until its
+    // own timeout expires.
+    //
+    // Four separate paths call this — startup auto-connect, the discovery
+    // fallback (which can land tens of seconds later), the renderer's
+    // connect-mixer IPC, and the reconnect loop — and none of them coordinated.
+    // Measured against a 16R: a discovery-driven connect arriving 25s into a
+    // backup failed every remaining document.
+    if (alreadyHere) {
+      return;
+    }
+
     if (this.client) {
       await this.disconnect();
     }
 
     this.handshakeComplete = false;
+    const myGen = ++this.connectGen;
+    // Our own client, so a superseded attempt closes its own socket rather than
+    // whatever is current by the time it unwinds. Declared out here because the
+    // catch block needs it too.
+    let myClient: StudioLiveClient | null = null;
 
     try {
       // Constructor takes an object with host and port
       this.client = new StudioLiveClient({ host: ipAddress, port: 53000 });
+      myClient = this.client;
       this.mixerIp = ipAddress;
       this.mixerModel = model || null;
       this.mixerDeviceName = deviceName || null;
@@ -222,6 +259,14 @@ export class MixerManager extends EventEmitter {
       // Log channel counts from the API for diagnostics
       const counts = (this.client as any).channelCounts;
 
+      if (myGen !== this.connectGen) {
+        // A newer connect took over while we were handshaking. Close our own
+        // socket and leave the current connection untouched.
+        try { (myClient as any)?.removeAllListeners?.(); } catch (_e) {}
+        try { await myClient?.close(); } catch (_e) {}
+        return;
+      }
+
       // Start polling mute group states to detect changes from the mixer
       this.startMuteGroupPolling();
 
@@ -234,18 +279,21 @@ export class MixerManager extends EventEmitter {
       // partial client so isConnected() reports false and the reconnect loop
       // can keep trying. Without this, the UI shows a green dot for a mixer
       // that never actually handshook, and the reconnect guard stays latched.
-      this.handshakeComplete = false;
-      if (this.client) {
-        this.stopMuteGroupPolling();
-        this.stopDCALevelPolling();
-        try { (this.client as any).removeAllListeners?.(); } catch (_e) {}
-        try { await this.client.close(); } catch (_e) {}
-        this.client = null;
+      try { (myClient as any)?.removeAllListeners?.(); } catch (_e) {}
+      try { await myClient?.close(); } catch (_e) {}
+
+      if (myGen === this.connectGen) {
+        this.handshakeComplete = false;
+        if (this.client === myClient) {
+          this.stopMuteGroupPolling();
+          this.stopDCALevelPolling();
+          this.client = null;
+        }
+        this.mixerIp = null;
+        this.mixerModel = null;
+        this.mixerDeviceName = null;
+        this.mixerSerial = null;
       }
-      this.mixerIp = null;
-      this.mixerModel = null;
-      this.mixerDeviceName = null;
-      this.mixerSerial = null;
       this.emit('error', error);
       throw new Error(`Failed to connect to mixer: ${error}`);
     }
@@ -255,6 +303,13 @@ export class MixerManager extends EventEmitter {
    * Disconnect from the mixer
    */
   async disconnect(): Promise<void> {
+    if (process.env.SLMC_TRACE_CONNECT) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[disconnect ${new Date().toISOString().slice(11, 23)}]\n`
+        + (new Error().stack || '').split('\n').slice(2, 7).join('\n'),
+      );
+    }
     if (this.client) {
       // Stop polling
       this.stopMuteGroupPolling();
