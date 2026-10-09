@@ -79,7 +79,22 @@ export class SimpleClient extends EventEmitter {
     this.state.set(path, value);
   });
   getLevel = jest.fn().mockReturnValue(null);
-  connect = jest.fn().mockResolvedValue(undefined);
+  /**
+   * Behaviour for the *next* connect() only, then cleared.
+   *
+   * MixerManager constructs its client and calls connect() in one synchronous
+   * run, so a test cannot reach in between to make one attempt slow. Setting
+   * this beforehand is how a test arranges overlapping connects — a real
+   * hazard, since four code paths call MixerManager.connect().
+   */
+  static nextConnectImpl: (() => Promise<void>) | null = null;
+
+  connect = jest.fn(() => {
+    const impl = SimpleClient.nextConnectImpl;
+    if (!impl) return Promise.resolve();
+    SimpleClient.nextConnectImpl = null;
+    return impl();
+  });
   close = jest.fn().mockResolvedValue(undefined);
 
   // Internal methods used by MixerManager

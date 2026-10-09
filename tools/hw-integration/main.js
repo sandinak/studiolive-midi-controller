@@ -81,6 +81,13 @@ let passed = 0;
 let failed = 0;
 const failures = [];
 
+/**
+ * The furthest a transfer has reported, and when. Written by the progress watcher
+ * and read by the heartbeat, so one line of output answers both "is it alive"
+ * and "is it getting anywhere".
+ */
+const beacon = { done: 0, total: 0, at: Date.now() };
+
 function check(name, condition, detail) {
   if (condition) {
     passed++;
@@ -88,7 +95,11 @@ function check(name, condition, detail) {
   } else {
     failed++;
     failures.push(name);
-    console.log(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`);
+    // "got" rather than a bare value: on a failing line the detail is what was
+    // observed instead, and reading it as the asserted fact is an easy mistake
+    // to make — one already made here, turning a stale remembered IP into a
+    // reported third console on the network.
+    console.log(`  ✗ ${name}${detail ? ` — got: ${detail}` : ''}`);
   }
 }
 
@@ -171,9 +182,9 @@ async function run(win) {
   win.webContents.send = (channel, ...rest) => {
     if (channel === 'console-transfer-progress') {
       sent.push(rest[0]);
-      if (sent.length === 1 || sent.length % 20 === 0) {
-        console.log(`    … ${rest[0].done}/${rest[0].total}`);
-      }
+      beacon.done = rest[0].done;
+      beacon.total = rest[0].total;
+      beacon.at = Date.now();
     }
     return realSend(channel, ...rest);
   };
@@ -186,6 +197,7 @@ async function run(win) {
     }),
   ]);
   win.webContents.send = realSend;
+  beacon.total = 0;
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
 
   check('backup-console succeeded', backup && backup.success === true,
@@ -354,6 +366,29 @@ async function verifyAndRestore(win) {
   console.log(`hardware integration against ${host}`);
   console.log(`artifacts: ${workDir}`);
 
+  // A heartbeat that reports what the transfer has reached, not merely that the
+  // process is alive.
+  //
+  // It used to print only `still alive`, while the progress printer logged every
+  // twentieth document. Nineteen documents of silence then looked exactly like a
+  // stall, and reading it as one cost a long investigation into a bug that was
+  // never there. A stall is only a stall if the count stops moving, so the count
+  // is what gets printed.
+  let beats = 0;
+  const heartbeat = setInterval(() => {
+    if (++beats % 10 !== 0) return;
+    if (!beacon.total) {
+      console.log(`  ·· ${beats}s — no transfer running`);
+      return;
+    }
+    const idle = Math.round((Date.now() - beacon.at) / 1000);
+    console.log(
+      `  ·· ${beats}s — ${beacon.done}/${beacon.total}`
+      + `, last advance ${idle}s ago${idle >= 30 ? '  ← NOT ADVANCING' : ''}`,
+    );
+  }, 1000);
+  heartbeat.unref?.();
+
   try {
     await run(win);
     await verifyAndRestore(win);
@@ -362,6 +397,8 @@ async function verifyAndRestore(win) {
     failures.push(`harness error: ${err.message}`);
     console.error(`\nHARNESS ERROR: ${err.message}\n${err.stack}`);
   }
+
+  clearInterval(heartbeat);
 
   heading('RESULT');
   console.log(`  ${passed} passed, ${failed} failed`);

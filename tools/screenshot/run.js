@@ -26,6 +26,10 @@ args.push(path.join(__dirname, 'main.js'), ...process.argv.slice(2));
 
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;
+// The window is already created with `show: false`, but on macOS the app is
+// activated before that window exists, which pulls the foreground away from
+// whoever is working in the session. Hiding the dock icon stops the activation.
+env.SLMC_HEADLESS = '1';
 
 spawn(electron, args, { stdio: 'inherit', env })
   .on('close', (code) => process.exit(code ?? 1));

@@ -202,13 +202,29 @@ export async function captureBackup(
   const unknownFloatKeys = new Set<string>();
   let done = 0;
 
+  // Opt-in tracing, for diagnosing a transfer that stops making progress
+  // against real hardware. Off unless SLMC_TRACE_CAPTURE is set, because the
+  // alternative — reasoning about where it stopped — has already produced two
+  // wrong answers.
+  const trace = process.env.SLMC_TRACE_CAPTURE
+    ? (m: string) => {
+        // eslint-disable-next-line no-console
+        console.log(`[capture ${new Date().toISOString().slice(11, 23)}] ${m}`);
+      }
+    : () => {};
+
+  trace(`enumerated ${documents.length} documents`);
+
   for (const doc of documents) {
     try {
+      trace(`download start  ${doc.path}`);
       const ubjson = await transport.download(doc.path);
+      trace(`download done   ${doc.path} (${ubjson.length} bytes)`);
       const parsed = decodeUbjson(ubjson);
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw new Error('document did not decode to an object');
       }
+      trace(`decoded         ${doc.path}`);
       const archivePath = archivePathFor(doc.path);
       entries.push({
         kind: doc.kind,
@@ -218,6 +234,7 @@ export async function captureBackup(
       });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
+      trace(`FAILED          ${doc.path}: ${reason}`);
       failures.push({ path: doc.path, reason });
       if (!continueOnError) {
         throw new Error(`Failed on ${doc.path}: ${reason}`);

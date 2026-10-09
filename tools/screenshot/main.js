@@ -153,6 +153,8 @@ async function run() {
   }
   fs.mkdirSync(OUT_DIR, { recursive: true });
 
+  if (process.env.SLMC_HEADLESS === '1') app.dock?.hide();
+
   const win = new BrowserWindow({
     width: 1420,
     height: 900,
