@@ -5,6 +5,9 @@ import { EventEmitter } from 'events';
 import type { MidiMessage } from '../shared/types';
 
 export class MidiManager extends EventEmitter {
+  /** Warn once, not on every poll. */
+  private midiUnavailableReported = false;
+
   private inputs: Map<string, easymidi.Input> = new Map();
   private outputs: Map<string, easymidi.Output> = new Map();
 
@@ -16,7 +19,21 @@ export class MidiManager extends EventEmitter {
    * Get list of available MIDI input devices
    */
   getAvailableDevices(): string[] {
-    return easymidi.getInputs();
+    try {
+      return easymidi.getInputs();
+    } catch (err) {
+      // RtMidi throws rather than reporting an empty list when the host has no
+      // MIDI stack at all — a Linux box without /dev/snd/seq, which covers
+      // containers and minimal installs. Every caller polls this, so the throw
+      // surfaced as an endless stream of `get-midi-status` handler errors and
+      // left the MIDI reconnect loop unable to run at all. Having no MIDI is a
+      // state to report, not an error to propagate.
+      if (!this.midiUnavailableReported) {
+        this.midiUnavailableReported = true;
+        console.warn(`MIDI is unavailable on this host: ${(err as Error).message}`);
+      }
+      return [];
+    }
   }
 
   /**
