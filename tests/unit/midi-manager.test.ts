@@ -217,3 +217,45 @@ describe('MidiManager', () => {
     });
   });
 });
+
+// A host with no MIDI stack at all — a Linux box without /dev/snd/seq, which
+// covers containers and minimal installs. RtMidi throws there rather than
+// reporting an empty list, and because every caller polls getAvailableDevices()
+// that throw surfaced as an endless stream of 'get-midi-status' handler errors
+// and left the MIDI reconnect loop unable to run. Found by running the hardware
+// harness on an Intel Linux build host.
+describe('MidiManager on a host with no MIDI stack', () => {
+  let manager: MidiManager;
+  let warn: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    manager = new MidiManager();
+    (easymidi.getInputs as jest.Mock).mockImplementation(() => {
+      throw new Error('Failed to initialise RtMidi');
+    });
+  });
+
+  afterEach(() => {
+    warn.mockRestore();
+  });
+
+  it('reports no devices instead of throwing', () => {
+    expect(() => manager.getAvailableDevices()).not.toThrow();
+    expect(manager.getAvailableDevices()).toEqual([]);
+  });
+
+  it('leaves isConnected() answerable rather than throwing', () => {
+    expect(() => manager.isConnected()).not.toThrow();
+    expect(manager.isConnected()).toBe(false);
+  });
+
+  it('warns once, not on every poll', () => {
+    manager.getAvailableDevices();
+    manager.getAvailableDevices();
+    manager.getAvailableDevices();
+
+    expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
