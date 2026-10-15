@@ -351,6 +351,7 @@
   <a href="#mute-groups">Mute Groups</a>
   <a href="#touch">Touch Control (TUIO)</a>
   <a href="#profiles">Profiles</a>
+  <a href="#console">Console Backup</a>
 
   <div class="nav-section">Integration</div>
   <a href="#logic-pro">Logic Pro Setup</a>
@@ -398,13 +399,16 @@
         <tr><td><strong>MIDI ↔ Mixer</strong></td><td>CC, Note, and Note-Value modes with real-time feedback</td></tr>
         <tr><td><strong>All channel types</strong></td><td>LINE, AUX, FX, SUB, DCA, MAIN, and Mute Groups</td></tr>
         <tr><td><strong>Stereo linking</strong></td><td>Automatic detection — paired L/R faders move together</td></tr>
-        <tr><td><strong>Auto-discovery</strong></td><td>Finds mixers on the local network via mDNS</td></tr>
+        <tr><td><strong>Auto-discovery</strong></td><td>UDP broadcast plus an active TCP sweep of the local subnet, so mixers are found even while Universal Control holds the discovery port</td></tr>
         <tr><td><strong>Auto-reconnect</strong></td><td>Reconnects to both MIDI and mixer automatically (every 3 s)</td></tr>
         <tr><td><strong>MIDI device colors</strong></td><td>Assign a color per device — color badges appear on mapped faders</td></tr>
         <tr><td><strong>Level display</strong></td><td>Per-channel level indicator dot or live VU meter with optional peak hold</td></tr>
         <tr><td><strong>Profiles</strong></td><td>Save and load complete configurations as JSON</td></tr>
         <tr><td><strong>Filter modes</strong></td><td>All, Mapped-only, DCA groups, Auto-filter groups</td></tr>
         <tr><td><strong>Level indicators</strong></td><td>Per-channel audio level dots (grey→green→yellow→red)</td></tr>
+        <tr><td><strong>Channel settings</strong></td><td>Phantom power, polarity, mono, processor in/out switches and preamp gain in dB, from the channel's icon — the destructive ones locked in Run mode</td></tr>
+        <tr><td><strong>Console presets</strong></td><td>Recall the mixer's own channel preset library, with the ones matching each channel's instrument listed first</td></tr>
+        <tr><td><strong>Console backup &amp; restore</strong></td><td>Back up the console's stored scenes and projects without Universal Control, inspect a backup, and restore with every overwrite listed first — <a href="#console">details</a></td></tr>
       </tbody>
     </table>
   </section>
@@ -418,12 +422,13 @@
       <li>Open the DMG and drag <strong>StudioLive MIDI Controller</strong> to <strong>Applications</strong>.</li>
       <li>Launch from Launchpad or Applications.</li>
     </ol>
+    <h3>Windows</h3>
+    <p>Each release also carries <strong>StudioLive.MIDI.Controller.Setup.<em>version</em>.exe</strong> (installer) and a portable <strong>.exe</strong> that runs without installing. Windows builds are compiled in CI but far less tested than macOS — see <a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/docs/testing.md">Hardware Testing</a>. Linux packages are not published yet.</p>
     <h3>From Source</h3>
-    <pre><code>git clone https://github.com/featherbear/presonus-studiolive-api.git
-git clone https://github.com/sandinak/studiolive-midi-controller.git
+    <pre><code>git clone https://github.com/sandinak/studiolive-midi-controller.git
 cd studiolive-midi-controller
 npm install &amp;&amp; npm run build &amp;&amp; npm start</code></pre>
-    <div class="note"><strong>Note</strong>The <code>presonus-studiolive-api</code> repo must be cloned <em>alongside</em> this repo in the same parent directory — it is referenced as a local dependency.</div>
+    <div class="note"><strong>Note</strong>The <code>presonus-studiolive-api</code> library is a pinned git dependency that builds itself during <code>npm install</code>, so no separate checkout is needed — but its build needs <strong>yarn</strong> on your <code>PATH</code> (<code>corepack enable</code> provides it).</div>
   </section>
 
   <!-- ── First Launch ──────────────────────────────────────────── -->
@@ -901,8 +906,8 @@ Windows: %APPDATA%\StudioLive MIDI Controller\</code></pre>
     </table>
   </section>
 
-  <!-- ── Logic Pro ─────────────────────────────────────────────── -->
-  <section id="logic-pro">
+  <!-- ── Console Configuration ─────────────────────────────────── -->
+  <section id="console">
     <h2>Console Configuration</h2>
     <p><strong>🗄️ Console</strong> in the header backs up and restores the console's own
     stored documents — scenes, projects, channel presets and FX presets. This is not a
@@ -927,7 +932,17 @@ Windows: %APPDATA%\StudioLive MIDI Controller\</code></pre>
     <h3>Inspect a Backup</h3>
     <p>Opens an archive and reports what is in it without touching a console — counts,
     the shape of the console that wrote it, and which projects and scenes it holds.</p>
+    <h3>From the Command Line</h3>
+    <p>The same operations run without the app, from a build of the source:
+    <code>tools/backup-console.js</code>, <code>tools/restore-console.js</code> (a dry run
+    unless given <code>--apply</code>, and replacing a document also needs
+    <code>--allow-overwrite</code>) and <code>tools/inspect-backup.js</code>. See the
+    <a href="https://github.com/sandinak/studiolive-midi-controller/blob/master/docs/usage.md#from-the-command-line">usage guide</a>
+    for examples.</p>
+  </section>
 
+  <!-- ── Logic Pro ─────────────────────────────────────────────── -->
+  <section id="logic-pro">
     <h2>Logic Pro Setup</h2>
     <p>Logic Pro exposes a built-in virtual MIDI port called <strong>Logic Pro Virtual Out</strong> that is visible to all CoreMIDI apps on the same Mac — no extra setup required.</p>
 
