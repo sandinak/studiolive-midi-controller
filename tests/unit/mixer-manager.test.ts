@@ -834,3 +834,294 @@ describe('MixerManager overlapping connects', () => {
     expect(manager.getMixerIp()).toBe('10.0.0.2');
   });
 });
+
+describe('MixerManager quiet periods and document transfer', () => {
+  let manager: MixerManager;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    manager = new MixerManager();
+    (manager as any).stateSettleMs = 0;
+  });
+
+  afterEach(async () => {
+    if (manager.isConnected()) await manager.disconnect();
+  });
+
+  it('suspends both pollers for the duration of the call and restarts them after', async () => {
+    await manager.connect('10.0.0.1');
+    expect((manager as any).dcaLevelPollInterval).not.toBeNull();
+
+    let during: { quiet: boolean; dca: unknown; mg: unknown } | null = null;
+    const result = await manager.withQuietConsole(async () => {
+      during = {
+        quiet: manager.isQuiet(),
+        dca: (manager as any).dcaLevelPollInterval,
+        mg: (manager as any).muteGroupPollInterval,
+      };
+      return 'done';
+    });
+
+    expect(result).toBe('done');
+    expect(during).toEqual({ quiet: true, dca: null, mg: null });
+    expect(manager.isQuiet()).toBe(false);
+    expect((manager as any).dcaLevelPollInterval).not.toBeNull();
+  });
+
+  it('a nested quiet period does not end the outer one', async () => {
+    await manager.connect('10.0.0.1');
+
+    await manager.withQuietConsole(async () => {
+      await manager.withQuietConsole(async () => {});
+      // The inner call has returned; the restore that wrapped it is still going.
+      expect(manager.isQuiet()).toBe(true);
+      expect((manager as any).dcaLevelPollInterval).toBeNull();
+    });
+
+    expect(manager.isQuiet()).toBe(false);
+    expect((manager as any).dcaLevelPollInterval).not.toBeNull();
+  });
+
+  it('ends the quiet period when the transfer throws', async () => {
+    await manager.connect('10.0.0.1');
+
+    await expect(manager.withQuietConsole(async () => { throw new Error('transfer failed'); }))
+      .rejects.toThrow('transfer failed');
+
+    expect(manager.isQuiet()).toBe(false);
+    expect((manager as any).dcaLevelPollInterval).not.toBeNull();
+  });
+
+  it('restarts nothing when the console went away during the transfer', async () => {
+    await manager.connect('10.0.0.1');
+
+    await manager.withQuietConsole(() => manager.disconnect());
+
+    expect((manager as any).dcaLevelPollInterval).toBeNull();
+    expect((manager as any).muteGroupPollInterval).toBeNull();
+  });
+
+  it('getDocumentClient is null with no console connected', () => {
+    expect(manager.getDocumentClient()).toBeNull();
+  });
+
+  it('getDocumentClient is null for a protocol library without the transfer calls', async () => {
+    await manager.connect('10.0.0.1');
+    expect(manager.getDocumentClient()).toBeNull();
+  });
+
+  it('getDocumentClient returns the client when it can transfer documents', async () => {
+    await manager.connect('10.0.0.1');
+    const client = (manager as any).client;
+    client.sendFileRequest = jest.fn();
+    client.downloadDocument = jest.fn();
+    client.uploadDocument = jest.fn();
+    expect(manager.getDocumentClient()).toBe(client);
+  });
+
+  it('getChannelCounts reports the console\'s counts, or null when disconnected', async () => {
+    expect(manager.getChannelCounts()).toBeNull();
+    await manager.connect('10.0.0.1');
+    (manager as any).client.channelCounts = { line: 32, dca: 24 };
+    expect(manager.getChannelCounts()).toEqual({ line: 32, dca: 24 });
+  });
+
+  it('getAllChannelNames fills unnamed channels with "Ch N"', async () => {
+    await manager.connect('10.0.0.1');
+    (manager as any).client.state.__set('line.ch2.username', 'Vox');
+    expect(manager.getAllChannelNames('line', 3)).toEqual([
+      { channel: 1, name: 'Ch 1' },
+      { channel: 2, name: 'Vox' },
+      { channel: 3, name: 'Ch 3' },
+    ]);
+  });
+});
+
+describe('MixerManager events from the console', () => {
+  let manager: MixerManager;
+  let client: SimpleClient;
+
+  const floatBuffer = (v: number) => {
+    const b = Buffer.alloc(4);
+    b.writeFloatLE(v, 0);
+    return b;
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    manager = new MixerManager();
+    (manager as any).stateSettleMs = 0;
+    await manager.connect('10.0.0.1');
+    client = (manager as any).client;
+  });
+
+  afterEach(async () => {
+    jest.useRealTimers();
+    if (manager.isConnected()) await manager.disconnect();
+  });
+
+  it('forwards level events unchanged', () => {
+    const spy = jest.fn();
+    manager.on('level', spy);
+    client.emit('level', { channel: 1, level: 0.5 });
+    expect(spy).toHaveBeenCalledWith({ channel: 1, level: 0.5 });
+  });
+
+  it.each([
+    [true, true],
+    [false, false],
+    [1, true],
+    [0, false],
+    [floatBuffer(1), true],
+    [floatBuffer(0), false],
+    ['on', true],
+    [undefined, false],
+  ])('normalises a mute status of %p to %p', (status, expected) => {
+    const spy = jest.fn();
+    manager.on('mute', spy);
+    client.emit('mute', { channel: 1, status });
+    expect(spy).toHaveBeenCalledWith({ channel: 1, status: expected });
+  });
+
+  it('normalises solo status the same way', () => {
+    const spy = jest.fn();
+    manager.on('solo', spy);
+    client.emit('solo', { channel: 3, status: floatBuffer(1) });
+    expect(spy).toHaveBeenCalledWith({ channel: 3, status: true });
+  });
+
+  it('forwards meter data once the subscription is up', async () => {
+    const spy = jest.fn();
+    manager.on('meter', spy);
+    // meterSubscribe resolved during connect(); let its .then run.
+    await Promise.resolve();
+    client.emit('meter', { values: [1, 2] });
+    expect(spy).toHaveBeenCalledWith({ values: [1, 2] });
+  });
+
+  describe('property changes (PV, PS and PC)', () => {
+    let spy: jest.Mock;
+    beforeEach(() => {
+      spy = jest.fn();
+      manager.on('propertyChange', spy);
+    });
+
+    it('a mute-group packet updates both caches and stops the fallback poll', () => {
+      client.emit('PV', { name: 'mutegroup/mutegroup3', value: floatBuffer(1) });
+
+      expect(spy).toHaveBeenCalledWith({ path: 'mutegroup/mutegroup3', value: 1.0 });
+      expect((manager as any).pvMuteGroupSeen).toBe(true);
+      expect((manager as any).lastMuteGroupStates[2]).toBe(true);
+      expect((manager as any).commandedMuteGroupStates[2]).toBe(true);
+    });
+
+    it('reports a mute group turning off as 0', () => {
+      client.emit('PS', { name: 'mutegroup/mutegroup1', value: false });
+      expect(spy).toHaveBeenCalledWith({ path: 'mutegroup/mutegroup1', value: 0.0 });
+    });
+
+    it('ignores mute groups outside 1-8', () => {
+      client.emit('PV', { name: 'mutegroup/mutegroup9', value: true });
+      client.emit('PV', { name: 'mutegroup/mutegroup0', value: true });
+      expect(spy).not.toHaveBeenCalled();
+      expect((manager as any).pvMuteGroupSeen).toBe(false);
+    });
+
+    it.each([
+      ['line/ch1/color', 'color', 'ff0000ff', 'ff0000ff'],
+      ['line/ch2/username', 'name', 'Kick', 'Kick'],
+      ['aux/ch4/icon', 'icon', 'mic', 'mic'],
+      ['line/ch5/inputsrc', 'inputsrc', 2, 2],
+      ['line/ch6/mute', 'mute', floatBuffer(1), true],
+      ['line/ch7/solo', 'solo', 0, false],
+      ['line/ch8/lr', 'lr', 1, true],
+      ['line/ch9/link', 'link', floatBuffer(0), false],
+    ])('maps %s to a %s change', (name, type, value, expected) => {
+      client.emit('PC', { name, value });
+      const [, rawType, ch] = (name as string).match(/^(\w+)\/ch(\d+)/)!;
+      expect(spy).toHaveBeenCalledWith({
+        channel: { type: rawType.toUpperCase(), channel: Number(ch) },
+        type,
+        value: expected,
+        path: name,
+      });
+    });
+
+    it.each([
+      ['an unmapped property', { name: 'line/ch1/volume', value: 0.5 }],
+      ['a path that is not per-channel', { name: 'global/mastermixlock', value: 1 }],
+      ['a packet with no name', { value: 1 }],
+      ['an empty packet', null],
+    ])('ignores %s', (_label, packet) => {
+      client.emit('PV', packet);
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('a connection the console drops is torn down and reported', () => {
+    const spy = jest.fn();
+    manager.on('disconnected', spy);
+
+    client.emit('closed');
+
+    expect(spy).toHaveBeenCalledWith('10.0.0.1');
+    expect(manager.isConnected()).toBe(false);
+    expect(manager.getMixerIp()).toBeNull();
+    expect((manager as any).dcaLevelPollInterval).toBeNull();
+  });
+
+  it('a close after our own disconnect is not reported twice', async () => {
+    const spy = jest.fn();
+    manager.on('disconnected', spy);
+    await manager.disconnect();
+    spy.mockClear();
+
+    client.emit('closed');
+
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  describe('state-ready', () => {
+    beforeEach(() => jest.useFakeTimers());
+
+    it('fills in the device name and model from state, then announces it', async () => {
+      (manager as any).mixerModel = null;
+      client.state.__set('line.ch1.username', 'Kick');
+      client.state.__set('global.devicename', 'Bench 16R');
+      client.state.__set('device.model', 'StudioLive 16R');
+      const spy = jest.fn();
+      manager.on('state-ready', spy);
+
+      client.emit('connected');
+      jest.advanceTimersByTime(1000);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(manager.getMixerModel()).toBe('StudioLive 16R');
+      expect((manager as any).mixerDeviceName).toBe('Bench 16R');
+    });
+
+    it('keeps a name and model that discovery already supplied', async () => {
+      (manager as any).mixerModel = 'From discovery';
+      (manager as any).mixerDeviceName = 'Discovered';
+      client.state.__set('line.ch1.volume', 0.7);
+      client.state.__set('device.name', 'From state');
+      client.state.__set('device.model', 'From state');
+
+      client.emit('connected');
+      jest.advanceTimersByTime(1000);
+
+      expect(manager.getMixerModel()).toBe('From discovery');
+      expect((manager as any).mixerDeviceName).toBe('Discovered');
+    });
+
+    it('stays quiet while the state tree is still empty', () => {
+      const spy = jest.fn();
+      manager.on('state-ready', spy);
+
+      client.emit('connected');
+      jest.advanceTimersByTime(1000);
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+  });
+});
