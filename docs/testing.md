@@ -20,20 +20,28 @@ Nothing below is covered by any of that.
 
 - **✅** verified on that combination
 - **⬜** not yet verified
+- **❌** verified broken
 - **—** not applicable
 
 ## Where each platform actually stands
 
-macOS is the only platform where the app has been used against a console.
-Windows has shipped for several releases having never been run at all beyond
-compiling. Linux has never been run interactively — only headless under xvfb.
+macOS is the only platform where the app has been used interactively against a
+console. Windows has shipped for several releases having never been run at all
+beyond compiling. Linux has never been run interactively, but since 1.9.0 the
+hardware harness has run the real main process headless under xvfb on an Intel
+Linux host, connecting to both bench consoles and completing full backups — 31 of
+31 checks on a 16R and on a 32R.
 
 | | macOS | Windows | Linux x64 | Linux arm64 / Pi |
 |---|---|---|---|---|
 | App launches from a packaged build | ✅ | ⬜ | ⬜ | ⬜ |
 | MIDI devices enumerate | ✅ | ⬜ | ⬜ | ⬜ |
-| Connects to a mixer | ✅ | ⬜ | ⬜ | ⬜ |
+| Connects to a mixer | ✅ | ⬜ | ✅ ¹ | ⬜ |
 | Interactive click-through | ✅ | ⬜ | ⬜ | ⬜ |
+
+¹ From a source build under the hardware harness, headless — not a packaged build,
+and with no MIDI interface attached (the host has no ALSA sequencer, which is what
+found the enumeration crash fixed in 1.9.0).
 
 > **Raspberry Pi:** Electron 44 removed 32-bit ARM (`armv7l`). A Pi running a
 > 32-bit Raspberry Pi OS cannot run this app at all, regardless of what is
@@ -126,9 +134,14 @@ release yet.
 
 ## G. Configuration backup and restore
 
-Planned work, scoped in [config-backup-restore-plan.md](config-backup-restore-plan.md).
-G1 is reachable now with `--dump-tree`; the rest need code that does not exist
-yet and are listed so the sequencing is visible.
+Backup, restore and inspect shipped in 1.9.0, in the app and as command-line
+tools; the design is in [config-backup-restore-plan.md](config-backup-restore-plan.md).
+The rows marked *harness* were verified by the hardware integration harness
+(below), which drives the real main process and IPC handlers with the window
+hidden — the code behind the buttons, not a person clicking them. The plan's later
+tiers — authoring documents from live state, and migrating between models — are
+not built, so many of the remaining rows are waiting on code rather than on a test
+run.
 
 | # | Test | 16R | 32R | Notes |
 |---|------|-----|-----|-------|
@@ -142,9 +155,9 @@ yet and are listed so the sequencing is visible.
 | G8 | 16R → 32R migration, preflight diff accurate | — | ⬜ | 16 → 32 line, 6 → 16 aux, 8 → 24 DCA |
 | G9 | 32R → 16R migration, overflow channels dropped | ⬜ | — | |
 | G10 | Restore with Universal Control connected | ⬜ | ⬜ | Detect and warn; do not arbitrate |
-| G15 | **Backup from the app UI, with a console connected** | ❌ | ⬜ | **Stalls at document 1 of 70 and wedges the main process.** The same modules complete in 33s from the CLI. See plan §12.2 |
-| G16 | **Restore from the app UI, including the overwrite confirmation** | ⬜ | ⬜ | |
-| G17 | Progress bar moves during a backup | ⬜ | ⬜ | `console-transfer-progress` reaching the renderer |
+| G15 | **Backup from the app, with a console connected** | ✅ | ✅ | *Harness.* Was ❌ — stalled at document 1 of 70 and wedged the main process. Fixed in 1.9.0: the app's own console chatter, and four connect paths racing each other, were stalling and severing the transfer (plan §12.2, CHANGELOG). 70 documents in 8.6s wired on the 16R, 66 in 10.8s on the 32R |
+| G16 | **Restore from the app UI, including the overwrite confirmation** | ⬜ | ⬜ | The harness covers planning (writes nothing), refusal without the acknowledgement, and that a used plan cannot be re-applied. An applied restore has not been run through the app |
+| G17 | Progress bar moves during a backup | ✅ | ✅ | *Harness:* `console-transfer-progress` reaches the renderer. The bar moving on screen has not been watched |
 | G18 | Restore refused in Run mode, from the UI | ⬜ | ⬜ | Policy is verified; the UI message is not |
 | G11 | Permissions-restricted restore reports refusals | ⬜ | ⬜ | Rather than failing quietly |
 
@@ -254,6 +267,30 @@ directory:
 ```bash
 node tools/backup-console.js 192.168.21.41 -o ~/Documents/16R-restorepoint.bak
 ```
+
+### Running the harness on another machine
+
+Both harnesses run headless — the window is never shown and the dock icon is
+hidden — but on macOS Electron still activates as an app, so a run on your own
+workstation will interrupt whatever you are doing. Running from a second machine
+avoids that, and is also how the Intel Linux results above were produced.
+
+```bash
+tools/setup-test-host.sh 192.168.1.245
+ssh 192.168.1.245 'cd studiolive-midi-controller && node tools/hw-integration/run.js 192.168.21.41'
+```
+
+The host needs ssh key access, Node and yarn on its `PATH`, and a network route to
+the console. A Linux host also needs `xvfb` — the launcher wraps itself in
+`xvfb-run` when there is no display — and a macOS host needs a logged-in session.
+
+The script syncs this working copy (without `node_modules`, `dist` or `release`),
+installs, builds, and checks the transfer and keep-alive fixes are present. It ships
+the protocol library from your **sibling checkout** of `presonus-studiolive-api` as a
+packed tarball, not from the pinned tag, so the host tests whatever that checkout
+holds. That is what you want while changing the library, and it means a passing
+remote run says nothing about the pin: before a release, check that
+`package.json` pins a tag containing the same changes.
 
 ## Running these unattended
 

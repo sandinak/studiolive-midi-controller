@@ -329,7 +329,8 @@ that is the likely reason, and restarting Universal Control is the workaround.
 
 Reads every document off the console and writes a `.bak` archive in Universal
 Control's own format, so UC can still open it. Read-only — it never writes to the
-mixer. A 16R takes about 30 seconds for 69 documents.
+mixer. Measured on the bench: a 16R's 70 documents in about 9 seconds wired and
+37 over wifi, and a 32R's 66 in about 11.
 
 **Watch for the warning about user content.** If the console has no stored
 project, the archive contains only the factory library — not how the board is
@@ -357,6 +358,35 @@ Opens an archive and reports what is in it without touching a console at all —
 document counts, the shape of the console that wrote it, and which projects and
 scenes it holds. Useful for answering "is this backup actually any good?" before
 trusting it.
+
+### From the Command Line
+
+The same three operations run without the app, which is useful for scripting a
+backup before a show or working on a console from another machine. Each needs a
+build first (`npm run build`), because they use the app's own transfer code rather
+than a second copy of it.
+
+```bash
+# Back up — read-only against the console
+node tools/backup-console.js 192.168.21.41 -o ~/Documents/16R-before-show.bak
+node tools/backup-console.js 192.168.21.41 --compare ~/Documents/16R-before-show.bak   # what changed since
+
+# Restore — prints the plan and writes nothing unless --apply is given
+node tools/restore-console.js 192.168.21.41 showfile.bak
+node tools/restore-console.js 192.168.21.41 showfile.bak --only "Scene/01.X.scene"
+node tools/restore-console.js 192.168.21.41 showfile.bak --apply --allow-overwrite
+
+# Inspect — no console needed
+node tools/inspect-backup.js showfile.bak
+node tools/inspect-backup.js --channels showfile.bak
+node tools/inspect-backup.js --json showfile.bak
+```
+
+`--apply` on its own refuses the whole restore if the plan would replace any
+existing document; it needs `--allow-overwrite` as well, the command-line
+equivalent of the app's confirmation box. `--compare` takes a fresh backup and
+reports which documents differ from the archive named. Factory presets are skipped
+unless `--factory` is given, for the same reason as in the app.
 
 ## Preferences
 

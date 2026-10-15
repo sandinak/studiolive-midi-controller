@@ -27,6 +27,7 @@ MIDI control for Fender(PreSonus) StudioLive III mixers. Map DAW faders and auto
 - **Console channel presets** — recall the mixer's own preset library, with the ones matching each channel's instrument listed first
 - **Everything MIDI-mappable** — including the channel switches and preamp gain, with the Run-mode locks enforced against MIDI too
 - **About dialog** — version, licence, and the Electron/Chromium/Node versions worth quoting in a bug report, from the app icon
+- **Console backup & restore** — back up the mixer's stored scenes, projects and presets to a Universal Control–compatible `.bak` without Universal Control, inspect what a backup actually holds, and restore it with every overwrite listed first. Verified on a StudioLive 16R and 32R
 
 ## A Look Around
 
@@ -69,6 +70,17 @@ port. Connected MIDI devices each get their own color, which is then used to tin
 mappings they own.
 
 <img src="docs/images/mixer-discovery.png" alt="The Find Mixer dialog" width="380"> <img src="docs/images/midi-modal.png" alt="The MIDI Connection dialog" width="380">
+
+**🗄️ Console** in the header backs up the console's own stored scenes, projects and
+presets, talking to the mixer directly rather than through Universal Control, whose
+backup can report success while holding no connection at all. A restore is planned
+before anything is written: every document it would create or replace is listed, and
+replacing one has to be acknowledged, because there is no undo without another backup.
+Restore is refused in Run mode. The same operations are available from the command
+line as `tools/backup-console.js`, `tools/restore-console.js` (a dry run unless given
+`--apply`) and `tools/inspect-backup.js` — see the [usage guide](docs/usage.md#console-configuration).
+
+<img src="docs/images/console-config.png" alt="The Console Configuration dialog showing a planned restore, with two documents to be replaced" width="560">
 
 ## Quick Start
 

@@ -35,7 +35,7 @@ npm run build
 npm start
 ```
 
-> `presonus-studiolive-api` is a **pinned git dependency** (`#v1.8.1`) that builds
+> `presonus-studiolive-api` is a **pinned git dependency** (`#v1.11.0`) that builds
 > itself during install — no sibling checkout is required. It used to be a local
 > `file:` dependency, which is what older instructions describe. To develop against a
 > local checkout of it, use `make link-local`; `npm install` or `make release` restores
@@ -43,11 +43,16 @@ npm start
 
 ### From a Linux Package
 
-Download from the [Releases](https://github.com/sandinak/studiolive-midi-controller/releases)
-page — an **AppImage** (`chmod +x` and run, no installation), a **.deb**
-(`sudo apt install ./studiolive-midi-controller_*.deb`), or a **tarball**. x64 and
-arm64 builds are published separately; there is no universal Linux binary because
-the MIDI module is native code.
+> **Not published yet.** Linux packages are built for every release but are not
+> attached to it: the Linux UI has only been exercised headlessly, and ALSA MIDI
+> has not been tested against real hardware. Until then, build them yourself with
+> `make dist-linux` (see below), or download the `linux-packages` artifact from the
+> release workflow run on GitHub Actions.
+
+The packages are an **AppImage** (`chmod +x` and run, no installation), a **.deb**
+(`sudo apt install ./studiolive-midi-controller_*.deb`), and a **tarball**, built
+separately for x64 and arm64; there is no universal Linux binary because the MIDI
+module is native code.
 
 ### From DMG
 
