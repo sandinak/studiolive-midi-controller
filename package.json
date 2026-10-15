@@ -166,7 +166,7 @@
   "license": "MIT",
   "dependencies": {
     "easymidi": "^3.0.1",
-    "presonus-studiolive-api": "git+https://github.com/sandinak/presonus-studiolive-api.git#v1.10.0"
+    "presonus-studiolive-api": "git+https://github.com/sandinak/presonus-studiolive-api.git#v1.11.0"
   },
   "overrides": {
     "brace-expansion@1": "^1.1.18",
