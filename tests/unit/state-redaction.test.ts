@@ -279,7 +279,7 @@ describe('redactStateDump', () => {
       const segments = glob
         .split('/')
         .filter((s) => s !== '**')
-        .map((s) => (s === '*' ? 'ch1' : s.replace('*', 'mutegroup1')));
+        .map((s) => (s === '*' ? 'ch1' : s.replace(/\*/g, 'mutegroup1')));
       let node: unknown = 'SENTINEL';
       for (const segment of segments.reverse()) node = { [segment]: node };
       return node as Record<string, unknown>;
